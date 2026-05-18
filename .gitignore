@@ -1,0 +1,27 @@
+# Ephemeral working notes from Claude Code sessions
+working/
+
+# Baseline state snapshots (regenerated per audit)
+crawler-audit-baseline-*.txt
+crawler-audit-final-*.txt
+
+# OS cruft
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor / IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.bak
+
+# Future: LLM call traces or large debugging dumps
+*.trace
+*.dump
+debug_*.log
