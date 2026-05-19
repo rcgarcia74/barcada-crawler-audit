@@ -85,13 +85,22 @@ Each workstream is structured so its outputs are validated against the baseline 
 
 ### Week 1, Days 1-2: Critical Repairs
 
-Embarrassing-if-discovered-publicly fixes:
+**Status: COMPLETED 2026-05-19.** Commits 96dcbfd, bef4b80, 3fa3228, 7f3756b, b7089eb, 3dec85b, 45bbe30, 26771e9, a156727 on `main`. Branch was 9 commits ahead of `origin/main` at completion of Days 1-2.
 
-- Delete `auth_403/grimsfairytales.net.html` (0 bytes) and replace with a real 403-returning capture
-- Replace `legitimate_nonprofit/wikipedia.org.html` (141-byte robots rejection) with an actual non-profit homepage
-- Decide on `soft_404/`: replace all 14 non-conforming fixtures with 6 real conforming captures (candidate fixture #8), or remove the directory entirely if not testing soft_404 detection
-- Decide on `empty_google_sites/`: same — replace with 3 conforming fixtures or remove the category
-- Audit truncation suspects: `spa_shell/shelterstoreau.com.html` (200,000 bytes exact), `spa_shell/shelterstores.com.html` (131,072 bytes exact), three files at 32,752 bytes exact. Re-capture or accept with notes.
+Embarrassing-if-discovered-publicly fixes (executed):
+
+- **C0.1** (96dcbfd): Deleted `auth_403/grimsfairytales.net.html` (0 bytes). `auth_403/` retains 14 fixtures; 10 conform to 403/auth markers under a broad-grep check; alphabetically-first surviving file is `bestlyn.com.html` (real "403 Forbidden" page, 548 B).
+- **C0.2** (bef4b80): Replaced `legitimate_nonprofit/wikipedia.org.html` (141 B robots-rejection) with `mozilla.org.html` (48,389 B real Mozilla Foundation homepage). Mozilla is tech-leaning; Week 3+ C22 expansion adds archetypal nonprofits for balance.
+- **C0.3** (3fa3228): Resolved `soft_404/` — deleted all 14 non-conforming fixtures (0 of 14 matched detector markers under a first-2000-char length-guarded grep). 6 conforming captures scheduled for Week 5 (see C0.3-followup). Detector retains test coverage via inline synthetic HTML in 7 test files (`test_soft_404.py`, `test_barriers.py`, `test_refinements.py`, `test_check_domains_instrumentation.py`, `test_text_cleaning.py`, `test_validator_metrics.py`, and via name-reference in `test_hard_exclusions.py`).
+- **C0.4** (7f3756b): Resolved `empty_google_sites/` — deleted all 3 non-conforming fixtures (Google-Sites-flavored `ppConfig` output but missing the editor-frontend SDK markers the detector requires: `sites-viewer-frontend` / `atari.vw.` / `normalizedPath.*view/`). 3 conforming captures scheduled for Week 5 (see C0.4-followup). Detector retains test coverage via inline synthetic HTML in 2 test files (`test_barriers.py` lines 1170-1175; `test_body_reserve.py` lines 439/457/480).
+- **C0.5 truncation suspects** (5 files; resolved in commits b7089eb, 3dec85b, 45bbe30, 26771e9, a156727):
+  - `spa_shell/shelterstoreau.com.html` (200,000 B exact): deleted (C0.5a). Recapture revealed misclassification — underlying domain is real e-commerce ("AU Outdoor Equipment..."), not an SPA shell. The truncation made it look SPA-ish. Fresh capture deferred to audit C18 (legitimate_business/ expansion).
+  - `spa_shell/shelterstores.com.html` (131,072 B exact): deleted (C0.5b). Same misclassification ("Firesettle Camp Shop..."). Fresh capture deferred to audit C18.
+  - `soft_404/ssptonline.com.html` (32,752 B): absorbed by C0.3 corpus reset.
+  - `parking_sale/shelvs.com.html` (32,752 B): replaced in-place with fresh recapture (C0.5c). New capture is a clean HugeDomains landing (43,512 B); conforms to `parking_sale/` spec with 92 for-sale marker matches.
+  - `legitimate_business/sanmarcosflowershop.com.html` (32,752 B): C0.5d (26771e9) initially "accepted with notes" based on a single TLS failure on first recapture attempt. **C0.5d-followup (a156727) diagnosed the TLS failure as transient** (3-attempt probe showed 1 fail + 2 success; openssl confirmed a valid GoDaddy cert chain) and replaced the fixture in-place with the fresh capture (485,599 B; following 301 redirect from `sanmarcosflowershop.com` to `flowersbyroberttaylor.com`). Lesson captured in Risk Register §11.
+
+Net corpus change: 197 → 177 fixtures. Two directories (`soft_404/`, `empty_google_sites/`) currently empty; repopulation scheduled Week 5.
 
 ### Week 1, Days 3-5: Fix the Test Selection Pattern
 
@@ -118,9 +127,10 @@ For each, ensure the captured HTML contains the actual hydration payload, not ju
 
 Closes the most damaging production-coverage gaps:
 
-- **Candidate #5:** 6 international-TLD fixtures (2× .de, 2× .jp, 1× .fr, 1× .com.br) in new `international_business/<locale>/` — unblocks Action #20 (regional policy)
+- **Candidate #5 (revised per operator decision 2026-05-19):** 3 international-TLD fixtures (1× .de, 1× .jp, 1× .com.br) in new `international_business/<locale>/` — unblocks Action #20 (regional policy) at ~85%. CCPA (US, IP-based not TLD-based) and PIPL (.cn) coverage are deferred regardless of fixture count and will be addressed in a separate work item with appropriate test infrastructure (geoip mocking for CCPA; dedicated .cn anti-bot handling for PIPL).
 - **Candidate #6:** 3 mega-menu fixtures with `aria-haspopup` triggers + multi-column nested `<ul>` panels — unblocks Action #13 (mega-menu activation)
 - **Candidate #4:** 5 modern SaaS fixtures in `legitimate_business/` with hreflang + canonical + JSON-LD Organization schema — addresses the 60-pp production-coverage gap
+- **Candidate #22 (new, follow-up to C0.2 commit bef4b80):** 2-3 archetypal nonprofit fixtures extending `legitimate_nonprofit/`. Targets: Wikimedia Foundation, an `@type=EducationalOrganization` (e.g., khanacademy.org), and an archetypal philanthropy (e.g., doctorswithoutborders.org or worldwildlife.org). Closes the representation gap noted in C0.2 — mozilla.org is the tech-leaning corner of an otherwise underrepresented directory; C22 makes `legitimate_nonprofit/` a 4-5 fixture mix with proper representation across tech, education, and philanthropy archetypes. Each new capture should have JSON-LD Organization or NGO schema (closing the audit's noted JSON-LD-absent gap from mozilla.org).
 
 ### Week 4: Provenance and Expected Outputs
 
@@ -166,6 +176,9 @@ Generate expected outputs once, human-review them, commit. Subsequent test runs 
 
 - **Candidate #3:** 20 fixtures (5 domains × 4 pages each) in new `multipage_boilerplate/<domain>/{home,about,pricing,products}.html` — enables Action #5 evaluation (does existing `detect_cross_page_banners()` cover what SimHash would?)
 - **Candidate #10:** 3 multilingual parking fixtures (Cyrillic, CJK, Japanese) — closes detection coverage
+- **C0.3-followup (new):** 6 conforming `soft_404/` captures with real `_RE_SOFT_404` / `_RE_EXPANDED_SOFT_404` markers (`did you mean`, `showing results for`, `no results found`, `popular searches`, `trending searches`, `people also search for`, `try a different search`). Repopulates the directory emptied by C0.3 in Week 1 Days 1-2.
+- **C0.4-followup (new):** 3 conforming `empty_google_sites/` captures with real `sites-viewer-frontend` / `atari.vw.` / `normalizedPath.*view/` markers and `class="tyJCtd"` empty-content `<div>`s. Repopulates the directory emptied by C0.4 in Week 1 Days 1-2.
+- **Synthetic-with-real-markers fallback policy (applies to C0.3-followup, C0.4-followup, and any future capture work):** real-domain captures are preferred. If real-domain sourcing fails (no current production examples available, persistent anti-bot blocks, or domain not in the production crawl yet), synthetic fixtures with real detector markers are acceptable substitution — same pattern as the existing 20 `*_synthetic.html` files in the corpus. Document the fallback explicitly in commit messages and (once Week 4 lands) in `meta.json` via a `capture_method: "synthetic_with_real_markers"` field. Synthetic substitution is not a permanent state; flag for re-capture in a future quarterly fixture refresh.
 - Edge-case robustness fixtures:
   - 1 huge HTML fixture (>1MB) for memory/parsing stress
   - 1 tiny but legitimate fixture (<2KB, non-stub)
@@ -631,6 +644,12 @@ Per the original audit's anti-patterns section, the train/serve mismatch gate is
 ### Production-canary distribution shift
 
 The fixture audit found production canary at 2% parking, 68% "ok". If the canary's domain mix shifts (different vintage of zone-file inputs, different ad-hoc additions), the production-vs-fixture comparison breaks. Document the canary's source and version.
+
+### Recapture tooling needs retry policy (new, lesson from C0.5d → C0.5d-followup, 2026-05-19)
+
+Single-attempt curl is insufficient diagnostic when assessing whether a TLS or connection failure is persistent vs transient. During C0.5 audit, `sanmarcosflowershop.com.html` was initially "accepted with notes" based on one curl exit-35 (TLS internal error); subsequent diagnostic (3-attempt retry probe + openssl handshake verification) showed the failure rate was ~30% on a single attempt and the underlying TLS handshake actually works fine, prompting a follow-up replacement (C0.5d-followup, commit a156727).
+
+**Mitigation for future capture work:** any future capture or recapture tooling (Week 2 SPA hydration captures, Week 3 international and SaaS captures, Week 5 `soft_404`/`empty_google_sites` repopulation, audit C22 nonprofit expansion, and the Week 4 `scripts/fixtures/regenerate_expected.py` script) must implement retry-on-connection-error policy (≥3 attempts with exponential backoff on TLS, DNS, connection-reset, and timeout failures) before drawing a persistence conclusion. This mirrors the production crawler's existing exponential-backoff retry pattern in `fetcher.py:316-318` and ensures fixture corpus health decisions are grounded in stable diagnostics rather than transient network conditions.
 
 ---
 
