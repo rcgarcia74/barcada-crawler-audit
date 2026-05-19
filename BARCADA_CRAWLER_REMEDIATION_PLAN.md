@@ -17,6 +17,8 @@ A specialized four-stage classification pipeline (domain validation → business
 
 This scope materially changes which audit findings apply. Sections of the original framework covering internationalization, label-to-intent matching, and multi-locale path dictionaries are largely out of scope for the current product. Findings under these sections are deferred unless international expansion is planned.
 
+**PII detection and redaction (originally audit Action #19) is excluded from this plan by explicit scope decision.** The audit identified the absence of PII handling as a gap; this plan does not address it. Reasons may include: PII handling is owned by a separate team, classification inputs must not be modified by extraction-side redaction, or the work is deferred to a future cycle. If/when PII work is in scope, it should be addressed in a separate plan with AI/ML team review of input-modification implications.
+
 ### Where the crawler is genuinely strong
 
 Acknowledged before listing gaps, because building on strengths matters:
@@ -40,7 +42,7 @@ Despite the strengths, real gaps remain:
 - **Per-domain budgets.** Only global ceiling exists; one runaway domain can consume the whole budget.
 - **SPA hydration extraction.** Zero of 197 fixtures contain `__NEXT_DATA__`, `__NUXT__`, `__APOLLO_STATE__`, etc. No hydration extraction in code either.
 - **Interactive rendering.** Renderer is purely passive; no mega-menu activation, no hover/click/focus interaction.
-- **PII handling.** No detection, no redaction, no regional policy enforcement.
+- **Regional policy enforcement.** No `regional_policy.json`; no field-level emit rules per jurisdiction; no policy stamping on records.
 - **Persistent strategy cache.** Per-domain tier learning is in-memory per shard, lost between runs.
 - **Documentation artifacts.** `ARCHITECTURE.md`, `CRAWLING_POLICY.md`, `FAILURE_PATTERNS.md` don't exist as named files.
 
@@ -70,7 +72,7 @@ The remediation work is sequenced into six workstreams, each with explicit prere
 | A: Compliance Foundation | 8-9 | robots.txt parser, identifiable UA, docs, anti-pattern cleanup |
 | B: Cost & Observability | 10-12 | Cost-per-useful-record, per-domain budgets, structured logging, metrics |
 | C: High-Leverage Extraction | 13-16 | SPA hydration, network interception, mega-menu activation, HTML→Markdown |
-| D: Compliance Hardening | 17-19 | PII detection, regional policy, version stamping |
+| D: Compliance Hardening | 17-19 | Regional policy, version stamping, sitemap/canonical, region-aware proxy routing |
 | E: Quality Infrastructure | 20+ | CI regression gates, drift detection, acceptance criteria, ongoing |
 
 Each workstream is structured so its outputs are validated against the baseline established by the previous workstream. Workstream 0 protects everything; Workstream A.0 protects the rest.
@@ -118,7 +120,6 @@ Closes the most damaging production-coverage gaps:
 
 - **Candidate #5:** 6 international-TLD fixtures (2× .de, 2× .jp, 1× .fr, 1× .com.br) in new `international_business/<locale>/` — unblocks Action #20 (regional policy)
 - **Candidate #6:** 3 mega-menu fixtures with `aria-haspopup` triggers + multi-column nested `<ul>` panels — unblocks Action #13 (mega-menu activation)
-- **Candidate #9:** 5 PII fixtures in `pii_positive/` (synthetic safe PII: 555-01XX phones, @example.com emails) and `pii_negative/` — unblocks Action #19 (PII detection)
 - **Candidate #4:** 5 modern SaaS fixtures in `legitimate_business/` with hreflang + canonical + JSON-LD Organization schema — addresses the 60-pp production-coverage gap
 
 ### Week 4: Provenance and Expected Outputs
@@ -178,7 +179,7 @@ By end of Week 5:
 - All 197 existing fixtures audited for conformance to directory specification
 - All broken/empty/misleading fixtures replaced
 - `sorted(glob)[0]` pattern eliminated from tests
-- ~50 new fixtures added across hydration, mega-menu, PII, international, multipage, edge cases
+- ~50 new fixtures added across hydration, mega-menu, international, multipage, edge cases
 - Every fixture has `meta.json` and `expected/` outputs
 - Test utilization at or near 100% (every fixture in a directory is tested)
 
@@ -450,16 +451,9 @@ The risk profile of Workstream C is high. Trust the baseline.
 
 ## 8. Workstream D: Compliance Hardening (Weeks 17-19)
 
-**Why now:** PII and regional policy work depends on per-domain crawl history and version stamping from Workstream B. Also depends on PII and international fixtures from Workstream 0.
+**Why now:** Regional policy and version stamping work depends on per-domain crawl history from Workstream B. Also depends on international fixtures from Workstream 0.
 
 ### Items
-
-**Action #19: PII detection + redaction** (~250 LOC)
-
-- `presidio-analyzer` integration or curated regex set for: email, phone, SSN, credit card, address, name
-- Emit `pii_findings` field per record
-- Redact per `regional_policy.json` (next item)
-- Validated against `pii_positive/` and `pii_negative/` fixtures from Workstream 0
 
 **Action #20: regional_policy.json** (~200 LOC + JSON config)
 
@@ -488,7 +482,7 @@ The risk profile of Workstream C is high. Trust the baseline.
 
 ### Validation
 
-Workstream D is mostly additive (new fields, new checks). Existing fixtures should not regress. International fixtures and PII fixtures should now produce the expected detection/redaction.
+Workstream D is mostly additive (new fields, new checks). Existing fixtures should not regress. International fixtures should now produce the expected region routing and policy emit behavior.
 
 ---
 
@@ -545,7 +539,7 @@ The Section 9 items (label-to-intent matching cascade) are N/A under current pro
 
 ## 10. Candidate Fixtures Reference
 
-The 10 highest-priority fixtures identified by the fixture audit, with sourcing guidance:
+The 9 highest-priority fixtures pursued from the fixture audit (the audit identified 10; PII fixtures are excluded per scope decision):
 
 ### CRITICAL (blocks Workstream C)
 
@@ -594,14 +588,9 @@ The 10 highest-priority fixtures identified by the fixture audit, with sourcing 
    - Real "no results found" pages
    - Must contain markers from `_RE_SOFT_404` / `_RE_EXPANDED_SOFT_404`
 
-9. **5 PII positive + 3 PII negative fixtures** in `pii_positive/` and `pii_negative/`
-   - Positive: safe synthetic PII (555-01XX phones, @example.com emails, fake SSNs starting with 999)
-   - Negative: legitimate B2B content without PII
-   - Unblocks Action #19
-
 ### MEDIUM (cheap, closes detection coverage)
 
-10. **3 multilingual parking fixtures** in `parking_multilingual/<script>/`
+9. **3 multilingual parking fixtures** in `parking_multilingual/<script>/`
     - Cyrillic, CJK, Japanese variants
     - Detector handles these but no fixture exercises them today
 
@@ -629,7 +618,7 @@ Fixtures captured April 25, 2026 will become stale over time. Anti-bot defenses 
 
 ### Schema bumps cascade
 
-Adding `useful_records_count`, `crawler_version`, `policy_version`, `taxonomy_version`, `pii_findings`, `efficiency_flags` all bump the schema. Expected outputs need regeneration with each bump. Plan schema bumps deliberately (batch them per workstream rather than scattered).
+Adding `useful_records_count`, `crawler_version`, `policy_version`, `taxonomy_version`, `efficiency_flags` all bump the schema. Expected outputs need regeneration with each bump. Plan schema bumps deliberately (batch them per workstream rather than scattered).
 
 ### LLM cost drift during baseline regeneration
 
