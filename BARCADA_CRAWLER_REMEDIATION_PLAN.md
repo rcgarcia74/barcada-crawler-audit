@@ -700,4 +700,98 @@ For Claude Code prompts implementing specific actions, draft per-workstream prom
 
 ---
 
+## 14. Session Continuity Discipline
+
+A 20-week remediation executed across many Claude Code sessions requires explicit continuity discipline. Without it, each session reinvents wheels, loses prior decisions, and risks contradicting earlier operator choices. This section documents the artifacts, updating cadence, and transition mechanics that hold the work together.
+
+### Durable artifacts
+
+The team relies on a fixed set of documents and references. Treat these as authoritative; reconstruct nothing from memory.
+
+**Workspace (`~/crawler-audit/`):**
+- `AUDIT_REPORT.md` — code audit, 30 prioritized actions. Read-only; never edited after the fact.
+- `FIXTURE_AUDIT_REPORT.md` — fixture quality audit, 10 candidate fixtures. Read-only.
+- `CLASSIFICATION_ADJACENT_PLAN.md` — classification-adjacent items for AI/ML review. Updated only when AI/ML decisions land.
+- `BARCADA_CRAWLER_REMEDIATION_PLAN.md` — this file; the operational plan. UPDATED inline as decisions land.
+- `SESSION_LOG.md` — append-only chronological session log. Updated at end of each session/work unit.
+- `SESSION_TRANSITION_TEMPLATE.md` — template filled out at session-end for the next session to read first.
+- `AUDIT_DIRECTIVE.md`, `FIXTURE_AUDIT_DIRECTIVE.md` — historical directives used to produce the audit reports. Read-only.
+- `README.md` — workspace overview.
+
+**Repo (`~/projects/barcada-scraper/`):**
+- Annotated git tags: `pre-remediation-2026-05-19` (nuclear-revert anchor), `baseline-v0` (Week 7, single tag at post-expected-outputs commit), and future workstream tags as agreed.
+- Commit messages on `main` — each commit cites its action number (C0.1, C0.2, …) and serves as durable record. The git log IS part of the persistence; commit message bodies are the canonical "what and why."
+- `CLAUDE.md`, `.claude/rules/*.md` — operator preferences and code rules. Honored every commit.
+
+**Locked artifacts (do not modify under any circumstance):**
+- All of `eval_data/` — labeling-workstream territory (including `canary_50_domains.txt`, read-only consumable for Workstream A.0 canary wiring).
+- `stage1.schema.json` v1.0 with 49 keywords — schema evolution is a labeling-workstream decision, post-Stage-3-completion, as a v1.1 event.
+- The `pre-remediation-2026-05-19` tag — operator-created, do not retag or move.
+
+### Updating discipline
+
+| When | What to update | Why |
+|---|---|---|
+| Operator approves a decision | This plan (inline section update) + `SESSION_LOG.md` entry | Decisions decay if not recorded |
+| A commit lands on `main` | `SESSION_LOG.md` (commit SHA + scope, in the current session entry) | Future sessions need a quick map of "what shipped" |
+| A discovery contradicts the plan | This plan (revision) + `SESSION_LOG.md` (discovery flagged) + the commit message of the resolving commit | Step 6 discovery escalation requires durable record in three places |
+| A risk materializes or a forward-applicable lesson is captured | §11 Risk Register + `SESSION_LOG.md` | Lessons must be visible to all future capture/code work, not just the session that learned them |
+| A workstream begins or ends | `SESSION_LOG.md` entry + this plan's workstream status update | Mark progress against the 20-week plan |
+| A session opens or closes | `SESSION_LOG.md` (new entry on open; close summary on close) + fill out `SESSION_TRANSITION_TEMPLATE.md` on close | Establish continuity context |
+
+Never update:
+- `AUDIT_REPORT.md` or `FIXTURE_AUDIT_REPORT.md` — these are point-in-time audits; their value is preservation.
+- Older `SESSION_LOG.md` entries — corrections go in a new entry; old entries are historical.
+- The `pre-remediation-2026-05-19` tag.
+
+### Context-window awareness pattern (Claude Code)
+
+Claude Code sessions have finite context. Larger contexts increase compaction risk and per-turn cost. To keep work reliable across sessions:
+
+**Self-monitoring cadence (proactive, not on request):**
+- Report estimated context usage at ~20%, ~40%, ~60% of available window.
+- Report format: rough % used, recommendation (continue / transition), one-paragraph rationale.
+
+**Transition triggers (any one is sufficient):**
+- Context usage crosses ~50-60%.
+- Natural workstream boundary reached (end of Workstream 0 Week 1; end of Workstream A; etc.).
+- The work unit's character changes substantially (fixture cleanup → live capture work; documentation → code refactor; static fixtures → SPA hydration captures).
+- Operator explicitly requests transition.
+
+**Anti-patterns to avoid:**
+- Mid-commit-batch transitions. Always finish in-progress sub-commits before handing off.
+- "I have plenty of room" optimism without measurement.
+- Carrying decisions in conversation memory instead of writing them to durable artifacts.
+- Re-deriving state from full document re-reads when `SESSION_LOG.md` would summarize it in 30 seconds.
+
+### Transition mechanics
+
+When a session ends or transitions to a new one:
+
+1. **Wrap in-progress work.** Finish any in-flight sub-commits and reach a clean git state. No half-done commits, no orphaned working-tree changes. If a sub-commit is mid-way and time is short, finish it; do not stop in the middle.
+2. **Update `SESSION_LOG.md`.** Add or close the current session's entry with:
+   - Final state (commits produced, workspace updates, decisions recorded)
+   - Open items (what's queued for the next session)
+   - Any operator decisions made that aren't yet in the plan body
+3. **Fill out `SESSION_TRANSITION_TEMPLATE.md`** for the next session. The template captures:
+   - Last commit SHA on repo `main`; last commit on workspace `main`
+   - Active task list state
+   - Outstanding operator decisions blocking the next work unit
+   - Locked artifact reminders
+   - Next concrete work unit (action ID + scope + acceptance criteria)
+4. **Push everything.** Workspace commits to workspace origin; repo commits to repo origin. The next session reads from origin, not from local working trees.
+5. **Tag at workstream boundaries** (optional but useful): `git tag workstream-0-week1-end <sha>` etc. Tags supplement `SESSION_LOG.md`; they don't replace it.
+
+A new session starts by:
+1. Reading `SESSION_TRANSITION_TEMPLATE.md` (current handoff state).
+2. Reading the latest entry of `SESSION_LOG.md`.
+3. Reading only the relevant section of this plan for the next work unit (not the whole plan).
+4. Verifying repo state: `git -C ~/projects/barcada-scraper status` matches the transition template's "last commit SHA."
+5. Verifying workspace state: same for `~/crawler-audit/`.
+6. Picking up at the action ID specified in the transition template.
+
+The aim: a Claude Code session opened cold should be productive within ~10 minutes of reading.
+
+---
+
 *End of remediation plan. Living document — update as workstreams complete and findings evolve.*
