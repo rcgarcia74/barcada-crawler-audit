@@ -202,3 +202,162 @@ Open items entering Days 3-5:
   expected per §11 Risk #3, the fixture-rot acceptance window).
 
 Next: C0.7a (delete spa_shell/bestmakeupsale.com.html).
+
+---
+
+## Session 6 — Workstream 0 Week 1 Days 3-5 execution + Week 1 close (2026-05-19)
+
+Scope: 7 commits to close out Workstream 0 Week 1 — 4 audit §6
+fixture relocations (C0.7a-d) + sorted(glob)[0] refactor (C0.8) +
+new directory-spec conformance test (C0.9, lands with expected red
+builds per Risk #3) + 1 format follow-up (C0.8-format-fix).
+
+Repo commits (7 total, all on `main`, all pushed to origin):
+- `f51ca15` C0.7a: delete spa_shell/bestmakeupsale.com.html (51 B
+  GMO parking, non-conforming). Per-operator decision: delete rather
+  than move to parking_redirect_targets/ — audit hedged on
+  destination and neither parking_redirect_targets/ nor a
+  hypothetical parking_gmo/ cleanly matches the fixture content.
+- `650d06d` C0.7b: delete auth_403/gripwellsports.net.html (44 KB
+  real WordPress site, misclassified). Delete rather than move to
+  legitimate_business/ — 24-day-old capture; fresh modern-WP
+  fixtures coming via audit C18 in Week 3+.
+- `4f8dc06` C0.7c: batch-move 4 nginx-401 files from
+  parking_default_pages/ to auth_403/ (sanmarcosdentists,
+  sanmarcosflower, sanmarcosforsale, sanmarcoshouse). All four
+  retain "401 Authorization Required" title; parking_default_pages/
+  now 2/2 conform (grigolato IIS + sanluishouston nginx-welcome).
+- `7b9fa60` C0.7d: delete parking_errors/bestmactips.com.html
+  (Cloudflare 526 SSL error). Per-operator decision: delete rather
+  than move to cloudflare_challenge/ — Cloudflare 5xx errors don't
+  match _RE_CLOUDFLARE_CHALLENGE (targets JS interstitials).
+- `684a9ba` C0.8: refactor sorted(glob)[0] → _iter_fixtures() in
+  test_hard_exclusions.py; parametrize 8 high-conformance directory
+  tests (cloudflare_challenge, meta_refresh_parking,
+  noindex_empty_title, parking_builders_expired, parking_cms,
+  parking_control_panels, parking_multilingual,
+  parking_default_pages). Test count 43 → 64 passed.
+- `6dace7d` C0.9: add tests/scraper/test_fixture_conformance.py.
+  Enumerates every fixture in every directory; asserts each matches
+  its directory's detector. **Lands with 17 red builds**
+  (acceptable per Risk #3 fixture-rot acceptance window). Result:
+  145 passed + 17 failed + 2 skipped.
+- `4f9d23f` C0.8-format-fix: ruff format follow-up to C0.8
+  (collapsed 3-line `extract_hard_exclusions(...)` calls to single-
+  line; pre-push gate caught the format mismatch). Pure formatting;
+  no logic change. pytest still 64 passed.
+
+Annotated tag created: `workstream-0-week1-end` at `4f9d23f`
+(pushed to origin). Pre-push gate is green at this SHA; pushable
+state. Tag location flagged to operator (operator preferred 6dace7d
+literally, but 4f9d23f was retained because it's the last fully-
+green commit).
+
+Test surface change:
+  test_hard_exclusions.py: 43 → 64 passing (parametrized 8 dirs)
+  test_fixture_conformance.py: NEW, 162 collected
+  Fixture utilization for the HTML corpus: ~7% → near-100%
+
+──────── Week 5 cleanup punch list (17 failing fixtures) ────────
+
+spa_shell/ (3 of 17):
+  sanmarinoiron.com — audit-noted has_nav=1, ambiguous SPA/full
+  sheltrise.com — body fails SPA detector paths
+  ssronghua.com — body fails SPA detector paths
+
+auth_403/ (7 of 17):
+  bestlyn.com — bare nginx-403, no "permission denied" phrasing
+  bestmacclub.com — same bare-403 pattern
+  grigna.net — audit-identified non-conformer
+  sanmaolv.com — bare-4xx pattern
+  ssptjp.com — audit-identified non-conformer
+  ssquaresemi.com — audit-identified non-conformer
+  ssrcbank.com — bare-4xx pattern
+  (NOTE: the 4 nginx-401 files moved in by C0.7c DO pass the
+   conformance check, likely via a secondary detector path.)
+
+legitimate_business/ (4 of 10):
+  sanluisfinancial.com — 1064 B, "tiny for a real business"
+  sheltonestates.com — body fails legitimacy gates
+  ssquaredassociates.com — 150 B truncated mid-meta
+  ssquaredbicycles.com — 8192 B suspiciously round, no block tags
+
+legitimate_blog/ (2 of 3):
+  danluu.com — 405 B intentionally minimal (audit said edge-case
+    CONFORMS but strict test treats as insufficient_content)
+  jvns.ca — 1.4 KB Hugo minimal
+
+legitimate_nonprofit/ (1 of 3):
+  archive.org — audit said this CONFORMS as a 2.7 KB nonprofit;
+    failure warrants Week 5 investigation
+
+────────────── End-of-Week-1 net state ──────────────
+
+Repo: 16 commits ahead of `pre-remediation-2026-05-19` (9 from
+Days 1-2 + 7 from Days 3-5), all pushed to origin/main.
+Tag `workstream-0-week1-end` created at `4f9d23f` (pushed).
+
+Fixture corpus: 197 → 175 fixtures (rough count; +1 mozilla.org,
+-14 soft_404, -3 empty_google_sites, -1 zero-byte grimsfairytales,
+-1 141-byte wikipedia, -2 misclassified spa_shell, -1 GMO parking,
+-1 misclassified WP, -1 Cloudflare 526, -0 truncation suspects
+resolved in place via C0.5c/C0.5d-followup, 4 nginx-401 moved
+within corpus = net zero).
+
+Pre-push validation passes at HEAD: ruff check/format/vermin/
+eval_data validation all green at 4f9d23f.
+
+──────── Discovery during Days 3-5 execution ────────
+
+- Two of the C0.5 truncation suspects (shelterstoreau,
+  shelterstores) were misclassified-via-truncation — they're real
+  e-commerce sites that the truncation made look SPA-like. Fresh
+  captures deferred to audit C18.
+- sanmarcosflowershop.com TLS failure on first C0.5d attempt was
+  transient; C0.5d-followup replaced in-place after retry probe.
+  Lesson captured in plan §11 Risk Register and now in LESSONS.md.
+- Operator's initial SESSION_LOG.md content (in workspace commit
+  e3f5691) was speculative and inaccurate; replaced with truth-of-
+  record entries in workspace commit 2e21c2d.
+
+──────── Operator decisions made during Days 3-5 ────────
+
+- C0.7a/C0.7d disposition: DELETE rather than move when audit
+  hedged on destination directory and detector wouldn't fire on
+  the fixture's actual content in either bucket. Pattern recorded
+  in LESSONS.md.
+- C0.7c commit shape: batch 4 nginx-401 moves into one commit
+  (same decision, same target). Pattern recorded in LESSONS.md.
+- C0.8 parametrize policy: only directories with 100% audit-
+  confirmed conformance, to keep pytest green. Low-conformance
+  directories surface their rot via C0.9 conformance test instead.
+- C0.9 lands with red builds (17 failures); xfail markers NOT
+  added. Each red is a Week 5 cleanup action item.
+- Tag at 4f9d23f (not 6dace7d) — retained at HEAD after operator
+  reviewed trade-off (4f9d23f has clean pre-push gate; 6dace7d
+  would have ruff format check failing).
+
+──────── Workspace updates this session ────────
+
+- (this commit, SHA TBD) SESSION_LOG.md Session 6 entry +
+  SESSION_TRANSITION_TEMPLATE.md fill for Week 2 + LESSONS.md
+  create (transition prep for Session 7).
+
+──────── Open items entering Week 2 ────────
+
+- C1 series (Week 2): 9 SPA hydration captures across 4 new
+  directories (3 Next.js, 2 Nuxt, 2 Apollo, 2 Redux). Audit
+  candidates C1-C4.
+- All Week 2 captures MUST use retry-on-TLS-error policy ≥3
+  attempts per LESSONS.md / plan §11 Risk Register.
+- Update test_fixture_conformance.py COVERED set when each new
+  spa_hydration_*/ directory lands; consider adding hydration-
+  payload-specific conformance assertions (e.g., parseable JSON
+  in __NEXT_DATA__).
+- Week 5 punch list (17 fixtures above) is reserved for Week 5;
+  Session 7 should NOT touch these — they're tracked, intentional
+  reds.
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+Next concrete work: C1.1 (3 Next.js hydration captures into new
+spa_hydration_next/ directory).
