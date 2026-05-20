@@ -462,9 +462,12 @@ Workstream 0 Week 2 (Critical SPA Hydration Fixtures) is complete.
 lock" discipline established by C1.1's App Router discovery was
 applied to all 4 framework directories and surfaced 3 more
 production-extinction findings (Nuxt 2, Apollo SSR, Redux SSR).
-Net Week 2 fixtures added: 11 (3 Next.js + 3 Nuxt + 2 Apollo +
+Net Week 2 fixtures added: 10 (3 Next.js + 3 Nuxt + 2 Apollo +
 2 Redux), spanning real production captures and §11 synthetic-
-with-real-markers fallbacks.
+with-real-markers fallbacks. (Total Session 7 repo commits is 11
+— 10 fixture-add commits plus the C1.5 conformance test
+extension; an earlier draft of this entry conflated "commits" and
+"fixtures" as 11 each. See Week 2 audit erratum below.)
 
 Workspace commits this session (~/crawler-audit/):
 - `29d1bed` Session 7 open: C1.1 scope revision + LESSONS
@@ -592,7 +595,7 @@ Forward implication: AUDIT_REPORT.md Action #1 (hydration extraction)
 will need to target App Router RSC streaming as a first-class
 pattern, not just `__NEXT_DATA__`. The detector designed against
 just the legacy markers would miss the dominant modern production
-reality. The 11 fixtures from C1.1-C1.4 give the eventual Action #1
+reality. The 10 fixtures from C1.1-C1.4 give the eventual Action #1
 detector the full pattern surface to test against. Codified in
 LESSONS.md "Probe framework generation before locking a fixture
 spec" for forward-applicable use in C5+, C18+, C22+, and any future
@@ -635,3 +638,63 @@ empty directories) remains untouched. Do NOT touch in Week 3.
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
 Next concrete work: choose Week 3 first action (C5.a recommended:
 1× .de international B2B capture with hreflang alternates).
+
+──────── Week 2 audit erratum (2026-05-20, post-close) ─────────
+
+Operator requested a Week 2 quality double-check immediately
+after the Session 7 close commit (workspace f41570b). The audit
+verified all 10 fixtures parse to documented payload sizes, the
+17 Week 5 punch list reds were unchanged, pre-push gates were
+green, the plan was untouched, and the conformance test passed
+all .claude/rules/ scans (no isinstance / dict.get / .items() /
+global / import * / mutable-defaults / == None|True|False). Three
+issues were surfaced:
+
+1. **Cyclomatic complexity violation** (real, fixed):
+   `_balanced_brace_json` in
+   `tests/scraper/test_fixture_conformance.py` had McCabe
+   complexity 11, exceeding the .claude/rules/code-quality.md
+   "≤10 decision points → refactor" trigger (ruff C901:
+   "11 > 10"). The C1.5 commit message (e5d2f91) claimed 8
+   decision points — this was a measurement error. Pre-push gates
+   missed it because the project's ruff `select = ["E", "F", "W",
+   "I"]` (pyproject.toml) does not include "C" (mccabe).
+
+   **Fix:** repo commit `b56df6e` (C1.5-followup) extracted the
+   try/except into a new `_parse_json_slice(html, start, end)`
+   helper. `_balanced_brace_json` now returns
+   `_parse_json_slice(html, start, i)` on brace match. Complexity
+   after refactor (verified by `ruff check --select C901`):
+     _balanced_brace_json:  10  (was 11)
+     _parse_json_slice:      2  (NEW)
+   Tests + gates re-ran clean: 17 failed (Week 5 punch list,
+   unchanged), 219 passed, 2 skipped.
+
+2. **Fixture count off-by-one** (documentation, fixed inline):
+   Actual fixture count is **10** (3 + 3 + 2 + 2), not 11. Wrong
+   number appears in repo commit messages `a616555` (C1.4.b: "11
+   hydration captures total") and `e5d2f91` (C1.5: "11 fixtures,
+   C1.1-C1.4") — both immutable. Same error appeared in
+   SESSION_LOG.md (2 places) and SESSION_TRANSITION_TEMPLATE.md
+   (1 place); all three workspace occurrences corrected inline in
+   this errata commit. The Session 7 commit table (11 rows above)
+   is **correct** as a commit list — 10 fixture adds plus 1
+   conformance test extension = 11 commits. The conflation was
+   between commits and fixtures.
+
+3. **Pre-push gate gap** (latent, deferred):
+   The project's ruff `select` list does not include "C"
+   (mccabe), so future cyclomatic-complexity violations will not
+   be caught by pre-push. Adding C901 (and possibly all "C"
+   selectors) to the project's ruff configuration would close
+   this gap. Surfaced here but **not implemented in this
+   erratum** — operator decision (2026-05-20) was to fix Issues
+   1 + 2 only and flag Issue 3 separately for a future
+   project-config commit.
+
+Updated Session 7 repo commit count (post-erratum):
+  12 commits total — the 11 in the table above plus
+  `b56df6e` C1.5-followup. workstream-0-week2-end tag remains at
+  `e5d2f91` (does not move; tags are append-only).
+
+Updated repo head: b56df6e.

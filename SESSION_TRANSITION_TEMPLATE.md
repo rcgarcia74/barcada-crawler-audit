@@ -17,9 +17,11 @@ be productive within ~10 minutes.
 
 - Outgoing session number: 7
 - Closing date: 2026-05-20
-- Outgoing session scope: Workstream 0 Week 2 (C1.1-C1.5, 11 SPA
+- Outgoing session scope: Workstream 0 Week 2 (C1.1-C1.5, 10 SPA
   hydration fixtures + conformance test extension). Closes Workstream
-  0 Week 2.
+  0 Week 2. (Session 7 also produced a post-close C1.5-followup commit
+  b56df6e refactoring _balanced_brace_json — see Week 2 audit erratum
+  in SESSION_LOG.md.)
 - Reason for transition: workstream-day boundary (end of Week 2)
   AND substantive character change (live-capture SPA fixtures →
   international + SaaS + nonprofit + mega-menu gap fixtures with
