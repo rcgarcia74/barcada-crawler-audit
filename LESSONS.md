@@ -244,6 +244,84 @@ Do NOT trust pytest alone — pre-C0.8 it only covers
 directories are parametrized. For full enumeration, use
 `tests/scraper/test_fixture_conformance.py` (C0.9).
 
+### Audit-spec vs. production-reality drift
+
+**Established:** Session 9 (C7 mega-menu probe, 2026-05-20). Pattern
+first observed in Session 7 (C1.1 Next.js App Router).
+
+The fixture audit and remediation plan contain literal HTML / attribute
+examples drawn from a point-in-time snapshot of the production
+ecosystem. Two distinct cases of audit-named markers having drifted to
+different production patterns have surfaced in two weeks:
+
+**Drift case 1: Next.js hydration marker (Week 2 / Session 7 C1.1).**
+The audit / plan C1 spec named `__NEXT_DATA__` as the Next.js
+hydration marker. A 6-site probe of well-known Next.js production
+sites revealed that App Router (introduced in Next.js 13, October
+2022) had become the dominant pattern: 3 of 6 sites ship App-Router
+RSC streaming (`self.__next_f.push([...])`, no `__NEXT_DATA__`), 1 of
+6 ships `__NEXT_DATA__` only (Pages Router), 2 of 6 ship neither.
+Resolution recorded in SESSION_LOG.md Session 7 entry: the C1 fixture
+set was revised to a hybrid (1 Pages Router + 2 App Router) so the
+detector has known-positive examples for both patterns.
+
+**Drift case 2: C7 mega-menu ARIA marker (Week 3 / Session 9).**
+The fixture audit §12 C7 example wording specified
+`aria-haspopup="menu"` (literal value) for the Shopify-style mega-menu
+slot. Probe of the audit's three named candidates (Shopify, Salesforce,
+Microsoft) revealed:
+
+| Site | aria-haspopup hits | values |
+|---|--:|---|
+| shopify.com | 1 | `"true"` (no literal `"menu"`) |
+| salesforce.com | 11 | `"true"` (no literal `"menu"`) |
+| microsoft.com | 0 | (none — uses aria-controls + aria-expanded instead) |
+
+`aria-haspopup="true"` is the WAI-ARIA 1.1+ shorthand for
+`aria-haspopup="menu"` — same semantic, different attribute value.
+Both are valid markers indicating a button triggers a popup menu, but
+the audit's literal example string is no longer dominant. The audit
+itself anticipated three distinct mega-menu archetypes (Shopify-style /
+Salesforce-style / Microsoft-style) with different attribute patterns —
+the literal `aria-haspopup="menu"` was an illustrative wording for the
+archetype, not a binding production marker. Resolution: Path C from
+the Session 9 C7 escalation — conformance test asserts each fixture
+exhibits at least one of (a) `aria-haspopup` with any non-false value,
+or (b) `aria-expanded` + `aria-controls` cross-reference pattern.
+
+**Meta-observation:** two audit-spec drift findings in two weeks
+suggests the audit report's HTML examples were drawn from a sample now
+~18+ months stale on frontend patterns (Next.js 13 + App Router landed
+October 2022; WAI-ARIA 1.1's `aria-haspopup="true"` shorthand has been
+in browser-default-recommended docs since 2017). Frontend ecosystems
+evolve fast; literal-value examples in plans and audits decay rapidly.
+
+**Forward-applicable discipline (NOT for Workstream 0):**
+
+- **Future fixture-sourcing work should expect audit / plan examples
+  to need production verification before adoption.** The
+  probe-before-lock pattern (LESSONS.md "Probe framework generation
+  before locking a fixture spec", established Session 7) is the
+  mechanical implementation of this. Treat every literal HTML or
+  attribute example in a plan / audit / spec document as
+  illustrative-of-archetype, not binding-marker, until verified
+  against current production.
+- **At the natural Week 5 / end-of-Workstream-0 reassessment point,
+  consider whether the audit report's HTML-example sections need a
+  refresh pass before downstream workstreams (A.0 baseline scaffolding,
+  B observability, C extraction) consume them.** The audit is
+  read-only-archival per §14, so a refresh would land as a new
+  document (e.g., `AUDIT_REPORT_HTML_EXAMPLES_REFRESH_2026.md`) rather
+  than as edits to the original. Decision deferred to that
+  retrospective; not in Workstream 0 scope.
+
+Applies forward to: any future framework-marker fixture work (C1.2
+Nuxt 2-vs-3, C1.3 Apollo 2-vs-3, C1.4 Redux / state-management, C2
+Remix/Gatsby/SvelteKit/Astro, C7-C8 mega-menu variants, C9-C10 PII
+positive/negative fixtures, C19 e-commerce schema, C20 LocalBusiness),
+and to any audit literal-example wording that names specific HTML
+attributes, JavaScript globals, JSON-LD types, or CSS class names.
+
 ## Discovery escalation pattern
 
 ### Stop and report when plan contradicts repo reality
@@ -406,6 +484,43 @@ is just a moment in time." 1 of 11 candidates. The pattern needs
 context anchoring (proximity to "cloudflare", inside a `<title>`
 element, or near a `cf-` class) rather than the bare phrase.
 
+**FP 3 (different flavor — matches but is correctly suppressed):
+`(?:search|query|keyword).*no\s+results?\s+found` alternation in
+`_RE_SOFT_404`** (`barriers.py:464`). Surfaced by C18.e snowflake.com
+verification (2026-05-20). The greedy `.*` (no DOTALL, no non-greedy
+quantifier) spans unbounded distance in compressed-JSON HTML where
+newlines are sparse. Snowflake's homepage trips the pattern via two
+anchors ~432 KB apart in the document:
+
+- Anchor 1: `search` at offset 866,870, inside the substring
+  `searchers"` — a key in the mega-nav JSON config (Snowflake runs an
+  AEM/Sling-CMS site that ships site structure as inline JSON).
+- Anchor 2: `no results found` at offset 1,299,314, inside an i18n
+  strings block: `"no_results":"No results found"` — the translation
+  string for the location-search component's empty-state UI.
+
+Both anchors are inside legitimate component config / i18n strings;
+neither indicates a soft-404 page. The detector code's downstream
+guards (length + meaningful_content + structured_content checks,
+parser.py `extract_hard_exclusions` step 5) correctly suppress this
+raw regex match — `exclusion_reason` remains empty, `is_soft_404`
+stays False — so the production crawler does NOT misclassify pages
+like snowflake.com today.
+
+This is a distinct category from FPs 1 and 2 above:
+
+- FPs 1 & 2: regex matches AND propagates to `exclusion_reason` →
+  detector breaks (production-precision regression today).
+- FP 3: regex matches BUT downstream guards correctly suppress →
+  detector works as designed, but the regex itself is looser than
+  needed; future changes to the soft_404 downstream guards (e.g., a
+  refactor that drops or relaxes the meaningful-content gate) could
+  re-expose this match as a real false positive.
+
+The fix is a non-greedy `(?:search|query|keyword).*?no\s+results?\s+found`
+or a max-distance constraint (e.g., `.{0,500}` between anchors). Not
+in Workstream 0 scope — same anti-pattern caveat as FPs 1 and 2.
+
 ### The deeper circularity: detector validation has only ever run against the corpus the detectors were curated to match
 
 This finding is the audit-said-X-but-grep-found-Y pattern (Session 4)
@@ -429,13 +544,21 @@ is a production-precision regression hiding behind a green test suite.
 
 **Forward-applicable actions (NOT for Workstream 0):**
 
-1. **Workstream B or C** should schedule a focused detector-precision
-   audit before locking detector behavior in any new workstream:
-   take 100–200 known-legitimate domains (the canary 50 + a sample of
-   production validator passes), run them through the full hard-
-   exclusion pipeline, and produce a per-alternation false-positive
-   rate. Treat any alternation with >2% FP rate against legitimate
-   traffic as needing a context anchor.
+1. **A focused detector-precision audit should be scheduled before
+   locking detector behavior in any new workstream.** Ownership is
+   ambiguous between Workstream B (cost & observability foundation —
+   detector FPs are an observability concern because they distort
+   per-tier block-rate metrics) and Workstream C (high-leverage
+   extraction — detector FPs upstream block extraction from running on
+   legitimate domains). Both workstreams have legitimate claims; flag
+   for operator decision at the natural Workstream-0-close
+   handoff. The audit itself: take 100–200 known-legitimate domains
+   (the canary 50 + a sample of production validator passes), run
+   them through the full hard-exclusion pipeline, and produce a
+   per-alternation false-positive rate. Treat any alternation with
+   >2% FP rate against legitimate traffic as needing a context anchor
+   (`dd.js`, `just\s+a\s+moment`, `(?:search|query|keyword).*no\s+results?\s+found`
+   are confirmed candidates from C18.0).
 2. **Plan §11 Risk Register** carries forward a new latent risk:
    "Detector precision was validated against a curated fixture corpus,
    not the production distribution. Quarterly precision audits against
