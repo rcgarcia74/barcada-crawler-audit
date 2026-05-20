@@ -454,3 +454,184 @@ Codified as a LESSONS.md "Diagnostic patterns" entry this session.
 - Then C1.3 (Apollo), C1.4 (Redux) — same.
 - Then C1.5 (extend test_fixture_conformance.py: COVERED set +
   hydration-payload assertions for all 4 new directories).
+
+──────── Session 7 close: Workstream 0 Week 2 complete (2026-05-20) ─
+
+Workstream 0 Week 2 (Critical SPA Hydration Fixtures) is complete.
+12 commits landed across the workspace + repo. The "probe-before-
+lock" discipline established by C1.1's App Router discovery was
+applied to all 4 framework directories and surfaced 3 more
+production-extinction findings (Nuxt 2, Apollo SSR, Redux SSR).
+Net Week 2 fixtures added: 11 (3 Next.js + 3 Nuxt + 2 Apollo +
+2 Redux), spanning real production captures and §11 synthetic-
+with-real-markers fallbacks.
+
+Workspace commits this session (~/crawler-audit/):
+- `29d1bed` Session 7 open: C1.1 scope revision + LESSONS
+  framework-probe pattern (this session opener; SESSION_LOG +
+  LESSONS.md updates only — plan stayed untouched per operator
+  correction "BARCADA_CRAWLER_REMEDIATION_PLAN.md is read-only,
+  period.")
+- (this commit, SHA TBD) Session 7 close: workstream-0-week2-end
+  narrative + SESSION_TRANSITION_TEMPLATE.md refill for Session 8.
+
+Repo commits this session (`barcada-scraper`, all on `main`, all
+pushed):
+
+| #  | SHA       | Action  | Fixture / file                              |
+|----|-----------|---------|---------------------------------------------|
+|  1 | `5f30ce8` | C1.1.a  | spa_hydration_next/supabase.com.html        |
+|  2 | `1754854` | C1.1.b  | spa_hydration_next/nextjs.org.html          |
+|  3 | `b4740f6` | C1.1.c  | spa_hydration_next/vercel.com.html          |
+|  4 | `630f30e` | C1.2.a  | spa_hydration_nuxt/nuxt.com.html            |
+|  5 | `7b7ae21` | C1.2.b  | spa_hydration_nuxt/backmarket.com.html      |
+|  6 | `ec60142` | C1.2.c  | spa_hydration_nuxt/gitlab.com.html          |
+|  7 | `5bf52db` | C1.3.a  | spa_hydration_apollo/coursera.org.html      |
+|  8 | `f2b1e7e` | C1.3.b  | spa_hydration_apollo/synthetic_devtools_marketing.html |
+|  9 | `871cad8` | C1.4.a  | spa_hydration_redux/synthetic_blog_minimal.html |
+| 10 | `a616555` | C1.4.b  | spa_hydration_redux/synthetic_ecommerce_heavy.html |
+| 11 | `e5d2f91` | C1.5    | tests/scraper/test_fixture_conformance.py extend |
+
+Annotated tag created and pushed: `workstream-0-week2-end` at
+`e5d2f91` (the C1.5 commit; pre-push gates GREEN at this SHA).
+
+──────── Per-action operator decisions made during Session 7 ───
+
+- **C1.1 (Next.js)** — operator chose **Hybrid** (1 Pages-Router
+  CSR-only + 2 App-Router RSC). Empirical 6-site probe found 3/6
+  App Router, 1/6 Pages Router, 2/6 neither. The CSR/ISR/SSR
+  taxonomy in the audit/plan is a Pages-Router concept; App Router
+  uses RSC streaming via `self.__next_f.push([…])`. Plan/audit
+  were silent on the Next.js 13 (Oct 2022) App Router migration —
+  3.5 years of un-flagged production drift.
+- **C1.2 (Nuxt)** — operator chose **All three: nuxt.com +
+  backmarket.com + gitlab.com**, expanding C1.2 from 2 → 3
+  fixtures (Week 2 budget 9 → 10 originally, ultimately 11 with
+  the C1.4 synthetics). Empirical 6-site probe found Nuxt 2
+  effectively extinct; all 3 Nuxt-shipping sites use Nuxt 3's
+  `<script id="__NUXT_DATA__" type="application/json">`. The
+  C2 spec's `window.__NUXT__` OR `<script id="__NUXT_DATA__">`
+  "or" clause is satisfied by Nuxt 3 alone — observed `window.
+  __NUXT__` markers are backwards-compat aliases, NOT Nuxt 2
+  evidence.
+- **C1.3 (Apollo)** — operator chose **Hybrid: coursera.org real +
+  1 synthetic**. Empirical 13-site probe found 1/13 (≈7.7%) hit
+  rate for non-empty `__APOLLO_STATE__`; expedia.com ships the
+  marker but seeds an empty `{}` cache. Apollo Client SSR cache
+  extraction is essentially a legacy opt-in pattern in 2026.
+  Synthetic C1.3.b authored with Apollo Client v3 normalization
+  (ROOT_QUERY, __ref, __typename, "Type:id" keys); 12,057 B HTML
+  with 6,981 B parseable cache.
+- **C1.4 (Redux)** — operator chose **Both synthetic**. Empirical
+  12-site probe found **0/12** hit rate for `__PRELOADED_STATE__`,
+  `__INITIAL_STATE__`, OR loose `window.initialState`. Redux SSR
+  state extraction is genuinely extinct in 2026 production
+  marketing/consumer surfaces — modern React SSR uses RSC
+  streaming, cookies, or post-hydration fetch. Two synthetics
+  authored: minimal blog (4,972 B, 2,129 B state) and heavy RTK +
+  RTK-Query e-commerce (12,489 B, 9,408 B state).
+- **Workspace correction (Session 7 turn 12 ~)**: operator clarified
+  that `BARCADA_CRAWLER_REMEDIATION_PLAN.md` is treated as
+  read-only despite its §14 "UPDATED inline" wording. All
+  deviations from the plan land in SESSION_LOG.md and LESSONS.md
+  only. Memory saved as `feedback_remediation_plan_readonly.md`.
+
+──────── Test surface change (repo) ─────────────────────────────
+
+  test_hard_exclusions.py:        64 passed (unchanged)
+  test_fixture_conformance.py:    155 passed → 219 passed
+                                  (+64 = 11 new spa_hydration_*
+                                  parametrize cases + 53 from
+                                  internal restructuring of
+                                  parametrize id resolution after
+                                  catch-all flip — actually +10
+                                  parametrize cases and +1 catch-
+                                  all flip; the rest were already
+                                  in the count baseline pre-C1.1.a)
+  test_fixture_conformance.py:    18 failed → 17 failed
+                                  (catch-all flipped from FAIL to
+                                  PASS; the remaining 17 are the
+                                  Week 5 punch list, unchanged from
+                                  Week 1 close)
+  test_fixture_conformance.py:    2 skipped (soft_404/ and
+                                  empty_google_sites/, unchanged)
+
+  Total: 64 + 219 + 17 + 2 = 302 collected. Up from 64 + 208 + 18 +
+  2 = 292 at Week 1 close — net +10 new conformance assertions, all
+  green.
+
+──────── Workspace updates this session ─────────────────────────
+
+- LESSONS.md (in `29d1bed`): new "Probe framework generation before
+  locking a fixture spec" entry under Diagnostic patterns, codifying
+  the empirical probe-before-source discipline used across C1.1-C1.4.
+- SESSION_LOG.md (this entry, this commit): full Session 7 narrative
+  + open items for Week 3.
+- SESSION_TRANSITION_TEMPLATE.md (this commit): refilled for Session
+  8 (Week 3 high-priority gap fixtures: C5 international + C18
+  modern SaaS + C22 nonprofit + C7 mega-menu).
+- BARCADA_CRAWLER_REMEDIATION_PLAN.md: NOT updated (read-only per
+  operator). Deviations from the plan are captured here and in
+  LESSONS.md only.
+
+──────── Discoveries summary (production-extinction findings) ───
+
+The probe-before-lock discipline surfaced a coherent pattern across
+all 4 framework directories: **the audit's fixture specifications,
+written May 2026, describe hydration patterns that the production
+ecosystem has substantially or completely moved past in 2024-2026**.
+
+| Framework | Marker spec'd by audit          | Hit rate (live probe) | Pivot              |
+|-----------|----------------------------------|-----------------------|--------------------|
+| Next.js   | `__NEXT_DATA__`                  | 1/6 (16%)             | Hybrid w/ App Router |
+| Nuxt      | `window.__NUXT__` OR `__NUXT_DATA__` | 3/6 (50%, all Nuxt 3) | Nuxt 3 only       |
+| Apollo    | `__APOLLO_STATE__`               | 1/13 (7.7%)           | 1 real + 1 synth   |
+| Redux     | `__PRELOADED_STATE__`            | 0/12 (0%)             | 2 synth            |
+
+Forward implication: AUDIT_REPORT.md Action #1 (hydration extraction)
+will need to target App Router RSC streaming as a first-class
+pattern, not just `__NEXT_DATA__`. The detector designed against
+just the legacy markers would miss the dominant modern production
+reality. The 11 fixtures from C1.1-C1.4 give the eventual Action #1
+detector the full pattern surface to test against. Codified in
+LESSONS.md "Probe framework generation before locking a fixture
+spec" for forward-applicable use in C5+, C18+, C22+, and any future
+framework-marker fixture work.
+
+──────── Open items entering Week 3 ─────────────────────────────
+
+Week 3 work per plan §3 (high-priority gap fixtures, "closes the
+most damaging production-coverage gaps"):
+- C5 (international): 3 fixtures (.de, .jp, .com.br) — revised
+  per operator decision 2026-05-19 (was 6). Action #20 unblocked
+  at ~85%.
+- C18 (modern SaaS): 5 fixtures extending `legitimate_business/`
+  with hreflang + canonical + JSON-LD Organization schema. Closes
+  the 60-pp production-coverage gap.
+- C22 (nonprofit expansion): 2-3 archetypal nonprofits extending
+  `legitimate_nonprofit/` — Wikimedia, EducationalOrganization,
+  philanthropy.
+- C7 (mega-menu): 3 mega-menu fixtures with `aria-haspopup` +
+  multi-column nested `<ul>`. Unblocks Action #13.
+
+Total Week 3: 13-14 fixtures. Larger than Week 2's 11; consider
+splitting across Sessions 8 + 9 at a natural breakpoint (e.g., C5
++ C22 in Session 8, C18 + C7 in Session 9), or proceed in one
+session if Session 8 has the headroom.
+
+All Week 3 captures must follow:
+- LESSONS.md retry-on-TLS-error policy (≥3 attempts).
+- LESSONS.md probe-before-lock discipline (verify the spec's
+  marker still dominates production before sourcing — applies
+  especially to C18's "hreflang + canonical + JSON-LD Organization"
+  assumption: does modern SaaS marketing still ship JSON-LD
+  Organization at the same rate the audit assumed?).
+- LESSONS.md per-fixture commit discipline (C5.a, C5.b, C5.c,
+  C18.a-e, etc.).
+
+Week 5 punch list (17 failing fixtures from C0.9 + the 2 skipped
+empty directories) remains untouched. Do NOT touch in Week 3.
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+Next concrete work: choose Week 3 first action (C5.a recommended:
+1× .de international B2B capture with hreflang alternates).
