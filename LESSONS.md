@@ -362,3 +362,98 @@ Applies forward to: C18 if Session 9 needs synthetic SaaS marketing
 fixtures, C0.3-followup synthetic soft_404 captures (Week 5),
 C0.4-followup synthetic empty_google_sites captures (Week 5), and
 any future synthetic-fixture authoring work.
+
+## Detector precision findings
+
+### Verify-before-asking doubles as a detector-FP probe; modern SaaS HTML trips current detectors at meaningful rates
+
+**Established:** Session 9 (C18.0 prevalence-probe verification step, 2026-05-20).
+
+The Session 8 "verify-before-asking" discipline (run
+`extract_hard_exclusions(html, "example.com")` and a per-branch detector
+sweep on every candidate fixture before drafting the commit message) was
+introduced to catch false positives in synthetic fixtures. Applied to
+real production HTML during C18.0's 11-candidate probe of modern SaaS
+marketing sites, it surfaced **detector false-positives in 4 of 11
+candidates (~36%)** — none of which are actual challenge/WAF pages.
+
+Two distinct detector bugs were discovered:
+
+**FP 1: `dd.js` alternation in `_RE_WAF_CHALLENGE`** (`barriers.py:413`).
+Intended to match DataDome's challenge script reference
+(`https://js.datadome.co/dd.js`), but the bare alternation `dd\.js`
+matches **any webpack/Gatsby chunk filename whose content-hash ends in
+`dd.js`**. Empirically tripped by 3 of 11 modern SaaS candidates:
+
+| Site | Hits | Example chunk filename |
+|---|--:|---|
+| stripe.com | 1 | `chunks/36822-16ae78e6a74311dd.js` (Next.js) |
+| raycast.com | 16 | `chunks/6089-681ded3ed6a016dd.js` (Next.js) |
+| posthog.com | 1 | `templates-app-js-57625ccfa9cdb61501dd.js` (Gatsby) |
+
+Content-hash chunk filenames are an effectively-random distribution of
+hex characters. The probability of a 16-char hex hash ending in `dd` is
+1/256 per chunk, so a multi-chunk SaaS marketing page will trip this
+pattern with non-trivial frequency in production. The fix needs a
+path/script-src anchor (e.g., `js\.datadome\.co/dd\.js` or
+`["']https?://[^"']*datadome[^"']*dd\.js`), not just the bare filename.
+
+**FP 2: `just\s+a\s+moment` alternation in `_RE_CLOUDFLARE_CHALLENGE`**
+(`barriers.py:408`). Intended to match Cloudflare's literal interstitial
+title "Just a moment..." but matches any body copy containing the
+phrase. Tripped by linear.app whose marketing rhetoric reads "Launching
+is just a moment in time." 1 of 11 candidates. The pattern needs
+context anchoring (proximity to "cloudflare", inside a `<title>`
+element, or near a `cf-` class) rather than the bare phrase.
+
+### The deeper circularity: detector validation has only ever run against the corpus the detectors were curated to match
+
+This finding is the audit-said-X-but-grep-found-Y pattern (Session 4)
+operating one level deeper. The original Session 4 finding was that the
+audit / plan made claims about the codebase that did not survive a
+direct grep. The Session 9 finding is that **the detectors themselves
+have never been spot-checked against the production corpus the crawler
+actually operates on** — they have only been validated against the
+fixture corpus, which by construction was assembled by humans who knew
+what each detector was looking for. Fixtures conform to detectors; the
+real production distribution does not have that property.
+
+The verify-before-asking discipline accidentally functions as the first
+production-corpus precision probe ever run on these detectors. The 36%
+trip rate on 11 well-known modern SaaS marketing sites is not a
+synthetic-fixture concern — it implies the production crawler is
+currently mis-classifying a meaningful fraction of legitimate SaaS
+domains as WAF or Cloudflare challenges, downstream of which the
+classifier presumably routes them away from real categorization. That
+is a production-precision regression hiding behind a green test suite.
+
+**Forward-applicable actions (NOT for Workstream 0):**
+
+1. **Workstream B or C** should schedule a focused detector-precision
+   audit before locking detector behavior in any new workstream:
+   take 100–200 known-legitimate domains (the canary 50 + a sample of
+   production validator passes), run them through the full hard-
+   exclusion pipeline, and produce a per-alternation false-positive
+   rate. Treat any alternation with >2% FP rate against legitimate
+   traffic as needing a context anchor.
+2. **Plan §11 Risk Register** carries forward a new latent risk:
+   "Detector precision was validated against a curated fixture corpus,
+   not the production distribution. Quarterly precision audits against
+   the canary set should be added once the canary is stable in
+   Workstream A.0." (Plan is read-only; risk gets recorded here +
+   SESSION_LOG.md until the next plan revision opportunity arises.)
+3. **Future fixture-sourcing work** (C18, C19, C20, C21 modern-
+   business expansion; Workstream A.0 canary wiring) should treat
+   verify-before-asking failures as **likely detector-precision
+   signals**, not fixture-disqualification signals. Drop the
+   candidate from the current fixture set, but log the trip in
+   SESSION_LOG.md so the eventual precision audit has a starting
+   dataset.
+
+**Anti-pattern (do NOT do this):** fixing detector code as a
+side-quest during a fixture commit. Workstream 0 is fixture-only.
+Detector-code changes need to live in Workstream B/C with their own
+test coverage, regression baselines, and operator review. C18.a–e
+drop the FP-tripping candidates (stripe.com, linear.app, raycast.com,
+posthog.com) and proceed with clean substitutes; barriers.py is
+untouched.
