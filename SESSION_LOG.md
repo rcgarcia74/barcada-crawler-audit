@@ -698,3 +698,224 @@ Updated Session 7 repo commit count (post-erratum):
   `e5d2f91` (does not move; tags are append-only).
 
 Updated repo head: b56df6e.
+
+---
+
+## Session 8 — Workstream 0 Week 3 partial (C5 + C22) (2026-05-20)
+
+Scope: First half of Workstream 0 Week 3 per the operator-suggested
+Session 8 / Session 9 split. Covers audit C5 (3 international-TLD
+fixtures: .de, .jp, .com.br) and audit C22 (3 archetypal-nonprofit
+fixtures). C18 modern SaaS + C7 mega-menu deferred to Session 9.
+
+──────── Repo commits this session (`barcada-scraper`, all on `main`,
+        all pushed to origin) ───────────────────────────────────
+
+| #  | SHA       | Action  | Fixture / file                                         |
+|----|-----------|---------|--------------------------------------------------------|
+|  1 | `cc9c3b3` | C5.a    | international_business/de/siemens.de.html              |
+|  2 | `d0f0f70` | C5.b    | international_business/jp/hitachi.co.jp.html           |
+|  3 | `51d14f5` | C5.c    | international_business/br/locaweb.com.br.html          |
+|  4 | `fbb0200` | C22.a   | legitimate_nonprofit/wikimediafoundation.org.html      |
+|  5 | `273765e` | C22.b   | legitimate_nonprofit/doctorswithoutborders.org.html    |
+|  6 | `79cf9a4` | C22.c   | legitimate_nonprofit/synthetic_educational_organization.html |
+|  7 | `17e92f8` | C5.d    | tests/scraper/test_fixture_conformance.py extend       |
+
+Repo head at session close: `17e92f8`.
+
+──────── Per-action operator decisions made during Session 8 ─────
+
+- **C5.a (.de)** — operator chose **siemens.de**. 6 candidates
+  probed (sap.de blocked, siemens.de, bosch.de, trumpf.com/de_DE
+  off-TLD, personio.de blocked, continental.com/de-de off-TLD).
+  siemens.de wins on combination of real .de TLD, lang=de-DE,
+  39 hreflangs, and parseable JSON-LD WebPage with nested
+  Organization references. Trade-off: siemens.de uses regional
+  English codes (en-us, en-gb) only — no bare `hreflang="en"`
+  (the literal audit C11 example wording). Functionally
+  equivalent for any detector that branches on
+  `hreflang.startswith("en")`. C5.b (hitachi) later closed the
+  bare-en gap.
+
+- **C5.b (.jp)** — operator chose **hitachi.co.jp**. 6 candidates
+  probed; hitachi.co.jp uniquely combines real .co.jp TLD,
+  lang=ja-JP, 33 hreflangs **including the bare `hreflang="en"`
+  form** the audit spec example referenced literally, and a
+  parseable JSON-LD Organization + PostalAddress. NEC was 404,
+  Rakuten was CDN-blocked.
+
+- **C5.c (.com.br)** — operator chose **locaweb.com.br**. Two-
+  round probe (12 candidates total): three .com.br banks /
+  manufacturers (itau, bradesco, gerdau) returned anti-bot or WAF
+  pages; the largest Brazilian-content sites (totvs.com, vale.com)
+  use .com TLDs not .com.br. Second round surfaced three viable
+  .com.br candidates (locaweb, petrobras, braskem). Locaweb won
+  on archetype match ("Brazilian B2B" — private hosting/SaaS, not
+  state-owned conglomerate or consumer telco) and richest JSON-LD
+  coverage (3 blocks: FAQPage with 6 Question/Answer pairs +
+  WebSite/SearchAction + Organization/PostalAddress/2x
+  ContactPoint).
+
+- **C22.a (Wikimedia)** — operator picked the audit's named
+  candidate. wikimediafoundation.org as captured ships JSON-LD
+  WebPage with nested Organization plus 5 multilingual hreflangs
+  (ar-001, en-US, es-419, fr-FR, pt-BR). Auto-passes
+  legitimate_nonprofit's existing inverted conformance test.
+
+- **C22.b (philanthropy)** — operator picked the audit's named
+  candidate. doctorswithoutborders.org as captured ships JSON-LD
+  with 2x Organization + WebPage + BreadcrumbList, real
+  humanitarian content (MSF x26, medical x15, donate x9), and an
+  active "[URGENT] MSF responds to Middle East conflict" banner
+  confirming the capture is current production content.
+
+- **C22.c (EducationalOrganization)** — operator chose
+  **synthetic-with-real-markers** per §11 fallback policy after
+  probe-before-lock surfaced a production-extinction finding
+  (next section). Synthetic "OpenLearning Initiative" authored
+  with literal `@type=EducationalOrganization` schema + canonical
+  nonprofit homepage structure (~9.2 KB). All PII safe (RFC 5733
+  555-0100 phones, example.org emails, generic placeholder
+  postal address).
+
+──────── Discovery: @type=EducationalOrganization is extinct in
+        2026 production (probe-before-lock, third occurrence) ─────
+
+Production-extinction pattern confirmed for the third Schema.org
+sub-type targeted by the May-2026 audit / plan. Probe of 9
+educational candidates (khanacademy, mit, stanford, harvard, yale,
+princeton, columbia, oxford, edx) found:
+
+| Schema.org type           | Hits / 9 | Comment                          |
+|---------------------------|---------:|----------------------------------|
+| EducationalOrganization   |   0/9 (0%) | extinct                          |
+| CollegeOrUniversity       |   0/9 (0%) | extinct                          |
+| Organization (generic)    |   2/9 (22%) | Harvard + edX only               |
+| No Schema.org markup      |   7/9 (78%) | dominant                         |
+
+khanacademy was Akamai-bot-mitigation-gated. The
+EducationalOrganization sub-type named by audit C22 / plan §3
+Week 3 ("e.g., khanacademy.org") is no longer detectable in
+production marketing surfaces.
+
+Operator decision: synthetic-with-real-markers, mirroring C1.3.b
+(Apollo legacy 7.7%) and C1.4.a/b (Redux SSR 0% extinct). The
+detector under audit Action #20 + any future EducationalOrganization
+branch has a known-positive sample to test against. Synthetic
+flagged for quarterly re-capture review.
+
+This is the **fourth** production-extinction finding surfaced by
+probe-before-lock since Session 7 (after Next.js Pages Router,
+Nuxt 2, Apollo SSR, Redux SSR). The pattern is now well-established
+and applies forward to C18 modern SaaS work (Session 9).
+
+──────── Discovery: synthetic-fixture HTML comments are themselves
+        regex-visible (new lesson, codified in LESSONS.md) ────────
+
+While verifying C22.c (synthetic_educational_organization.html),
+extract_hard_exclusions returned exclusion_reason='waf_challenge'
+on the synthetic — an unexpected red. Root cause: the synthetic's
+HTML comment header (which documented the probe-before-lock
+results) contained the phrase "khanacademy is Akamai-blocked" —
+the substring "Akamai" + "blocked" on one line tripped the
+`akamai.*blocked` branch of `_RE_WAF_CHALLENGE`. The parser regex
+is flat on the full document and does not skip HTML comments.
+
+Fixed in-place by rewording the comment to "khanacademy returns
+an Akamai bot-mitigation interstitial" (same information, no
+regex match). Verified by per-branch pattern sweep that no other
+_RE_WAF_CHALLENGE, _RE_CLOUDFLARE_CHALLENGE, or _RE_GEO_BLOCK
+branch matches.
+
+Lesson codified in LESSONS.md under Diagnostic patterns:
+**"Synthetic-fixture HTML comments are regex-visible — apply the
+same anti-trip discipline to comment headers as to body content."**
+Forward-applicable to all future synthetic-with-real-markers work
+(C18 if Session 9 needs synthetic SaaS marketing fixtures;
+C0.3-followup / C0.4-followup in Week 5; any synthetic capture
+work in Workstream A.0+).
+
+──────── Test surface change (repo) ─────────────────────────────
+
+  test_hard_exclusions.py:        64 passed (unchanged)
+  test_fixture_conformance.py:
+    Pre-Session-8 (after b56df6e):  17 failed, 154 passed, 2 skipped
+    Post-C22.c (before conformance commit): 18 failed, 157 passed,
+        2 skipped (catch-all flipped to FAIL on first C5.a fixture
+        adding the uncovered international_business dir; +3 passes
+        from C22.a/b/c auto-joining the parametrized
+        legitimate_nonprofit inverted detector)
+    Post-Session-8 (after 17e92f8): 17 failed, 161 passed, 2 skipped
+        (catch-all flipped back to PASS via COVERED update; +3
+        passes from 3 new test_international_business_*
+        conformance functions; punch list of 17 unchanged)
+
+  Failure list at session close is EXACTLY the 17 Week-5 punch-list
+  reds. Byte-for-byte diff verified at every commit point.
+
+──────── Workspace updates this session ─────────────────────────
+
+- SESSION_LOG.md: this entry (this commit).
+- LESSONS.md: new "Synthetic-fixture HTML comments are regex-
+  visible" entry under Diagnostic patterns (this commit).
+- SESSION_TRANSITION_TEMPLATE.md: refilled for Session 9 (C18
+  modern SaaS + C7 mega-menu — second half of Week 3).
+- BARCADA_CRAWLER_REMEDIATION_PLAN.md: NOT updated (read-only per
+  operator).
+
+──────── Cost & schedule tracking ───────────────────────────────
+
+- Cost incurred Sessions 1-8: $0 (no LLM API calls; curl + pytest
+  + handwritten synthetic only). Cost ceiling $100 untouched.
+- Schedule: 3 weeks elapsed of Workstream 0's 5-week budget.
+  Weeks 1-2 complete; Week 3 ~60% complete (C5 + C22 = 7 of 7
+  Session-8-scoped commits, ~6 of ~14 Week-3 fixtures shipped).
+  Weeks 3 (remainder, Session 9) - 5 still ahead.
+
+──────── Operator-interaction note (Session 8 pattern) ──────────
+
+During this session the operator repeatedly asked "did you double
+check your work?" before each commit confirmation (C5.a, C5.b,
+later commits implicitly). The discipline established:
+verification table must be generated from the on-disk fixture by
+re-parsing it BEFORE drafting the commit message, not after. Two
+precision errors caught in the C5.a draft as a result (false
+`hreflang="en"` claim, misleading "4 JSON-LD sibling types"
+wording when in fact 1 block with 4 nested types). For all
+subsequent commits, full verification (file properties + extracted
+JSON-LD + extract_hard_exclusions + per-branch detector sweep +
+gates + punch-list diff + hard_exclusions regression check) was
+done up-front. Documented behavior; no LESSONS.md entry needed
+(the rule is already in CLAUDE.md and code-quality.md).
+
+──────── Open items entering Session 9 ──────────────────────────
+
+Week 3 remaining (Session 9 scope):
+- C18 (modern SaaS): 5 fixtures extending legitimate_business/
+  with hreflang + canonical + JSON-LD Organization + mega-menu.
+  **Apply probe-before-lock discipline up-front**: based on the
+  4 prior production-extinction findings (Next.js, Nuxt, Apollo,
+  Redux, EducationalOrganization), verify JSON-LD Organization
+  prevalence in modern SaaS marketing (Stripe, Notion, Linear,
+  Vercel, HubSpot, Webflow) before sourcing candidates. If
+  prevalence <50%, escalate spec revision rather than locking
+  the fixture set against a near-extinct marker.
+- C7 (mega-menu): 3 fixtures into new mega_menu/ with
+  aria-haspopup + multi-column nested <ul> panels.
+- Total Session 9: 8 fixtures + 1 conformance test extension
+  (legitimate_business already covered; mega_menu adds new
+  COVERED entry + conformance function).
+
+Week 5 punch list (17 fixtures) remains untouched — tracked
+intentional reds, scheduled for Week 5.
+
+Pre-push gate gap (Issue 3 from the Week 2 audit erratum)
+remains open: project's ruff `select` does not include "C"
+(mccabe), so cyclomatic-complexity violations are caught only
+by manual `ruff check --select C901` (which Session 8's
+conformance commit did manually). Tracked for a future
+project-config commit.
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+Next concrete work: C18 prevalence probe (4-6 modern SaaS
+marketing candidates) before sourcing any C18.a fixture.

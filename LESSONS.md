@@ -318,3 +318,47 @@ fixture IS a regression and should be investigated.
 
 Current red count (Week 1 close): 17 failures across 5 directories.
 See SESSION_LOG.md Session 6 entry for the per-fixture punch list.
+
+### Synthetic-fixture HTML comments are regex-visible
+
+**Established:** Session 8 (C22.c, 2026-05-20).
+
+The parser detectors in `barcada_scraper/scraper/barriers.py`
+(`_RE_WAF_CHALLENGE`, `_RE_CLOUDFLARE_CHALLENGE`, `_RE_GEO_BLOCK`,
+`_RE_PARKING_JS`, `_RE_SOFT_404`, etc.) operate on the **flat** HTML
+text — they do not skip `<!-- ... -->` blocks. Anything inside the
+HTML comment header of a synthetic fixture (the documentation block
+established in C1.3.b / C1.4.a / C1.4.b that explains probe-before-
+lock results, capture method, and re-capture flag) is regex-visible
+to the parser exactly as if it were body content.
+
+Worked example (C22.c synthetic_educational_organization.html): the
+comment header originally read
+```
+khanacademy is Akamai-blocked.
+```
+which tripped the `akamai.*blocked` branch of `_RE_WAF_CHALLENGE`
+and made `extract_hard_exclusions` return
+`exclusion_reason='waf_challenge'` — a false-positive WAF
+classification on a fixture meant to pass the inverted
+`legitimate_nonprofit/` detector. Fixed in-place by rewording to
+```
+khanacademy returns an Akamai bot-mitigation interstitial.
+```
+which carries the same diagnostic information without putting
+"akamai" + "blocked" on the same line.
+
+**Forward-applicable discipline:** when authoring a synthetic-
+with-real-markers fixture, treat the HTML comment header with the
+same anti-trip care as the body — phrase any references to
+parking/anti-bot/WAF/Cloudflare/datacenter-error scenarios using
+synonyms that do NOT match the `_RE_*` patterns. After writing the
+synthetic, **always run `extract_hard_exclusions(html, "example.com")`
+and verify `exclusion_reason=''` before committing**. A per-branch
+pattern sweep (loop through every alternation of `_RE_WAF_CHALLENGE`
+and check for matches) is the surest verification.
+
+Applies forward to: C18 if Session 9 needs synthetic SaaS marketing
+fixtures, C0.3-followup synthetic soft_404 captures (Week 5),
+C0.4-followup synthetic empty_google_sites captures (Week 5), and
+any future synthetic-fixture authoring work.
