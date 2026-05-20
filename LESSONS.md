@@ -182,6 +182,50 @@ done
 
 (Plus appropriate exit-code checking.)
 
+### Probe framework generation before locking a fixture spec
+
+**Established:** Session 7 (C1.1 escalation, 2026-05-19).
+
+Audit / plan fixture specifications that name a hydration marker
+(`__NEXT_DATA__`, `window.__NUXT__`, `__APOLLO_STATE__`,
+`__PRELOADED_STATE__`, etc.) can fossilize a pattern that has been
+superseded by a subsequent major framework version. Before
+sourcing fixtures for a framework-named directory, run an
+empirical 4-6 candidate probe of well-known production sites for
+that framework and verify the marker actually appears.
+
+Worked example (Session 7 C1.1): the FIXTURE_AUDIT_REPORT.md §12
+C1 spec targeted `__NEXT_DATA__` in CSR/ISR/SSR variants. A
+6-site probe revealed 3/6 sites ship App Router RSC streaming
+(`self.__next_f.push([...])`, no `__NEXT_DATA__`), 1/6 ships
+`__NEXT_DATA__` only, 2/6 ship neither. Next.js 13 (October 2022)
+made App Router the default; by 2026 the production ecosystem is
+dominantly App Router. Spec was revised to a hybrid (1 Pages-
+Router + 2 App-Router) per operator decision recorded in
+SESSION_LOG.md Session 7.
+
+Forward-applicable to C1.2 (Nuxt 2 `window.__NUXT__` vs Nuxt 3
+`<script id="__NUXT_DATA__">`), C1.3 (Apollo Client 2 vs 3
+state-streaming differences), C1.4 (`__PRELOADED_STATE__` vs
+modern state-management libraries), and any future framework-
+marker fixture work (Remix, Gatsby, SvelteKit, Astro, etc.).
+
+The probe script (reuse from C1.1):
+
+```bash
+# /tmp/c1_probe.sh from Session 7 — retry-on-TLS-error capture.
+# /tmp/c1_classify.py from Session 7 — parse the marker payload,
+#   report shape (parses / bytes / variant signals).
+for url in "${CANDIDATE_URLS[@]}"; do
+  /tmp/c1_probe.sh "$url" "/tmp/probe_$(basename "$url").html"
+  python3 /tmp/c1_classify.py "/tmp/probe_$(basename "$url").html"
+done
+```
+
+Cost: 5-10 minutes per framework. Cost of skipping: shipping a
+detector against an obsolete pattern that misses the dominant
+production reality.
+
 ### Conformance check ritual after every fixture change
 
 **Established:** Sessions 5-6.

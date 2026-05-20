@@ -361,3 +361,96 @@ eval_data validation all green at 4f9d23f.
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
 Next concrete work: C1.1 (3 Next.js hydration captures into new
 spa_hydration_next/ directory).
+
+---
+
+## Session 7 — Workstream 0 Week 2 open + C1.1 scope revision (2026-05-19)
+
+Scope: Begin Week 2 SPA hydration captures (C1.1-C1.5, 9 fixtures
+total per plan §3 Week 2). First action C1.1 (3 Next.js hydration
+fixtures into new spa_hydration_next/).
+
+──────── Discovery: __NEXT_DATA__ is no longer canonical ────────
+
+Before capturing any C1.1 fixture, an empirical probe of 6
+well-known Next.js production marketing sites revealed that the
+plan §3 Week 2 / FIXTURE_AUDIT_REPORT.md §12 C1 specification
+(Next.js sites containing `__NEXT_DATA__` script blocks, in CSR /
+ISR / full-SSR variants) targets a near-extinct pattern. Probe
+results (UA `Mozilla/5.0 (compatible; Barcada/1.0)`,
+retry-on-TLS-error policy per LESSONS.md, all single-attempt OK):
+
+| Site         |   Bytes | `__NEXT_DATA__` | `__next_f.push` (RSC) | Variant            |
+|--------------|--------:|----------------:|----------------------:|--------------------|
+| nextjs.org   |  305 KB |               0 |                    30 | App Router         |
+| vercel.com   |  935 KB |               0 |                   101 | App Router         |
+| hashnode.com |  457 KB |               0 |                    41 | App Router         |
+| supabase.com |  387 KB |     1 (299 B)   |                     0 | Pages Router CSR   |
+| tldraw.com   |   13 KB |               0 |                     0 | Not Next.js        |
+| railway.app  |   101 B |               — |                     — | UA-blocked (404)   |
+
+Root cause: Next.js 13 (October 2022) made App Router the default.
+App Router emits hydration as RSC streaming
+(`<script>self.__next_f.push([...])</script>`), **not**
+`__NEXT_DATA__`. The CSR / ISR / full-SSR taxonomy is a
+Pages-Router concept; App Router's data-fetching uses Server
+Components with no equivalent client-visible distinction. By
+2026 the production ecosystem is dominantly App Router.
+
+The plan and audits (May 2026) are entirely silent on this
+migration — `grep` across workspace + scraper code returned zero
+mentions of "App Router", "RSC", or `__next_f`. AUDIT_REPORT.md
+Action #1 and the original C1 spec target only `__NEXT_DATA__`.
+
+Per LESSONS.md Step-6 escalation pattern, stopped before any
+fixture capture and surfaced to operator.
+
+──────── Operator decision (hybrid, recorded 2026-05-19) ────────
+
+C1.1 revised scope (3 fixtures total in `spa_hydration_next/`):
+- **1 Pages-Router** fixture with `__NEXT_DATA__`: supabase.com
+  (CSR-only variant, 299 B payload). Covers legacy long-tail.
+- **2 App-Router** fixtures with RSC streaming: nextjs.org
+  (30 `__next_f.push` calls) and vercel.com (101 calls). Covers
+  the modern majority.
+
+Rationale: matches the production reality the eventual Action #1
+detector will need to handle, keeps Week 2 budget at 9 fixtures,
+and gives Pages-Router coverage via supabase without forcing a
+hunt for ISR/SSR Pages-Router examples that may no longer exist.
+
+──────── Same probe-before-lock discipline applies to C1.2-C1.4 ────────
+
+By operator-discussed extension of the C1.1 decision, the
+probe-before-lock discipline applies forward to:
+- **C1.2 (Nuxt):** Nuxt 2 used `window.__NUXT__`; Nuxt 3
+  (November 2022) uses `<script id="__NUXT_DATA__" type=
+  "application/json">`. Probe 4-6 candidates before sourcing.
+- **C1.3 (Apollo):** Apollo Client 3 sometimes embeds state
+  under `window.__APOLLO_STATE__`, sometimes streams via custom
+  dispatcher keys. Probe before locking.
+- **C1.4 (Redux):** `window.__PRELOADED_STATE__` is the classic
+  SSR pattern; many production React apps have migrated to
+  Zustand, Jotai, or RSC-native state. Probe before locking.
+
+Codified as a LESSONS.md "Diagnostic patterns" entry this session.
+
+──────── Workspace updates this session ────────
+
+- SESSION_LOG.md: this entry.
+- LESSONS.md: new "Probe framework generation before locking
+  fixture spec" entry under "Diagnostic patterns".
+- (NOT updated: BARCADA_CRAWLER_REMEDIATION_PLAN.md — operator
+  treats this as read-only, period.)
+
+──────── Open items / next concrete work ────────
+
+- C1.1.a: capture supabase.com.html into new
+  tests/fixtures/html/spa_hydration_next/ (1 Pages-Router
+  CSR-only fixture).
+- C1.1.b: nextjs.org.html (1 App-Router RSC fixture).
+- C1.1.c: vercel.com.html (1 App-Router RSC fixture).
+- Then C1.2 (Nuxt) — apply probe-before-lock discipline.
+- Then C1.3 (Apollo), C1.4 (Redux) — same.
+- Then C1.5 (extend test_fixture_conformance.py: COVERED set +
+  hydration-payload assertions for all 4 new directories).
