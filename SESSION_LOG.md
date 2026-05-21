@@ -2871,3 +2871,267 @@ schema bump v1.0 → v1.1 (path a) vs consolidator-mapping (path b).
 Conformance enumerator must shift from `.glob("*.html")` to `rglob`
 (or equivalent) to discover the 3 nested
 `international_business/<locale>/expected/<domain>.json` files.
+
+## Session 15 — W4.3 test-infrastructure update (2026-05-21)
+
+Scope: Engineering session. Bumped `tests/fixtures/expected.schema.json`
+v1.0 → v1.1 to match the 18-column `stage3_decision` shape that landed
+across the 198-fixture corpus at W4.2 commit `cc2ba2c`, folded in the
+six deferred prose-only fixes (a)-(f) from the SESSION_TRANSITION_
+TEMPLATE.md register into META_SCHEMA.md, and augmented the conformance
+suite's directory-semantic assertions with a hard_exclusions drift
+check against the W4.2-committed parser_output slice. Two repo commits
+(`7728bdf` W4.3.B + `b2e2671` W4.3.D); one workspace commit (this
+SESSION_LOG entry + SESSION_TRANSITION_TEMPLATE refill); one operator-
+authorized capstone tag `workstream-0-week4-end` at `b2e2671`.
+
+──────── Cold-start verification at session open ───────────────
+
+- Workspace HEAD `a50c044` matched outgoing template (Session 14 close).
+- Annotated tag `reconciliation-2026-05-21-absorbed` at `ce7e8e9`
+  confirmed untouched.
+- Repo HEAD `cc2ba2c` matched outgoing template (W4.2 close).
+- Annotated tag `workstream-0-week4-1-5-end` confirmed at `dd64963`
+  (annotated tag SHA `f9be833a`).
+- 198 expected.json files present on disk.
+- Driver intact at `tests/runners/fixture_cascade/` (zero diff vs
+  `dd64963`).
+- Driver suite at session open: 46/46 passed (29.83s).
+- Conformance suite at session open: 17 failed, 169 passed, 2 skipped
+  (Week 5 punch list byte-stable from Session 14 close).
+- Schema-shape divergence source-verified:
+  - `expected.schema.json` v1.0 stage3_decision.required = legacy
+    triple `[partner_type, confidence, tier]`.
+  - `src/barcada_scraper/classifier/stage3/output_schema.py:109-142`
+    SCHEMA = 18-col stage3_predictions parquet shape.
+  - `twilio.com.json` committed expected.json carries the 18-col shape
+    (primary_partner_type="Independent Software Vendor", tier_decided=
+    "llm", 168-key parser_output). Validates against v1.1 but NOT v1.0.
+
+──────── Step A: Schema-shape resolution (design-gate) ─────────
+
+Operator chose path (a) — schema bump v1.0 → v1.1 — over path (b)
+adapter (test-side OR driver-side variant). Rationale: cleanest semantic
+alignment with the 18-col shape already landed at W4.2; no test-side
+indirection; no driver-locked-policy breach. Path (b) driver-side variant
+would have required regenerating the 198 expected.json files (W4.2
+ground-truth lock would have been breached); path (b) test-side variant
+would have left the v1.0 schema-vs-data divergence permanently visible.
+
+──────── Step B: Schema bump + META_SCHEMA prose realignment ───
+
+Commit `7728bdf` W4.3.B. Two files touched:
+
+- `tests/fixtures/expected.schema.json`:
+  - stage3_decision.required: legacy triple → 18-col list (domain,
+    crawl_timestamp, primary_partner_type, primary_confidence,
+    secondary_partner_types, tier_decided, abstain, abstain_reason,
+    rationale, upstream_abstained, evidence_summary, fetch_cost_usd,
+    evidence_cost_usd, primary_classification_cost_usd, secondary_
+    classification_cost_usd, pages_acquired, model_version,
+    taxonomy_version).
+  - description rewritten to reference output_schema.py:109-142 and
+    ALL_TIERS at 60-66.
+  - schema_version pattern unchanged (`^1\.[0-9]+$` accepts both
+    "1.0" and "1.1"). The 198 W4.2 files declare "1.0" but conform
+    to v1.1 shape — historical artifact documented in §4.
+
+- `tests/fixtures/META_SCHEMA.md`:
+  - Header version line: meta.schema.json v1.0; expected.schema.json
+    v1.1 (W4.3 bump 2026-05-21).
+  - §2.4 deferred fix (a): nginx-401 partition reference corrected
+    (C0.7c moved files OUT of parking_default_pages/ TO auth_403/ at
+    commit 4f8dc06).
+  - §2.4 deferred fix (b): replaced_in_place captured_at caveat added
+    (git log --diff-filter=A returns ORIGINAL add-commit date).
+  - §2.4 deferred fix (c): approximated_from_synthetic_invalid_fallback
+    vocabulary entry added.
+  - §3: rewritten with 18-col stage3_decision field-by-field table;
+    includes deferred fix (d) tier_decided="parser_rule" vocab and
+    deferred fix (f) output durability annotation.
+  - §3.1: reframed as historical W4.0 design, superseded W4.3.
+  - §4: current-state subsection added explaining the v1.1 state and
+    the "schema_version": "1.0" historical artifact.
+  - §5 line 149: nginx-401 + replaced_in_place fixes (mirroring §2.4).
+  - §8: worked example rewritten — twilio.com.json now carries real
+    W4.2 cascade outputs, not the W4.0 placeholder + sentinel.
+
+All six deferred prose-only fixes (a)-(f) cleared from the register.
+
+Validation: 198/198 expected.json files validate cleanly against the
+v1.1 schema via jsonschema 4.26.0 (verified exhaustively).
+
+Test counts at W4.3.B close: driver 46 passed; conformance 17/169/2
+unchanged.
+
+──────── Step C: rglob enumerator change (SKIPPED) ─────────────
+
+Source-verification at cold-start showed the 3 nested international_
+business/<locale>/ fixtures are ALREADY discoverable via the existing
+per-locale parametrize functions (test_international_business_{de,jp,br}_
+conformance at lines 402/418/434 of the conformance test). pytest
+`--collect-only` confirmed all 3 currently collect; baseline shows all
+3 currently PASS. The Session 14 handoff's predicted count shift
+17/169/2 → 17/172/2 was an incorrect premise. Step C skipped per
+operator decision after the verify-before-asking finding was surfaced.
+
+──────── Step D: Conformance test augmentation ─────────────────
+
+Commit `b2e2671` W4.3.D. One file touched: `tests/scraper/test_fixture_
+conformance.py`.
+
+Verify-before-asking finding surfaced during Step D scope elicitation:
+the prompt's recommended "verdict-only" comparison option (compare
+stage1/2/3_decision against committed expected.json) required running
+the cascade, but the prompt also prohibited live LLM calls. AskUserQuestion
+surfaced the tension; operator chose parser-level comparison instead.
+
+Second verify-before-asking finding (Step D semantics correction): a
+pure drift-test against committed expected.json would flip ALL 17 W5-
+punch-list reds to green, because the W4.2 cascade-driver captured the
+same parser output the live parser produces today (verified by inspecting
+sanmarinoiron.com and archive.org committed expected.json directly).
+AskUserQuestion surfaced this; operator chose "Augment, don't replace"
+— keep the directory-semantic assertion (preserving the 17 reds) AND
+add the drift check as a regression detector on top.
+
+Implementation:
+- Added `_HARD_EXCLUSION_KEYS` tuple (20 keys returned by extract_hard_
+  exclusions, each mapping to parser_output["hard_exclusions_<key>"]
+  in the consolidator-flattened expected.json).
+- Added `_expected_parser_output(path)` helper that resolves
+  tests/fixtures/html/<category>/expected/<domain>.json (or
+  <category>/<locale>/expected/<domain>.json for nested locales) and
+  returns the parser_output dict, or None when no expected.json
+  exists (login_wall is validator-side).
+- Extended `_block(path)` to run the drift check after computing
+  extract_hard_exclusions. The drift check iterates the 20 keys and
+  asserts live == committed-W4.2 with a diagnostic referencing
+  commit cc2ba2c.
+- Refactored test_international_business_{de,jp,br}_conformance to
+  use _block(path) instead of extract_hard_exclusions(html, ...) inline,
+  picking up the drift check uniformly.
+
+Drift==zero across all 198 fixtures verified before refactor (placeholder-
+domain output byte-identical to committed parser_output slice).
+
+Test counts at W4.3.D close (acceptance criteria):
+- Driver suite: 46 passed.
+- Conformance suite: 17 failed, 169 passed, 2 skipped.
+- 17 W5-punch-list red identities BYTE-IDENTICAL against Session 14
+  baseline (verified via diff between /tmp/w4-3-baseline-reds.txt and
+  /tmp/w4-3-close-reds.txt).
+
+──────── Pre-push gate resolution ─────────────────────────────
+
+Pre-push gate (ruff check / ruff format / vermin 3.10 / validate_
+consistency) ran clean on the W4.3 surfaces. Initial validate_consistency
+failed: row 102 of eval_data/stage1_labels.jsonl (thethinkacademy.com)
+had duplicate 'testimonials' in rationale_keywords (introduced in
+operator's unstaged work since Session 14 close, NOT by W4.3 commits).
+Per LESSONS Session 6 "Push-blocking pre-push gates require operator
+coordination": surfaced to operator with 4 disposition options.
+Operator chose "fix row 102 manually, then rerun gate". Operator
+deduplicated to `['testimonials', 'contact_sales', 'consumer_customers']`;
+validate_consistency re-ran clean. Push to origin/main:
+`cc2ba2c..b2e2671` landed. No `--no-verify` used.
+
+──────── Capstone tag ─────────────────────────────────────────
+
+Operator-authorized override of the Session 12 "no Week 4 sub-tag"
+sequencing decision: placed annotated tag `workstream-0-week4-end` at
+`b2e2671` (W4.3.D close). Annotation covers all of Week 4 (W4.0/W4.1/
+W4.1.5/W4.2/W4.3), output durability constraints, Week 5 ahead, and
+the cumulative cost-budget state ($0.26345 incurred / $99.74 remaining).
+Tag pushed to origin.
+
+──────── Operator decisions made during Session 15 ─────────────
+
+1. Step A: path (a) schema bump v1.0 → v1.1 (over path (b) adapter).
+2. Step C: skipped (operator agreed with source-verification finding
+   that the 3 nested fixtures are already discoverable).
+3. Step D comparison granularity: parser-level (over verdict-only
+   cascade or hash-based).
+4. Step D semantics correction (mid-session): "augment, don't replace"
+   (over pure replacement that would flip 17 reds, or W4.3 halt).
+5. META_SCHEMA scope: full path (a) bundle — all 6 deferred prose-only
+   fixes (a)-(f) folded in (over minimum-scope or schema-only).
+6. Pre-push gate resolution: operator-side fix (row 102 dedup), not
+   stash / not --no-verify / not session-defer.
+7. Week 4 capstone tag: PLACED at b2e2671 (overrode Session 12 "no
+   sub-tag" sequencing decision; operator chose Week 4 marked complete).
+8. Per-tier cost-accounting wiring gap (W4.3.X candidate): DEFERRED
+   (low severity; total cost telemetry intact; per-tier breakdown is
+   nice-to-have for future cost-envelope work).
+
+──────── Patterns reinforced this session ─────────────────────
+
+- **Verify-before-asking discipline (extension)** (LESSONS Session 12):
+  surfaced FOUR distinct source-verification findings BEFORE acting on
+  the prompt's premises:
+  1. The 3 nested international_business fixtures are already
+     discoverable (Step C premise incorrect).
+  2. The W4.2 expected.json captures the broken state for all 17 W5
+     reds (pure drift-test would flip them green).
+  3. extract_hard_exclusions is fully domain-independent (placeholder
+     "example.com" produces byte-identical output to actual-domain
+     calls across all 198 fixtures).
+  4. The schema_version pattern accepts both "1.0" and "1.1" — the
+     198 W4.2 files don't need regeneration to validate against v1.1.
+- **Driver-level input contracts** (LESSONS Session 12): re-read
+  consolidate.py at session-current HEAD before scoping the schema
+  bump, which surfaced that stage1_decision and stage2_decision are
+  already in v1.0 triple shape (only stage3_decision diverged).
+- **Confirm-to-commit gating** before W4.3.B, W4.3.D, and the
+  workspace close-out commit.
+- **File-based commit messages** at /tmp/W4.3.B-msg.txt and
+  /tmp/W4.3.D-msg.txt.
+- **No `Co-Authored-By`**.
+- **Pre-push gate** ran clean on the W4.3 surfaces; resolved the
+  operator-side blocker via operator action rather than --no-verify.
+- **Push-blocking pre-push gates require operator coordination**
+  (LESSONS Session 6) — surfaced the eval_data/ row 102 issue with
+  4 disposition options instead of silently retrying.
+- **Plan-as-read-only**: BARCADA_CRAWLER_REMEDIATION_PLAN.md unchanged
+  this session.
+
+No new LESSONS.md entries this session — all observed patterns were
+instances of previously-established discipline.
+
+──────── Workspace changes landed this session ────────────────
+
+- `SESSION_LOG.md`: this entry (Session 15 append).
+- `SESSION_TRANSITION_TEMPLATE.md`: refilled for Session 16 with W5 as
+  next concrete work unit.
+
+Repo changes:
+- W4.3.B commit `7728bdf` (tests/fixtures/expected.schema.json +
+  tests/fixtures/META_SCHEMA.md).
+- W4.3.D commit `b2e2671` (tests/scraper/test_fixture_conformance.py).
+- Annotated tag `workstream-0-week4-end` placed at `b2e2671` and
+  pushed to origin.
+- Pushed to origin/main: `cc2ba2c..b2e2671`.
+
+Test counts at Session 15 close (verified):
+- Driver suite (`tests/runners/fixture_cascade/`): 46/46 pass.
+- Conformance suite (`tests/scraper/test_fixture_conformance.py`):
+  17 fail, 169 pass, 2 skip (unchanged from Session 14 close;
+  Week 5 punch list byte-stable in identity).
+- 198/198 expected.json files validate clean against v1.1 schema.
+
+──────── Cost & schedule tracking ─────────────────────────────
+
+- Cost incurred Session 15: $0 (test-infrastructure refactor only;
+  no LLM calls).
+- Cost incurred Sessions 1-15 total: $0.26345 (all from W4.2 in
+  Session 14).
+- Budget remaining: $99.74.
+- Schedule: Week 4 COMPLETE this session (all of W4.0/W4.1/W4.1.5/
+  W4.2/W4.3 landed). Week 5 ahead.
+
+Next session prompt: see `SESSION_TRANSITION_TEMPLATE.md`.
+Next concrete work: Workstream 0 Week 5 — multipage_boilerplate
+fixtures, multilingual parking, soft_404 + empty_google_sites
+repopulation, edge-case robustness fixtures, and closure of the 17
+W5-punch-list conformance reds via fixture work (NOT test-
+infrastructure work; W4.3 closed the test-infrastructure surface).
