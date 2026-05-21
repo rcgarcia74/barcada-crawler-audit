@@ -871,3 +871,31 @@ Workstream 0 finding (Week 4 expected-output generation, Week 5
 punch-list cleanup, etc.). Workstream 0 evidence is already counted
 in the original Flag 2 deferral; additional same-context evidence
 does not change the evidence base.
+
+### Close-out claims-by-analogy in handoff documents (Session 11 → Session 12-prep finding)
+
+Close-out drafting consumes attention. Structural claims about prior
+state (SHA lists, file lists, commit-message contents, tag
+annotations) get written by pattern-completion rather than source-
+verification. Failure mode: claim drifts from source, lands in a
+handoff document, future sessions inherit the drift as ground truth.
+
+**Mitigation**: every structural claim in a close-out or handoff
+document is verified against the source before the document lands.
+Verify recipe: `git log <SHA> --format=%B` and grep for the claimed
+content, or equivalent for non-commit assertions.
+
+**Trigger pattern**: any handoff or close-out document that names
+specific SHAs, file paths, commit-message contents, or asserts
+state ("X is staged in Y", "Z carries forward from W"). Apply the
+recipe before the document is committed.
+
+**Concrete instance (Session 11 close → Session 12-prep)**: the
+SESSION_TRANSITION_TEMPLATE.md and the draft Session 12 prompt
+claimed the Workstream C scope amendment flag was staged in commit
+messages `9165791`, `8aafc45`, and `9e1bda9`. Verification showed
+the flag is present in `9165791` and `8aafc45` only. The claim was
+written by analogy during close-out drafting; a single
+`git show --no-patch --format=%B 9e1bda9 | grep -i workstream.c`
+would have caught it in seconds. Operator question triggered the
+verification retroactively; correction landed in this commit.

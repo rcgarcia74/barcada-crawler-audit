@@ -1902,3 +1902,43 @@ Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
 Next concrete work: Workstream 0 W4.2 — expected/<domain>.json
 generation across the 198-fixture corpus per META_SCHEMA v1.0 +
 Flag 1 sentinel triple for stage3_decision.
+
+──────── Correction (added Session 12-prep) ──────────────────────
+
+The SESSION_TRANSITION_TEMPLATE.md and the draft Session 12 prompt
+(at `/tmp/session-12-prompt.md`) claimed the Workstream C scope
+amendment flag was staged in commit messages `9165791`, `8aafc45`,
+and `9e1bda9`. Verification against git log (`git show --no-patch
+--format=%B <SHA>` for each) shows the flag is present in `9165791`
+and `8aafc45` only; `9e1bda9` does not carry it. The claim was
+written by analogy during Session 11 close-out drafting without
+source verification.
+
+Three locations corrected with strengthened wording:
+- SESSION_TRANSITION_TEMPLATE.md line ~175 (Outstanding operator-
+  input requests section)
+- SESSION_TRANSITION_TEMPLATE.md line ~568 (Notes for Session 12,
+  "Plan is read-only" bullet)
+- `/tmp/session-12-prompt.md` line ~38 (Outstanding operator-
+  authorization items section of the Session 12 cold-start prompt)
+
+Strengthened wording (applied at all three): "Staged in commit
+messages `9165791` and `8aafc45`; not re-staged in W4.1 `9e1bda9`.
+Operator decision needed: re-stage in subsequent W4 commit messages,
+or treat as staged-once-and-carried-via-workspace-handoff."
+
+Finding logged in LESSONS.md under the existing "Verify-before-
+asking discipline" section as a new sub-section:
+"Close-out claims-by-analogy in handoff documents." Codifies the
+failure mode (structural claims written by pattern-completion
+rather than source-verification during close-out drafting), the
+mitigation recipe (`git log <SHA> --format=%B` + grep, or
+equivalent), and the trigger pattern (any handoff or close-out
+document naming specific SHAs / file paths / commit-message
+contents / asserted state).
+
+Trigger surfaced by operator question during Session 12 prompt
+review. Verify-before-asking applied retroactively to the prompt
+caught the propagated error in two more locations than the original
+question. Demonstrates the pattern: a single targeted check against
+source can unearth multi-location drift.

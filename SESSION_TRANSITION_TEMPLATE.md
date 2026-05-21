@@ -171,9 +171,11 @@ Session 12 should TaskCreate fresh tasks on open. Suggested tasks:
 Carried forward from Session 10 + Session 11. Deferred Stage 3
 expected-output generation lands in Workstream C scope per Flag 1
 resolution; that's a plan-document amendment — read-only territory,
-operator authorization required. Staged in commit messages `9165791`,
-`8aafc45`, and `9e1bda9` for operator handling outside session work.
-Not a Session 12 W4.2 blocker; will matter at Workstream C scoping.
+operator authorization required. Staged in commit messages `9165791`
+and `8aafc45`; not re-staged in W4.1 `9e1bda9`. Operator decision
+needed: re-stage in subsequent W4 commit messages, or treat as
+staged-once-and-carried-via-workspace-handoff. Not a Session 12 W4.2
+blocker; will matter at Workstream C scoping.
 
 **W4.2 script preview** — once Session 12 drafts the W4.2 generation
 script, present sample output for 5-10 representative fixtures
@@ -565,8 +567,10 @@ real schema bump's diff so the locked-artifact churn stays minimal.
 - **Plan is read-only** — never edit
   `BARCADA_CRAWLER_REMEDIATION_PLAN.md`. Workstream C scope
   amendment (deferred Stage 3 expected-output generation) flagged in
-  commit messages `9165791`, `8aafc45`, and `9e1bda9` for operator
-  handling; do not amend the plan document yourself.
+  commit messages `9165791` and `8aafc45`; not re-staged in W4.1
+  `9e1bda9`. Operator decision needed: re-stage in subsequent W4
+  commit messages, or treat as staged-once-and-carried-via-workspace-
+  handoff. Do not amend the plan document yourself.
 - **Shell cwd drift**: use absolute paths or `cd /Users/administrator/
   projects/barcada-scraper` at the start of each Bash chain.
 - **Workspace cwd**: when editing LESSONS.md / SESSION_LOG.md /
