@@ -2558,3 +2558,316 @@ Next concrete work: Workstream 0 W4.2 — full-corpus expected.json
 generation via the W4.1.5 fixture-cascade driver in real mode, per
 plan §3 Week 4 (W4.2) + the open items in the Session 13 validation
 report.
+
+---
+
+## Session 14 — W4.2 expected-outputs generation across 198-fixture corpus (2026-05-21)
+
+Scope: Operator-driven generation session. Ran the W4.1.5
+fixture-cascade driver (tagged `workstream-0-week4-1-5-end` at
+`dd64963`) in `--llm-mode real` against the full 198-fixture corpus,
+human-reviewed the resulting per-fixture `expected/<domain>.json`,
+copied them into `tests/fixtures/html/<category>/expected/`, and
+landed one coordinated commit at `cc2ba2c` per plan §3 Week 4 (W4.2).
+
+──────── Cold-start verification at session open ───────────────
+
+- Workspace HEAD `e60bee7` matched outgoing template.
+- `reconciliation-2026-05-21-absorbed` tag at `ce7e8e9` confirmed.
+- Repo HEAD `5449ba6` matched outgoing template.
+- Annotated tag `workstream-0-week4-1-5-end` confirmed at `dd64963`
+  (tag SHA `f9be833a`).
+- Driver intact at `tests/runners/fixture_cascade/` (no diff vs
+  `dd64963`).
+- Driver test suite: **46/46 passed** in 29.83s.
+- All four required workspace verification reports present
+  (`phase4_status`, `phase4_current_state`, `stage3_input_shape`,
+  `w4_1_5_small_subset_validation`).
+
+──────── Step A: Real-mode small-subset validation ─────────────
+
+**Step A v1** (sorted-by-domain first-10): operator ran
+```
+.venv/bin/python -m tests.runners.fixture_cascade.cli \
+    --output-dir /tmp/w4-2-real-validation \
+    --run-id w4-2-real-validation-2026-05-21 \
+    --llm-mode real --max-fixtures 10
+```
+Result: $0.00226 total, 13.4s wallclock. Under-exercised cascade
+(8/10 routed to Stage 1 RULES `is_business=False`; 1 fired Stage 2
+LLM — backmarket.com → `not_technology`; 0 fired Stage 3 LLM). The
+literal halt thresholds passed (total < $0.18, no exception, output
+NOT identical to fake-mode), but the cost-shape gate's purpose
+(validate Stage 3 extrapolation) wasn't met because Stage 3 didn't
+fire at all.
+
+Operator chose to re-run Step A with a curated diverse subset that
+would exercise Stage 2 + Stage 3 LLM tiers.
+
+**Step A v2** (10 curated fixtures spanning legitimate_business /
+mega_menu / legitimate_nonprofit / international_business):
+twilio.com, hubspot.com, snowflake.com, notion.so, webflow.com,
+salesforce.com, shopify.com, mozilla.org, wikimediafoundation.org,
+siemens.de. Result: $0.10656 total, 48s wallclock, 6 Stage 3 LLM
+verdicts (twilio/hubspot/salesforce/notion/shopify/webflow all → ISV
+with confidence ≥0.9). Per-call Stage 3 primary cost averaged
+$0.0142 (Q3 ballpark $0.00470, 3× higher — within material caveats
+±25% per-call + ±50% if cache miss). Full-corpus extrapolation ~$0.65
+(below $0.90 halt threshold).
+
+Notable side observations from Step A v2 (carry forward to commit
+message):
+- Per-tier cost-accounting gap: cost_journal `totals.stageN_*_usd`
+  fields all $0; shard-level `cost_usd` is authoritative. Per-row
+  `evidence_cost_usd` is $0 for all rows. Driver-locked policy
+  applies; not a W4.2 blocker.
+- Stage 1 false-negatives: 4 of 10 (mozilla, snowflake, wikimedia,
+  siemens) returned `is_business=False` at RULES tier
+  (signals_business_score below threshold). Documented current
+  cascade behavior, NOT a driver bug.
+
+Operator approved proceeding to Step B.
+
+──────── Step B: Full-corpus 198-fixture run ───────────────────
+
+Operator ran:
+```
+.venv/bin/python -m tests.runners.fixture_cascade.cli \
+    --output-dir /tmp/w4-2-full-corpus \
+    --run-id w4-2-full-corpus-2026-05-21 \
+    --llm-mode real
+```
+No `--max-fixtures` cap. Driver enumerated all 198 fixtures via
+`rglob` (including the 3 nested `international_business/<locale>/`
+fixtures).
+
+Result:
+- **Total cost: $0.26345** — within Q3 audit ballpark ($0.30); below
+  $0.90 halt threshold (3× ballpark).
+- Stage 1 shard: $0.00473.
+- Stage 2 shard: $0.04992.
+- Stage 3 shard: $0.20880.
+- Wallclock: 117s (~2 min) — well below 5-15min estimate;
+  `max_concurrent_*=5` concurrency carried.
+- 198/198 expected.json emitted under `/tmp/w4-2-full-corpus/expected/`.
+- All five intermediate parquets produced (parser, stage1_predictions,
+  stage2_summaries, stage2_predictions/, stage3_predictions) plus
+  bandwidth/cache parquets.
+- `cost_journal.shards`: 3 entries (stage 1/2/3, all `outcome="completed"`).
+- `halted: false`, no exception raised.
+
+──────── Step C: Per-fixture human review ──────────────────────
+
+Routing distribution (real-mode, 198 fixtures across 29 categories):
+- **175 fixtures**: Stage 1 RULES → `is_business=False` → upstream-
+  abstained through Stage 2 + 3.
+- **23 fixtures**: Stage 1 → `is_business=True` → Stage 2 fires.
+- **17 fixtures**: Stage 2 classified as Technology → Stage 3 fires.
+- **12 fixtures**: Stage 3 returned an LLM verdict (the other 5
+  abstained at the evidence step).
+
+All 12 Stage 3 LLM verdicts are "Independent Software Vendor" (11) or
+"Reseller" (1), confidence ≥0.75. Spot-check verified semantically
+defensible against fixture HTML for: twilio, hubspot, salesforce,
+notion, shopify, webflow, gitlab, locaweb.com.br, synthetic_devtools_
+marketing, synthetic_microsoft_style_aria_controls, sanluisconnect.com
+(Reseller — HTML actually advertises "ResellerPanel Affiliate"),
+sanmarcosoutlook.com (ISV — HTML is actually Pair Domains marketing).
+
+Stage 1 false-negative cluster against directory taxonomy:
+- legitimate_business: 7 of 15 FN (snowflake, grigionitaliano,
+  sanluisfinancial, ssquared* x3, sheltonestates, ssroklahoma)
+- legitimate_nonprofit: 6 of 6 FN (all — mozilla, redcross,
+  doctorswithoutborders, archive.org, wikimediafoundation,
+  synthetic_educational_organization)
+- legitimate_blog: 3 of 3 FN (danluu, jvns.ca, simonwillison)
+- international_business: 1 of 3 FN (siemens.de)
+- Total: **17 of 27 "legitimate*" fixtures route to is_business=False**.
+
+Most FN cases have low/negative `signals_business_score` OR
+`crawl_meta_homepage_text_length=0` (parser couldn't extract text from
+JS-rendered shells). Reflects current signals engine behavior; tracked
+under known-FN signals design decisions per project memory.
+
+Four fixture-taxonomy/content mismatches surfaced:
+1. parking_sale/sanluisconnect.com → Stage 3 Reseller (HTML
+   actually advertises a reseller affiliate program).
+2. parking_sale/sanmarcosoutlook.com → Stage 3 ISV (HTML is actually
+   Pair Domains' marketing page, not a parked domain).
+3. spa_shell/sanmarinoiron.com → `is_business=True` (5912 chars of
+   real metalworking business content despite spa_shell directory).
+4. auth_403/grilloresources.net → `is_business=True` (parser tagged
+   as `parking_errors` with bus_score=8 on the 403 HTML; signals
+   engine quirk).
+
+None of these are driver-bug-suspected. The cascade verdicts are
+semantically correct against the actual HTML content; the fixture
+filenames/categories may need W5-era recategorization.
+
+Conformance category counts cross-verified: all 29 categories match
+the expected fixture counts (e.g. parking_construction n=37,
+auth_403 n=17, legitimate_business n=15, etc.). 198 total.
+
+──────── Step D: Copy into fixture tree ────────────────────────
+
+Python-driven copy from `/tmp/w4-2-full-corpus/expected/<domain>.json`
+into the matching `tests/fixtures/html/<category>/expected/<domain>.json`,
+using `rglob` to locate the source `.html` file's parent directory.
+
+Result:
+- 198 files copied.
+- 0 skipped.
+- 1 file overwritten: `legitimate_business/expected/twilio.com.json`
+  (the W4.0 schema-lock placeholder replaced with W4.2 driver output
+  per operator decision — overwrite, not protect).
+- 28 new `expected/` directories created (one per category, plus the
+  3 nested `international_business/<locale>/expected/`).
+
+Conformance-enumerator finding (W4.3 visibility): the current
+`tests/scraper/test_fixture_conformance.py:38` uses
+`sorted((FIXTURES / category).glob("*.html"))` (single-level glob).
+The 3 nested `international_business/<locale>/expected/<domain>.json`
+files are NOT discovered by this enumeration. W4.3 will need to make
+the enumeration `rglob`-aware OR restructure the parametrize.
+
+──────── Step E: One coordinated commit + push ─────────────────
+
+Repo commit `cc2ba2c` ("W4.2: 198 expected.json files generated via
+fixture-cascade driver (real-mode)"). File-based commit message at
+`/tmp/W4.2-msg.txt`, body covers: action ref W4.2, per-category
+fixture counts (29 categories totaling 198), routing distribution,
+total LLM cost breakdown, twilio.com overwrite decision, Stage 1 FN
+cluster characteristic, fixture-taxonomy/content mismatches, per-tier
+cost-accounting wiring gap surface, nested-fixture conformance
+enumerator concern, plan ref §3 W4.2, pytest 46/46 driver-suite
+confirmation, pre-push gate status.
+
+Pre-push gate ran clean (ruff + ruff format + vermin 3.10 target +
+validate_consistency 0 errors/0 warnings). `git push origin main`
+landed `5449ba6..cc2ba2c`. No `--no-verify` used.
+
+**No tag at W4.2 close** per Session 12 sequencing decision (the
+`workstream-0-week4-1-5-end` tag at `dd64963` marks the Week 4
+engineering milestone; W4.2 + W4.3 land without their own tags).
+
+──────── Verify-before-asking double-check at session close ────
+
+15-check verification battery (operator-requested "double check your
+work") ALL PASS:
+- Commit SHA `cc2ba2c` == HEAD == origin/main.
+- 198 expected.json files on disk == 198 in the commit.
+- Driver locked: `git diff dd64963..HEAD -- tests/runners/fixture_cascade/`
+  = empty.
+- Production code untouched: `git diff dd64963..HEAD -- src/ configs/`
+  = empty.
+- eval_data NOT in commit (locked artifact preserved).
+- Tags unchanged: `workstream-0-week4-1-5-end → dd64963` still.
+- No new tag at W4.2 close (only `workstream-0-week4-1-5-end` in
+  week4 family).
+- All 29 categories' fixture counts match commit message exactly.
+- Twilio.com overwrite verified: `_placeholder=False`, 168-key
+  parser_output, 18-key stage3 with primary="Independent Software
+  Vendor" / tier="llm" / confidence=0.92.
+- 198 .html ↔ 198 expected.json (no orphans either direction).
+- Cost-journal numbers match commit message exactly.
+- Conformance test count unchanged: 17 fail / 169 pass / 2 skip.
+- 12 Stage 3 LLM verdicts on disk (matches commit msg claim).
+- Final repo state: only eval_data unstaged (locked-artifact);
+  branch sync clean.
+
+──────── Operator decisions made during Session 14 ─────────────
+
+1. **Step A v1 → v2 re-run**: operator chose diverse-subset re-run
+   when v1 sorted-by-domain sample under-exercised the cascade.
+2. **Step B authorization**: approved proceeding to full-corpus run
+   after v2 demonstrated semantically real LLM verdicts and a
+   defensible per-call cost shape (within 3× of $0.30 ballpark).
+3. **Twilio.com.json overwrite (vs protect)**: operator chose
+   overwrite. The W4.0 `_w4_note` anticipated this supersession
+   ("Real parser_output generated in W4.2 by running ... through
+   the parser"). Overwritten verbatim with the W4.2 cascade verdict.
+4. **Step C → D authorization**: operator reviewed the Stage 1 FN
+   cluster + the 4 fixture-taxonomy/content mismatches and chose
+   to land all 198 expected.json files as-is (documenting current
+   cascade behavior). No driver-bug-suspected cases. Fixture
+   recategorization deferred to W5.
+5. **Push authorization**: direct approval after confirm-to-commit
+   (no Hold/re-authorize round-trip).
+6. **Tag policy clarification at close**: when operator said "don't
+   forget to tag" at close-out time, surfaced as conflict with the
+   W4.2 prompt's "no tag at W4.2 close" policy. Operator chose
+   "Ignore my request" — honoring the prompt's no-tag policy. No
+   W4.2 tag placed.
+
+──────── Patterns reinforced this session ─────────────────────
+
+- **Sample review before bulk** (Session 11 W4.1 analog): two-step
+  Step A subset validation before the 198-fixture bulk run.
+- **One coordinated commit for bulk** (Session 11 W4.1 + LESSONS.md):
+  198 expected.json files in a single commit at `cc2ba2c`.
+- **Confirm-to-commit gating** before the W4.2 commit.
+- **Verify-before-asking discipline**: per-fixture cascade verdicts
+  cross-checked against source HTML (Internet Archive empty SPA
+  shell, Pair Domains in parking_sale, ResellerPanel affiliate
+  copy in sanluisconnect HTML); cost numbers cross-verified against
+  the cost journal at commit time; 15-check verification battery at
+  close.
+- **Driver-locked policy**: W4.1.5 driver at `dd64963` unchanged
+  through W4.2. Cost-journal per-tier accounting gap surfaced but
+  not patched (driver-locked).
+- **Plan-as-read-only**: BARCADA_CRAWLER_REMEDIATION_PLAN.md
+  unchanged this session.
+- **Operator-ratchet at close**: operator's "don't forget to tag"
+  instruction conflicted with the W4.2 prompt's no-tag policy;
+  surfaced via AskUserQuestion rather than silently overriding
+  either side. Operator chose to honor the prompt.
+
+No new LESSONS.md entries this session — all observed patterns were
+instances of previously-established discipline.
+
+──────── Workspace changes landed this session ────────────────
+
+- `SESSION_LOG.md`: this entry (Session 14 append).
+- `SESSION_TRANSITION_TEMPLATE.md`: refilled for Session 15 with
+  W4.3 as next concrete work unit (test infrastructure update; gating
+  design question = expected.schema.json v1.0 → v1.1 bump vs
+  consolidator-mapping path).
+
+Repo changes:
+- 198 new `tests/fixtures/html/<category>/expected/<domain>.json`
+  files (one coordinated commit `cc2ba2c`).
+- 28 new `expected/` directories created.
+- One pre-existing file overwritten:
+  `legitimate_business/expected/twilio.com.json` (W4.0 placeholder
+  → W4.2 cascade verdict).
+- Pushed to `origin/main` at `5449ba6..cc2ba2c`.
+- **No new repo tag at W4.2 close** per Session 12 sequencing
+  decision.
+
+Test counts at Session 14 close (verified):
+- Driver suite (`tests/runners/fixture_cascade/`): 46/46 pass.
+- Conformance suite (`tests/scraper/test_fixture_conformance.py`):
+  17 fail, 169 pass, 2 skip (unchanged from Session 13 close;
+  Week 5 punch list).
+- Hard-exclusions suite: 64 pass (steady).
+
+──────── Cost & schedule tracking ─────────────────────────────
+
+- Cost incurred Session 14: **$0.26345** (W4.2 full-corpus real-mode
+  generation; first session with non-zero Azure spend).
+- Cost incurred Sessions 1-14 total: **$0.26345**.
+- Budget remaining: **$99.74**.
+- Schedule: ~4.5 weeks elapsed of Workstream 0's 5-week budget.
+  - Weeks 1-3 COMPLETE.
+  - Week 4 IN PROGRESS: W4.0 done, W4.1 done, W4.1.5 done, **W4.2
+    DONE** this session; W4.3 PROPOSED for Session 15.
+  - Week 5 ahead.
+
+Next session prompt: see `SESSION_TRANSITION_TEMPLATE.md`.
+Next concrete work: Workstream 0 W4.3 — replace `exclusion_reason`
+assertions with `expected/<domain>.json` comparison logic in
+`tests/scraper/test_fixture_conformance.py`. Gating design question:
+schema bump v1.0 → v1.1 (path a) vs consolidator-mapping (path b).
+Conformance enumerator must shift from `.glob("*.html")` to `rglob`
+(or equivalent) to discover the 3 nested
+`international_business/<locale>/expected/<domain>.json` files.
