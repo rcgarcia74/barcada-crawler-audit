@@ -24,7 +24,8 @@ This scope materially changes which audit findings apply. Sections of the origin
 Acknowledged before listing gaps, because building on strengths matters:
 
 - **Versioned schema discipline.** `feature_schema_version` stamped on every emitted record. Honest deferments documented in `DEFERRED_WORK.md`.
-- **Sophisticated cost discipline.** Immutable cost journal with ETag-conditional writes. Per-tier rates with kill switches at 0.95× budget. Per-domain cost attribution via `_attribute_fetch_cost`. Deterministic-first classifier cascade (RULES → LR → LLM) with documented thresholds.
+- **Sophisticated cost discipline.** Immutable cost journal with ETag-conditional writes. Per-tier rates with kill switches at 0.95× budget. Per-domain cost attribution via `_attribute_fetch_cost`. Deterministic-first classifier cascade (RULES → LR → LLM) with documented thresholds — and, post-PR-A landing (see Phase 4 bullet below), a Stage 3 cascade scaffold with thresholds and output schema settled, including bot-blocked Hive partitioning at the parquet boundary per PR-B.
+- **Phase 4 infrastructure half landed.** PR-COST (cost journal enforcement + RUN_ID + single-tenant guard + list-runs CLI), PR-A (Stage 3 cascade scaffold + thresholds + output schema), PR-B (bot-blocked Hive partitioning + `FEATURE_SCHEMA_VERSION = 5`), PR-C (Pass 2b feature-flag-off + `warm_cache` + cached-token logging) are all implemented at HEAD `5513b4c6`. The audit's discovered architecture description (`AUDIT_REPORT.md` §8) modified by these four landed PRs is the current code state. See `docs/phase4_implementation_plan.md` for the eight-PR sequence; this plan is reconciled with current code via `RECONCILIATION_2026-05-21.md`.
 - **Broad block detection.** Covers 14+ anti-bot vendors (Cloudflare, Akamai, DataDome, Imperva, PerimeterX, Wordfence, Sucuri, F5 Shape, Kasada, AWS WAF, Turnstile, hCaptcha, Arkose, Chinese geo-blocks). Well above industry norm.
 - **Prompt cache awareness.** `cached_input_tokens` tracked per shard; 80% hit-rate target; documented warm-cache helper.
 - **UA rotation strategy.** Random rotation in `fetcher.py`, deterministic per-host selection in `http_headers.py` — two legitimate strategies for different stages. Audit missed this; spot-check confirmed.
@@ -45,6 +46,7 @@ Despite the strengths, real gaps remain:
 - **Regional policy enforcement.** No `regional_policy.json`; no field-level emit rules per jurisdiction; no policy stamping on records.
 - **Persistent strategy cache.** Per-domain tier learning is in-memory per shard, lost between runs.
 - **Documentation artifacts.** `ARCHITECTURE.md`, `CRAWLING_POLICY.md`, `FAILURE_PATTERNS.md` don't exist as named files.
+- **Phase 4 measurement/validation half unstarted.** PR-D (operator-led Stage 2 + Stage 3 labeling), PR-E (Lever 2/3/7 validation), PR-F (Lever 4 parser pre-classifier), and PR-G (smoke + final docs) are unstarted and gated on PR-D, which requires operator-led Stage 2 + Stage 3 labeling — not currently scheduled. See `docs/phase4_implementation_plan.md` for PR-level detail and `RECONCILIATION_2026-05-21.md` §4.2 for the per-PR dependency map.
 
 ### Where the fixture corpus reveals deeper issues
 
@@ -68,6 +70,7 @@ The remediation work is sequenced into six workstreams, each with explicit prere
 | Workstream | Weeks | Purpose |
 |---|---|---|
 | 0: Fixture Foundation | 1-5 | Repair and rebuild the test corpus; fix the `sorted(glob)[0]` pattern; add provenance and expected outputs |
+| Phase 4 (cost reduction + infra) | parallel | Infrastructure half landed (PR-COST/A/B/C); measurement half (PR-D/E/F/G) blocked on operator-led Stage 2 + Stage 3 labeling. Not currently scheduled. See `docs/phase4_implementation_plan.md`. |
 | A.0: Baseline Scaffolding | 6-7 | Snapshot generation, comparison tooling, capture baseline-v0 |
 | A: Compliance Foundation | 8-9 | robots.txt parser, identifiable UA, docs, anti-pattern cleanup |
 | B: Cost & Observability | 10-12 | Cost-per-useful-record, per-domain budgets, structured logging, metrics |
@@ -76,6 +79,8 @@ The remediation work is sequenced into six workstreams, each with explicit prere
 | E: Quality Infrastructure | 20+ | CI regression gates, drift detection, acceptance criteria, ongoing |
 
 Each workstream is structured so its outputs are validated against the baseline established by the previous workstream. Workstream 0 protects everything; Workstream A.0 protects the rest.
+
+Phase 4 runs parallel-track to the Workstream 0–E sequence, not gating. The infrastructure half (PR-COST, PR-A, PR-B, PR-C) landed during the Workstream 0 read-only period and is reflected in current code at HEAD `5513b4c6`; the measurement half (PR-D–PR-G) is unstarted and not currently scheduled. Cross-references in specific workstream sections (notably §4 Workstream A.0 W6, §6 Workstream B, §7 Workstream C Action #11, and §11 Risk Register) acknowledge these dependencies where they materially affect work-unit scope.
 
 ---
 
@@ -159,6 +164,40 @@ tests/fixtures/html/<category>/expected/<domain>.json      # expected outputs
 }
 ```
 
+### Week 4 (W4.1.5): Fixture-Cascade Driver
+
+**Status: PROPOSED — to be executed at Session 13.** Inserted per `RECONCILIATION_2026-05-21.md` §5.1 / §6.1 Edit 4 as a Phase-4-aligned engineering work unit between W4.1 (bulk meta.json, complete at `9e1bda9`) and W4.2 (expected outputs, scope-revised below).
+
+**Scope:** Build the engineering infrastructure that lets the full Stage 1 + Stage 2 + Stage 3 cascade run end-to-end against fixture HTML inputs. No live HTTP. LLM calls fire for real (against fixture-derived inputs) and are counted against the $100 Workstream 0 cost ceiling.
+
+**Three engineering surfaces** (per Stage 3 input shape verification 2026-05-21 Q4 Sub-option (i)):
+
+1. **Parser-output parquet construction from fixture HTML.** Adapter that takes fixture HTML files, synthesizes a fetched-page envelope (URL from fixture filename, status=200, content=HTML), runs the parser against the envelope, and writes a parser-output parquet row in the schema Stage 1 expects.
+2. **FetcherSet bypass at the `fetcher_core` seam** (verified seam, Stage 3 verification Q3). A fixture-backed `FetcherSet` substitute that, when Stage 2 or Stage 3 requests any URL, returns the fixture HTML for that domain. The same adapter shape works for both stages because Stage 3 reuses Stage 2's `FetcherSet` type at `stage3/run.py:111-113`.
+3. **End-to-end cascade driver script.** Orchestrates parser → Stage 1 → Stage 2 → Stage 3 against the fixture corpus, writes all intermediate parquets (parser output, Stage 1 predictions, Stage 2 predictions, Stage 2 summaries, Stage 3 predictions, `pages.parquet` outputs), and the consolidated `expected/<domain>.json` per fixture matching META_SCHEMA v1.0.
+
+**Out of scope for W4.1.5:**
+
+- Modifying pipeline code. The bypass is at adapter/seam level; production cascade code stays untouched.
+- Eval-data labeling (Phase 4 PR-D territory).
+- Mocking LLM calls. LLM calls fire for real against fixture-derived inputs.
+- Coverage of tier-escalation paths (T1 → T2 → T3 promotion on `PROTECTION_ERROR_KINDS`). Fixture runs return 200 unconditionally; tier-promotion logic is exercised only at W A.0 W7 synthetic-crawl-tape level, if at all.
+
+**Acceptance criteria:**
+
+- Driver runs against the 198-fixture corpus end-to-end without manual intervention.
+- For each fixture, all five intermediate parquets exist and conform to current code's schemas.
+- Per-fixture `expected/<domain>.json` produced and conforms to META_SCHEMA v1.0 (with the six deferred prose-only fixes per `SESSION_TRANSITION_TEMPLATE.md` "Deferred prose-only fixes" register).
+- Driver writes a `RUN_ID`-stamped cost journal entry the operator can inspect to confirm cost-envelope tracking.
+- Total LLM cost across the corpus run lands within 3× of the $0.30 Claude Code estimate (orders-of-magnitude floor and ceiling; tighter validation deferred to actual run).
+- Driver does not write outside the workspace + `tests/fixtures/html/*/expected/` directories.
+
+**Tagging:** `workstream-0-week4-1-5-end` at clean checkout target, per LESSONS.md Session 6 "Workstream tag at clean completion" and "tag at clean SHA not milestone SHA" pattern. Annotation: "Fixture-cascade driver landed. Reusable at W A.0 W6 as `barcada-baseline generate` foundation. W4.2 expected-outputs generation begins on the next commit. Output lifetime: until W A.0 W6 supersedes, OR until Phase 4 PR-E lands, whichever comes first."
+
+### Week 4 (W4.2): Expected Outputs (revised scope)
+
+**Prerequisite:** W4.1.5 must close before W4.2 opens. W4.2 runs the W4.1.5 fixture-cascade driver against the 198-fixture corpus and produces `expected/<domain>.json` per fixture; the driver does not yet exist at session-open and is built at W4.1.5.
+
 **`expected/<domain>.json` schema:**
 ```json
 {
@@ -169,6 +208,15 @@ tests/fixtures/html/<category>/expected/<domain>.json      # expected outputs
   "stage3_decision": {"partner_type": "technology_partner", "confidence": 0.82, "tier": "LLM"}
 }
 ```
+
+<!-- TODO Session 13 open: reconcile this schema example against
+src/barcada_scraper/classifier/stage3/output_schema.py:112-140.
+Verified at HEAD 5513b4c6 the repo schema exists; this absorption
+session is out-of-scope for repo reads. -->
+
+**Cost expectation:** $0.30 LLM ballpark per Claude Code Q3 verification 2026-05-21; well within $100 Workstream 0 cost ceiling. See `~/crawler-audit/working/phase4_current_state_2026-05-21.md` for the per-stage cost breakdown.
+
+**Output durability:** W4.2 expected-output lifetime: until W A.0 W6 supersedes via baseline-v0 generation, OR until Phase 4 PR-E lands and Levers 2/3/7 change cascade behavior, whichever comes first. See §11 Risk Register for the lifetime-constraint risk entry.
 
 Generate expected outputs once, human-review them, commit. Subsequent test runs compare against these.
 
@@ -212,7 +260,9 @@ This is the foundation everything else builds on.
 
 ### Week 6: Snapshot Generation
 
-Build a `barcada-baseline` CLI with subcommands:
+Build a `barcada-baseline` CLI as a thin wrapper or extension over the W4.1.5 fixture-cascade driver (rather than a new CLI built from scratch). Per `RECONCILIATION_2026-05-21.md` §4.3 and §5.5, the cascade-driver infrastructure was implicit in W6's `barcada-baseline generate` design but became explicit at W4.1.5; W6 reuses it. Less new code is needed at W6 than the plan originally implied — the engineering surface narrows to the CLI surface, determinism normalization, and integration with the W A.0 W7 synthetic-crawl-tape capture, since the cascade-execution mechanics already exist.
+
+Subcommand surface:
 
 ```
 barcada-baseline generate --fixtures tests/fixtures/html/
@@ -328,6 +378,8 @@ Zero regressions on any fixture. Workstream A changes are mostly additive (robot
 
 **Why now:** Without these, all subsequent changes are flying blind. You can't know if Workstream C extraction improvements increased cost. You can't know if drift is occurring.
 
+**Phase 4 note (added per `RECONCILIATION_2026-05-21.md` §6.1 Edit 7):** PR-COST has landed concurrent with Workstream 0 (cost journal enforcement + RUN_ID + single-tenant guard + list-runs CLI at HEAD `5513b4c6`). Several W B items — cost-per-useful-record (Action #6), per-domain budgets (Action #8), structured JSON logging (Action #16) — build on the PR-COST journal extensions rather than coordinating with a parallel refactor. The framing here changes from "Phase-4-collision-heavy" to "Phase-4-aligned"; the per-stage `cost_ceiling_stopped` / `cost_ceiling_global` outcomes and `RUN_ID` propagation are already in parquet. See `~/crawler-audit/working/phase4_status_2026-05-21.md` for PR-COST surface detail.
+
 ### Items
 
 **Action #6: Cost-per-useful-record metric** (~50 LOC)
@@ -335,6 +387,7 @@ Zero regressions on any fixture. Workstream A changes are mostly additive (robot
 - Add `useful_records_count` and `cost_per_useful_record` to `PhaseSummary` dataclass in `phase_summary.py`
 - Extend `compute_phase_summary` to read Stage 1 parquet output and count `is_business == True`
 - Decide on null handling (abstained records): exclude from denominator, or count as not-useful
+- "Useful record" definition should account for the `cost_ceiling_stopped` and `cost_ceiling_global` outcomes already in the parquet schema per PR-COST. Records emitted under these outcomes are not "useful" in the cost-effectiveness sense (the pipeline halted early); exclude them from the useful_records_count numerator. Document the definition explicitly in `compute_phase_summary`.
 - This unlocks Section 14.7 cost discipline downstream
 
 **Action #21: Version stamping** (~50 LOC)
@@ -435,6 +488,7 @@ Each item runs against baseline-v0 + previous Workstream A changes. Specific thi
 - Set `output_format="markdown"` in `_TRAFILATURA_KW` in `extraction.py`
 - Decide: global change (all consumers get markdown), or branched (LLM path gets markdown, LR-feature path stays plain text)
 - Branched is cleaner but more code; global is simpler if `ml_text` doesn't come from Trafilatura output
+- **Coordinates with Phase 4 PR-E** if PR-E ever opens (see `RECONCILIATION_2026-05-21.md` §6.1 Edit 8). PR-E measures classifier accuracy on production text and decides Levers 2/3/7; if PR-E lands first, Action #11 may need re-validation against PR-E's lever decisions (the cascade composition under post-Lever-2/3/7 inputs is different from the current cascade). PR-E is blocked on Phase 4 PR-D operator-led labeling, which is not currently scheduled — so this coordination is conditional, not gating.
 
 **Action #5: Boilerplate fingerprinting evaluation** (deferred until eval complete)
 
@@ -651,6 +705,33 @@ Single-attempt curl is insufficient diagnostic when assessing whether a TLS or c
 
 **Mitigation for future capture work:** any future capture or recapture tooling (Week 2 SPA hydration captures, Week 3 international and SaaS captures, Week 5 `soft_404`/`empty_google_sites` repopulation, audit C22 nonprofit expansion, and the Week 4 `scripts/fixtures/regenerate_expected.py` script) must implement retry-on-connection-error policy (≥3 attempts with exponential backoff on TLS, DNS, connection-reset, and timeout failures) before drawing a persistence conclusion. This mirrors the production crawler's existing exponential-backoff retry pattern in `fetcher.py:316-318` and ensures fixture corpus health decisions are grounded in stable diagnostics rather than transient network conditions.
 
+### Phase 4 infrastructure half landed concurrently with Workstream 0 without plan absorption (new, Session 12 reconciliation 2026-05-21)
+
+The plan as originally authored (against audit-state code at HEAD `be71d536`) did not anticipate that the Phase 4 infrastructure half (PR-COST, PR-A, PR-B, PR-C per `docs/phase4_implementation_plan.md`) would land concurrently with Workstream 0's read-only period. By Session 12 open, current code (HEAD `5513b4c6`) was audit-state plus four landed Phase 4 PRs, and the plan-vs-code drift surfaced when Session 12 attempted to begin W4.2.
+
+**Resolution:** The read-only-period discipline (per plan §14 and operator memory) was broken with explicit operator authorization for a one-time absorption of `RECONCILIATION_2026-05-21.md` into this plan. See `~/crawler-audit/RECONCILIATION_2026-05-21.md` for the full reconciliation framing, §3 for the drift's core misalignment, and §6.1 for the eleven coordinated plan amendments (including this entry). The locked artifacts list at §14 has been updated to clarify that the plan was authored against audit-state code; future sessions reading the plan should understand this distinction.
+
+**Forward-applicable mitigation:** If new in-repo development sequences (Phase 4 PR-D through PR-G, or any successor multi-PR initiative) begin landing during a future Workstream 0–E read-only period, escalate before the work compounds. The audit-state ↔ current-code distinction should be stated explicitly in any future plan amendment that absorbs in-flight code changes.
+
+### W4.2 expected-output lifetime constrained (new, Session 12 reconciliation 2026-05-21)
+
+W4.2 expected/<domain>.json outputs produced under the cascade composition at HEAD `5513b4c6` (current code: audit state + landed Phase 4 PR-COST/A/B/C, with Levers 2/3/7 NOT applied — Stage 2 still two-pass with `gpt-4.1-mini` classifier, Stage 3 primary still `gpt-4.1`) have a plan-aware shorter-than-original-design lifetime. Output is valid until:
+
+1. **W A.0 W6 supersedes** via baseline-v0 generation through the `barcada-baseline` CLI (which wraps the W4.1.5 fixture-cascade driver per §4 W6), OR
+2. **Phase 4 PR-E lands** and Levers 2/3/7 change cascade behavior post-Lever-2/3/7 (which would invalidate cascade-output values across the corpus),
+
+whichever comes first.
+
+The META_SCHEMA prose-only fix register at `SESSION_TRANSITION_TEMPLATE.md` "Deferred prose-only fixes" tracks the durability annotation (item (f)) for fold-in at the next real META_SCHEMA semver bump per LESSONS.md "Defer prose-only schema fixes" pattern. The constraint is plan-aware, not surprise — surfaces explicitly so future-session expectations don't outrun the cascade composition the outputs were generated under.
+
+### Phase 4 measurement half blocked on operator-led labeling (new, Session 12 reconciliation 2026-05-21)
+
+Phase 4 PR-D (operator-led Stage 2 + Stage 3 labeling, prerequisite to PR-E lever validation, PR-F Lever 4 parser pre-classifier, and PR-G smoke + final docs) requires operator-led Stage 2 + Stage 3 labeling activity. Current operator labeling work is Stage 1 only (per the parallel labeling session referenced in workspace coordination). Stage 2 + Stage 3 labeling is NOT currently scheduled.
+
+**Plan does not commit to a Phase 4 ship date.** If Stage 2/3 labeling never opens, Phase 4 PR-D/E/F/G remain unstarted indefinitely, and the architecture rationale document's target state (`~/crawler-audit/PIPELINE_ARCHITECTURE_TARGET_STATE.md`) is not reached. The Workstream 0–E sequence closes against current code state regardless; the dependency map at `RECONCILIATION_2026-05-21.md` §4.1 / §4.2 details which Workstream 0–E units are Phase-4-independent, Phase-4-influenced, and Phase-4-aligned.
+
+If Stage 2/3 labeling does eventually open and the measurement half progresses, W4.2 expected outputs and (if generated) the W A.0 W6 baseline-v0 will need regeneration on PR-E close.
+
 ---
 
 ## 12. Success Criteria
@@ -689,6 +770,12 @@ How to know the remediation is working:
 - `~/crawler-audit/AUDIT_DIRECTIVE.md` — Read-only audit directive that generated AUDIT_REPORT.md
 - `~/crawler-audit/FIXTURE_AUDIT_DIRECTIVE.md` — Read-only fixture audit directive
 - Spot-check verifications: documented in chat history, surfaced UA rotation existed, `detect_cross_page_banners()` existed, content hashing was pervasive
+- `docs/phase4_implementation_plan.md` — in-repo source for the Phase 4 eight-PR cost-reduction and infrastructure sequence (cited by `AUDIT_REPORT.md` line 111). PR-COST, PR-A, PR-B, PR-C landed pre-Session-12 at HEAD `5513b4c6`; PR-D, PR-E, PR-F, PR-G unstarted and gated on operator-led labeling.
+- `~/crawler-audit/PIPELINE_ARCHITECTURE_TARGET_STATE.md` — design-of-record for unimplemented work; describes the post-Phase-4 target state (Stage 1 three-tier cascade, Stage 2 post-Lever-3 single-pass, Stage 3 two-pass with Pass 2b off). Do NOT use as source-of-truth for current code claims — current code is closer to `AUDIT_REPORT.md` §8 discovered architecture, modified by the four landed Phase 4 PRs.
+- `~/crawler-audit/RECONCILIATION_2026-05-21.md` — Session 12 reconciliation document. Identifies and resolves the plan-vs-current-code drift surfaced when W4.2 was attempted. Authorizes the eleven §6.1 plan amendments absorbed in this revision. Historical record; not a governing document.
+- `~/crawler-audit/working/phase4_status_2026-05-21.md` — Claude Code source-verification report (Phase 4 per-PR implementation status, 2026-05-21).
+- `~/crawler-audit/working/phase4_current_state_2026-05-21.md` — Claude Code source-verification report (Levers 2/3/7 current state + W4.2 cost envelope ~$0.30, 2026-05-21).
+- `~/crawler-audit/working/stage3_input_shape_2026-05-21.md` — Claude Code source-verification report (Stage 3 input contract: three upstream parquets + four T3 path fetches per domain; fixture-input adapter sub-option analysis).
 
 For Claude Code prompts implementing specific actions, draft per-workstream prompts that reference this plan and the audit reports as context. Each prompt should:
 
@@ -714,19 +801,26 @@ The team relies on a fixed set of documents and references. Treat these as autho
 - `CLASSIFICATION_ADJACENT_PLAN.md` — classification-adjacent items for AI/ML review. Updated only when AI/ML decisions land.
 - `BARCADA_CRAWLER_REMEDIATION_PLAN.md` — this file; the operational plan. UPDATED inline as decisions land.
 - `SESSION_LOG.md` — append-only chronological session log. Updated at end of each session/work unit.
+- `LESSONS.md` — append-only forward-applicable patterns surfaced during the work. Updated as patterns are named.
 - `SESSION_TRANSITION_TEMPLATE.md` — template filled out at session-end for the next session to read first.
 - `AUDIT_DIRECTIVE.md`, `FIXTURE_AUDIT_DIRECTIVE.md` — historical directives used to produce the audit reports. Read-only.
 - `README.md` — workspace overview.
+- `PIPELINE_ARCHITECTURE_TARGET_STATE.md` — design-of-record for unimplemented work; describes the post-Phase-4 v1 target state. Read-only; do NOT treat as source-of-truth for current code claims.
+- `RECONCILIATION_2026-05-21.md` — Session 12 reconciliation document. Archival historical record of the plan-vs-current-code reconciliation absorbed into this plan via §6.1; not a governing document.
+- `working/phase4_status_2026-05-21.md`, `working/phase4_current_state_2026-05-21.md`, `working/stage3_input_shape_2026-05-21.md` — Claude Code source-verification reports underlying the reconciliation. Referenced by SESSION_LOG.md Session 12 entry.
 
 **Repo (`~/projects/barcada-scraper/`):**
 - Annotated git tags: `pre-remediation-2026-05-19` (nuclear-revert anchor), `baseline-v0` (Week 7, single tag at post-expected-outputs commit), and future workstream tags as agreed.
 - Commit messages on `main` — each commit cites its action number (C0.1, C0.2, …) and serves as durable record. The git log IS part of the persistence; commit message bodies are the canonical "what and why."
 - `CLAUDE.md`, `.claude/rules/*.md` — operator preferences and code rules. Honored every commit.
+- `docs/phase4_implementation_plan.md` — in-repo governance reference for the Phase 4 eight-PR sequence. Do NOT modify under any circumstance until Phase 4 PR-D/E/F/G sequencing is operator-authorized.
 
 **Locked artifacts (do not modify under any circumstance):**
 - All of `eval_data/` — labeling-workstream territory (including `canary_50_domains.txt`, read-only consumable for Workstream A.0 canary wiring).
 - `stage1.schema.json` v1.0 with 49 keywords — schema evolution is a labeling-workstream decision, post-Stage-3-completion, as a v1.1 event.
 - The `pre-remediation-2026-05-19` tag — operator-created, do not retag or move.
+
+**Plan-authoring context (Session 12 reconciliation, 2026-05-21):** This plan was originally authored against audit-state code (HEAD `be71d536`). Current code (HEAD verified 2026-05-21 at `5513b4c6`) is audit-state plus four landed Phase 4 PRs (PR-COST, PR-A, PR-B, PR-C per `docs/phase4_implementation_plan.md`). Future sessions reading the plan should understand this distinction: §1 "Where the crawler is genuinely strong" and §1 "Where the gaps are real" reflect the current-code framing post-PR-COST/A/B/C, but the plan body (Workstream 0–E) was scoped against audit-state and reconciled through `RECONCILIATION_2026-05-21.md` §3 (drift framing) and §6.1 (eleven amendment deltas absorbed in this revision). See §11 Risk Register entry "Phase 4 infrastructure half landed concurrently with Workstream 0 without plan absorption" for the resolution record.
 
 ### Updating discipline
 
