@@ -198,21 +198,37 @@ tests/fixtures/html/<category>/expected/<domain>.json      # expected outputs
 
 **Prerequisite:** W4.1.5 must close before W4.2 opens. W4.2 runs the W4.1.5 fixture-cascade driver against the 198-fixture corpus and produces `expected/<domain>.json` per fixture; the driver does not yet exist at session-open and is built at W4.1.5.
 
-**`expected/<domain>.json` schema:**
+**`expected/<domain>.json` schema (reconciled against `stage3/output_schema.py:112-140` at HEAD `5513b4c6`):**
 ```json
 {
   "parser_output": { ... full deterministic-serialized parser output ... },
   "barriers_verdict": null,
   "stage1_decision": {"is_business": true, "business_score": 0.91, "tier": "RULES"},
   "stage2_decision": {"tech_category": "saas", "confidence": 0.88, "tier": "LR"},
-  "stage3_decision": {"partner_type": "technology_partner", "confidence": 0.82, "tier": "LLM"}
+  "stage3_decision": {
+    "domain": "example.com",
+    "crawl_timestamp": "1970-01-01T00:00:00Z",
+    "primary_partner_type": "technology_partner",
+    "primary_confidence": 0.82,
+    "secondary_partner_types": [],
+    "tier_decided": "llm",
+    "abstain": false,
+    "abstain_reason": null,
+    "rationale": "<prose>",
+    "upstream_abstained": false,
+    "evidence_summary": "<Pass-1 prose>",
+    "fetch_cost_usd": 0.0,
+    "evidence_cost_usd": 0.00193,
+    "primary_classification_cost_usd": 0.00470,
+    "secondary_classification_cost_usd": 0.0,
+    "pages_acquired": 4,
+    "model_version": "gpt-4.1@2026-05-21",
+    "taxonomy_version": 1
+  }
 }
 ```
 
-<!-- TODO Session 13 open: reconcile this schema example against
-src/barcada_scraper/classifier/stage3/output_schema.py:112-140.
-Verified at HEAD 5513b4c6 the repo schema exists; this absorption
-session is out-of-scope for repo reads. -->
+`stage3_decision` mirrors the 18-column `stage3_predictions` parquet schema (`SCHEMA` at `stage3/output_schema.py:109-142`). Valid `tier_decided` values: `llm`, `parser_rule`, `abstained`, `upstream_abstained`, `cost_ceiling` (per `ALL_TIERS` at `stage3/output_schema.py:60-66`). META_SCHEMA v1.0 + `expected.schema.json` still reference the legacy `{partner_type, confidence, tier}` triple; that prose-only divergence is deferred fix register item (e) per `SESSION_TRANSITION_TEMPLATE.md`, to fold into the next machine-schema bump.
 
 **Cost expectation:** $0.30 LLM ballpark per Claude Code Q3 verification 2026-05-21; well within $100 Workstream 0 cost ceiling. See `~/crawler-audit/working/phase4_current_state_2026-05-21.md` for the per-stage cost breakdown.
 
