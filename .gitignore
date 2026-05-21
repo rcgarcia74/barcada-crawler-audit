@@ -6,6 +6,7 @@ working/*
 !working/phase4_status_2026-05-21.md
 !working/phase4_current_state_2026-05-21.md
 !working/stage3_input_shape_2026-05-21.md
+!working/w4_1_5_small_subset_validation_2026-05-21.md
 
 # Baseline state snapshots (regenerated per audit)
 crawler-audit-baseline-*.txt
