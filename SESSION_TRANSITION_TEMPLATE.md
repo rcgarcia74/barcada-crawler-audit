@@ -35,11 +35,17 @@ be productive within ~10 minutes.
 ## Repository state — `/Users/administrator/projects/barcada-scraper/`
 
 - Branch: `main`
-- Last commit SHA: `dd64963` (W4.1.5.S3, pushed 2026-05-21)
-- Last commit subject: "W4.1.5.S3: end-to-end cascade orchestrator
-  + CLI + fakes"
+- Last commit SHA: `5449ba6` (README — Fixture-cascade driver
+  section; post-W4.1.5-tag doc hygiene per CLAUDE.md).
+- Last commit subject: "docs: README — Fixture-cascade driver
+  section (post-W4.1.5)"
+- W4.1.5-tag commit: `dd64963` (W4.1.5.S3, the clean checkout
+  target for the `workstream-0-week4-1-5-end` annotated tag per
+  LESSONS Session 6 "tag at clean SHA not milestone SHA"; the
+  README commit lands AFTER the tag as expected doc hygiene, not
+  as part of the tagged work unit).
 - Branch sync with `origin/main`: 0 commits ahead, 0 commits behind
-  (verified at Session 13 push close).
+  (verified at Session 13 close).
 - Tags (do NOT move):
   - `pre-remediation-2026-05-19` at `3cbb9b3` (nuclear-revert anchor)
   - `workstream-0-week1-end` at `4f9d23f`
@@ -370,9 +376,13 @@ git -C /Users/administrator/projects/barcada-scraper tag -l 'workstream-*'
 ```
 
 Expected:
-- Last commit SHA: `dd64963` (unchanged since Session 13 close;
-  W4.2 lands new commits but doesn't modify existing ones).
-- Tags include `workstream-0-week4-1-5-end` at `dd64963`.
+- Last commit SHA: `5449ba6` (the post-tag README hygiene
+  commit; W4.2 lands new commits but doesn't modify existing
+  ones).
+- Tags include `workstream-0-week4-1-5-end` pointing at `dd64963`
+  (the Surface 3 commit; tag is intentionally NOT at the README
+  commit since that's doc hygiene, not part of the tagged work
+  unit).
 If anything differs, surface to operator before doing work.
 
 Then run the real-mode small-subset validation (Step 1 of W4.2),

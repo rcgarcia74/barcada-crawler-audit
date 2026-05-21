@@ -2522,8 +2522,19 @@ were instances of previously-established discipline.
 Repo changes:
 - `tests/runners/__init__.py` + `tests/runners/fixture_cascade/`
   package (parser_compose / fixture_fetcher / fakes / consolidate /
-  cascade / cli + matching test_* modules).
-- Annotated tag `workstream-0-week4-1-5-end` at `dd64963`.
+  cascade / cli + matching test_* modules) — across three commits
+  W4.1.5.S1/S2/S3 (`d337fb5` → `02ac0e8` → `dd64963`).
+- Annotated tag `workstream-0-week4-1-5-end` placed at `dd64963`
+  (the Surface 3 commit = clean checkout target per LESSONS Session
+  6 "tag at clean SHA not milestone SHA").
+- `README.md` updated at `5449ba6` — post-tag doc hygiene per
+  CLAUDE.md "After commit and push, update README immediately".
+  New `### Fixture-cascade driver (W4.1.5)` subsection under the
+  existing `## Testing & fixture corpus` heading covers invocation
+  modes, output layout, tag SHA reference, and W4.2 durability
+  constraint. The README commit lands AFTER the tag (the tag
+  marks the work-unit close; doc hygiene is a follow-up
+  operation, not part of the tagged work).
 
 Test count at Session 13 close: parent suite green; conformance
 suite red count steady at 17 (Week 5 punch list), 169 pass, 2 skip,
