@@ -899,3 +899,94 @@ written by analogy during close-out drafting; a single
 `git show --no-patch --format=%B 9e1bda9 | grep -i workstream.c`
 would have caught it in seconds. Operator question triggered the
 verification retroactively; correction landed in this commit.
+
+### Verify-before-asking discipline (extension): the discipline applies to operator-issued state claims, not only to Claude Code's draft outputs
+
+**Established:** Session 12 / Phase 4 reconciliation (2026-05-21).
+
+The verify-before-asking discipline as originally named (Session 10
+Flag 2 resolution) emphasized Claude Code's outputs being verified
+before commit. The Session 11 close-out claims-by-analogy work
+extended this to bidirectional verification of structural claims in
+handoff documents. Session 12 extends it further: operator-issued
+state claims about multi-PR multi-week work history also require
+source verification, not acceptance from operator recall alone.
+
+Specific instance: operator stated "Phase 4 has not been implemented
+at all" in Session 12. The chat session accepted this and was
+preparing to recommend a sequencing path on that basis. Claude Code
+source verification then revealed four of eight Phase 4 PRs had
+landed (PR-COST, PR-A, PR-B, PR-C — see
+`~/crawler-audit/working/phase4_status_2026-05-21.md`). The
+operator-recall claim was incorrect against source. Had the chat
+proceeded with the recommendation without verification, the
+operator-authorized plan amendment would have been wrong.
+
+**The rule:** when the next decision depends on a multi-artifact
+state claim (e.g., "X PRs have landed", "Y work units are
+complete", "Z artifact exists"), verify against source before
+locking the decision — even when the claim comes from the
+operator. The operator may have context Claude Code lacks, but the
+source-of-truth is the artifact itself, not the recall.
+
+**Mechanism:** a targeted verification prompt to Claude Code that
+asks narrow factual questions with explicit citation requirements.
+Cost is modest (one session, no plan amendments). Benefit is
+preventing plan-amendment-based-on-wrong-state, which is much more
+expensive to unwind.
+
+**See also:** "Verify-before-asking discipline anchor" (Session 10)
+for the discipline-naming entry; "Close-out claims-by-analogy in
+handoff documents" (Session 11 → Session 12-prep) for the
+bidirectional structural-claim verification extension. This entry
+completes the bidirectionality: discipline runs in both directions
+(operator → Claude Code, Claude Code → operator).
+
+### Driver-level input contracts: verify cascade input shape before scoping generation work
+
+**Established:** Session 12 / Phase 4 reconciliation (2026-05-21).
+
+The W4.2 work-unit scoping assumed that generating per-fixture
+expected outputs was a configuration matter: run the cascade against
+fixtures, capture outputs. This assumption was wrong against actual
+driver code. Stage 2 consumes `pages.parquet` produced by
+`FetcherSet` HTTP fetches; Stage 3 consumes three upstream parquets
+(Stage 2 predictions, Stage 2 summaries, Stage 3 evidence cache) AND
+fetches its own four T3 paths per domain (see
+`~/crawler-audit/working/stage3_input_shape_2026-05-21.md`). No
+fixture-input bypass exists at the driver level.
+
+**The pattern:** before scoping any work unit that involves running
+pipeline code against synthetic inputs (test fixtures, synthetic
+crawls, replay cassettes), verify the driver-level input contract
+at runtime-code source. The contract is what the run-driver
+actually consumes — NOT what the audit's discovered-architecture
+section described, NOT what the design-of-record document says the
+cascade should look like, NOT what plan-authoring assumed. The
+runtime code is the source of truth.
+
+**Specific surfaces to verify:**
+
+- Driver entry-point (`run.py` or equivalent): what files does it
+  open at startup? Confirm via grep `read_parquet`, `pd.read_csv`,
+  `open(...)`, Hive partition reads.
+- Fetcher invocations: does the stage trigger live HTTP? At what
+  seam? Confirm via grep for fetcher class names, URL request
+  invocations.
+- CLI flags: does a bypass / test-mode / input-parquet flag exist?
+  Confirm via grep `argparse.add_argument`, CLI module reads.
+
+**Trigger condition for verification:** before scoping a work unit
+that will run pipeline against synthetic inputs, run a targeted
+Claude Code verification with file:line citation requirements.
+
+**Mitigation when bypass doesn't exist:** build the bypass as its
+own work unit, NOT as side-effect engineering inside the work unit
+that needs it. The bypass is foundation; the work unit that
+consumes the bypass is consumer. Separate them. (See W4.1.5 /
+W4.2 split in `RECONCILIATION_2026-05-21.md` and plan §3 Week 4
+(W4.1.5) for the working example.)
+
+**See also:** "Audit-spec vs. production-reality drift" (Session 9)
+and "Verify-before-asking discipline" (Session 10). This pattern is
+the input-contract-specific instance of those broader patterns.
