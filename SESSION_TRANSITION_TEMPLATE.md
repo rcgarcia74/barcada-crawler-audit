@@ -1,9 +1,9 @@
-# Session Transition Template — Handoff from Session 8 → Session 9
+# Session Transition Template — Handoff from Session 9 → Session 10
 
 This file is the handoff document filled out at the end of one Claude
 Code session for the next session to read first. Overwritten at each
-transition (use git history to recover prior handoffs). Sessions 1-7
-are summarized in SESSION_LOG.md; Session 8 close is in the most
+transition (use git history to recover prior handoffs). Sessions 1-8
+are summarized in SESSION_LOG.md; Session 9 close is in the most
 recent SESSION_LOG.md entry.
 
 Pair this with the latest entry in `SESSION_LOG.md`, with
@@ -15,41 +15,40 @@ be productive within ~10 minutes.
 
 ## Handoff metadata
 
-- Outgoing session number: 8
+- Outgoing session number: 9
 - Closing date: 2026-05-20
-- Outgoing session scope: Workstream 0 Week 3 first half (C5
-  international + C22 nonprofit, 6 fixtures + 1 conformance test
-  extension). Closes the C5 + C22 portion of Week 3. Session 8
-  intentionally split per the §14 context-window discipline; C18
-  and C7 carried forward to Session 9.
-- Reason for transition: planned scope split (recommended in
-  the Session 7 → 8 handoff), executed cleanly. Context at
-  Session 8 close ~62% used — within the §14 threshold but the
-  natural breakpoint between the C5 / C22 inverted-detector work
-  and the C18 / C7 spec-revisiting work makes a session change
-  the cleaner option.
+- Outgoing session scope: Workstream 0 Week 3 second half — closes
+  the C18 modern-SaaS candidate (5 fixtures, hybrid 3+2 spec per Path
+  A operator decision) and the C7 mega-menu candidate (3 fixtures,
+  Path C marker spec). Adds the Week-3-close conformance test
+  extension for mega_menu. Tags `workstream-0-week3-end` at the final
+  green-gate SHA (`cf0c14c`).
+- Reason for transition: planned scope split (Week 3 complete; Week 4
+  is a substantially different work unit — meta.json + expected-
+  outputs generation, requiring the first ~$50-200 LLM cost
+  expenditure of the remediation per plan §3 Week 4). Context at
+  Session 9 close ~85% used — at/past the §14 transition threshold.
+  Natural seam at Week 3 close + transition.
 
 ---
 
 ## Repository state — `/Users/administrator/projects/barcada-scraper/`
 
 - Branch: `main`
-- Last commit SHA: `17e92f8`
-- Last commit subject: `C5.d: extend test_fixture_conformance.py
-  with international_business per-locale tests (Week 3 close)`
+- Last commit SHA: `cf0c14c`
+- Last commit subject: `C7.d: extend test_fixture_conformance.py with
+  test_mega_menu_conformance (Week 3 close)`
 - Branch sync with `origin/main`: 0 commits ahead, 0 commits behind
 - Tags (do NOT move):
   - `pre-remediation-2026-05-19` at `3cbb9b3` (nuclear-revert anchor)
   - `workstream-0-week1-end` at `4f9d23f` (Week 1 close)
   - `workstream-0-week2-end` at `e5d2f91` (Week 2 close)
-  - **NO** workstream-0-week3-end tag yet — Week 3 only half-complete
-    (C5 + C22 shipped, C18 + C7 pending). Tag at end of Session 9
-    only after the full Week 3 scope lands.
+  - `workstream-0-week3-end` at `cf0c14c` (Week 3 close — NEW this session)
 - Pre-push gate state at HEAD: ALL CHECKS PASS (ruff check, ruff
   format --check, vermin --target=3.10-, validate_consistency for
   eval_data)
 - Unstaged changes intentionally ignored across sessions (operator-
-  side work in the locked tree):
+  side work in the locked tree, unchanged since Session 8 close):
     .claude/rules/code-correctness.md
     eval_data/README.md
     eval_data/TAXONOMY_GAP_LOG.md
@@ -60,101 +59,161 @@ be productive within ~10 minutes.
 ## Workspace state — `/Users/administrator/crawler-audit/`
 
 - Branch: `main`
-- Last commit SHA: TBD (filled in after this session's transition
-  commit pushes; will be one commit ahead of `0872e97` which was
-  the most recent Session 7 commit)
-- Last commit subject: Session 8 close: C5 + C22 Week 3 first
-  half + SESSION_TRANSITION_TEMPLATE.md refill for Session 9
+- Last commit SHA: TBD (filled in after Session 9 close commit
+  pushes; will be one commit ahead of `081b54e` which was the most
+  recent Session 9 mid-session workspace commit)
+- Last commit subject: Session 9 close: LESSONS.md amendments (3
+  staged findings) + SESSION_LOG.md + SESSION_TRANSITION_TEMPLATE.md
+  refill for Session 10
 - Branch sync with `origin/main`: 0 commits ahead (after push)
 
 ---
 
 ## Active task list
 
-The Session 8 task list (#1-#5) is fully complete:
-- #1 C5.a (.de): siemens.de.html landed
-- #2 C5.b (.jp): hitachi.co.jp.html landed
-- #3 C5.c (.com.br): locaweb.com.br.html landed
-- #4 C22.a-c (nonprofit): wikimediafoundation + doctorswithoutborders
-  + synthetic_educational_organization all landed
-- #5 conformance test extension (C5.d): COVERED + 3 per-locale
-  test functions added; final test surface 17 failed / 161 passed
-  / 2 skipped
+The Session 9 task list (#1-#5) is fully complete:
+- #1 C18.0 prevalence probe — closed (Path A 3+2 hybrid decision)
+- #2 C18.a-e — 5 fixtures landed (twilio, hubspot, webflow, notion,
+  snowflake)
+- #3 C7.a-c — 3 fixtures landed (shopify, salesforce, synthetic
+  microsoft-style)
+- #4 Conformance extension (C7.d) — landed at cf0c14c
+- #5 Session 9 close + workstream-0-week3-end tag — landed (this
+  commit)
 
 Task state is session-local in Claude Code; it does NOT carry across
 sessions.
 
-Session 9 should TaskCreate fresh tasks on open for the rest of
-Week 3:
+Session 10 should TaskCreate fresh tasks on open for Workstream 0
+Week 4. Suggested tasks:
 
-- **C18.0 (NEW, prerequisite)**: Probe-before-lock prevalence
-  probe of 4-6 modern SaaS marketing sites (Stripe, Notion, Linear,
-  Vercel, HubSpot, Webflow) for JSON-LD `@type=Organization`,
-  hreflang, canonical, and mega-menu presence. If `@type=Organization`
-  prevalence is <50% (matching the 4 prior production-extinction
-  patterns), escalate spec revision rather than locking. **Do not
-  skip this step** — the probe-before-lock discipline applies to
-  C18 with extra force given the 4 prior extinction findings.
+- **W4.0 meta.json schema lock**: Review plan §3 Week 4 meta.json
+  schema (`source_url`, `captured_at`, `capture_method`,
+  `content_type`, `content_length`, `encoding`, `response_status`,
+  `expected_outcome`, `test_purpose`). Decide schema-version field
+  shape, decide handling for synthetic fixtures
+  (`capture_method: "synthetic_with_real_markers"`),
+  decide handling for the empty-directory fixtures
+  (soft_404/, empty_google_sites/). **Operator decision before any
+  fixture generation.**
 
-- C18.a-e: 5 modern SaaS fixtures extending
-  `tests/fixtures/html/legitimate_business/` with hreflang +
-  canonical + JSON-LD Organization (or whatever the probe reveals
-  as the dominant pattern) + mega-menu + blog link. Each
-  per-fixture commit (C18.a, C18.b, ...).
+- **W4.1 meta.json generation across the corpus**: Per-fixture
+  meta.json file generation. Current corpus is ~197 fixtures (+ the
+  Week 3 additions). Estimate ~210-215 total meta.json files needed.
+  Scripted generation likely cheapest — read each fixture, extract
+  what can be extracted (content_length is easy, captured_at can be
+  approximated from git log, source_url from fixture name +
+  convention or from any existing capture script logs). Operator
+  review of the script output before bulk commit.
 
-- C7.a-c: 3 mega-menu fixtures into new
-  `tests/fixtures/html/mega_menu/` with `aria-haspopup` +
-  multi-column nested `<ul>` panels. Each per-fixture commit
-  (C7.a, C7.b, C7.c).
+- **W4.2 expected/<domain>.json generation**: Per-fixture expected-
+  output generation. This requires running each fixture through the
+  full pipeline (parser_output, barriers_verdict, stage1/2/3
+  decisions). Stage 3 includes LLM calls — this is where the
+  $50-200 plan-budgeted cost lands.
 
-- Conformance test update (mirror of C1.5 / C5.d): add `mega_menu`
-  to COVERED, add `test_mega_menu_conformance` function asserting
-  the audit's mega-menu markers (`aria-haspopup` + nested-ul
-  density). legitimate_business already has a conformance test;
-  C18 fixtures auto-pass via parametrize unless the per-locale
-  hreflang check pattern from C5.d is also wanted for the i18n
-  ones (operator decision at session open).
+- **W4.3 Test infrastructure**: Update conformance tests to compare
+  against expected/<domain>.json (replacing the current
+  "exclusion_reason must be empty" style assertions with full
+  comparison). May or may not be Week 4 vs Week 5 work depending on
+  operator preference.
 
-Suggested total: 8 fixtures + 1 conformance commit = 9 commits.
-Closes Workstream 0 Week 3. Tag `workstream-0-week3-end` at the
-final SHA where the pre-push gate is green.
+- **W3 retrospective question (operator-deferred from Session 9)**:
+  Should verify-before-asking be promoted from ad-hoc discipline to
+  a named Workstream 0 acceptance criterion? See "Open meta-question"
+  section below.
+
+- **Session 10 close + tag**: At end of Session 10, evaluate whether
+  Week 4 is fully complete and tag `workstream-0-week4-end`. Note
+  Week 4 may span multiple sessions given the meta.json + expected-
+  output generation scope.
 
 ---
 
-## Outstanding operator-input requests blocking Session 9
+## Outstanding operator-input requests blocking Session 10
 
-None. Session 9 can begin C18.0 (probe-before-lock for modern SaaS
-JSON-LD) immediately. The probe-before-lock discipline is now
-established practice across both this session and Session 7 — apply
-without re-asking, but surface findings if a 4th-or-5th production-
-extinction emerges.
+**W4.0 meta.json schema lock** — Plan §3 Week 4 specifies a schema
+draft, but field-by-field details (e.g., timezone handling for
+captured_at; whether expected_outcome is structured-JSON or free-text;
+whether to add a schema_version field) need operator review before
+bulk fixture generation. Session 10 should present the locked schema
+to the operator first thing.
+
+**W3 retrospective: verify-before-asking promotion** — see below.
 
 ---
 
-## Operator decisions made during Session 8 that are recorded
-in SESSION_LOG.md + LESSONS.md
+## Operator decisions made during Session 9 (cross-ref to SESSION_LOG.md)
 
-- **C5.a** — siemens.de picked. Real .de TLD, lang=de-DE, 39
-  hreflangs (regional English only — no bare `hreflang="en"`),
-  JSON-LD WebPage with nested Organization references.
-- **C5.b** — hitachi.co.jp picked. Closes the bare-`hreflang="en"`
-  gap left open by C5.a (siemens uses regional codes only).
-- **C5.c** — locaweb.com.br picked. .com.br TLD probing was
-  harder than .de or .co.jp — three .com.br banks/manufacturers
-  bot-blocked, two largest Brazilian-content sites use .com TLDs.
-  Locaweb won on archetype match (private B2B SaaS) + richest
-  JSON-LD (3 blocks: FAQPage, WebSite/SearchAction, Organization).
-- **C22.a/b** — wikimediafoundation.org and doctorswithoutborders.org
-  picked (audit's named candidates).
-- **C22.c** — Synthetic-with-real-markers per §11 fallback. Probe
-  of 9 educational candidates found 0/9 shipping
-  `@type=EducationalOrganization` in 2026 production — fourth
-  production-extinction finding since Session 7. Synthetic
-  authored with literal `@type=EducationalOrganization` schema.
-- **New LESSONS.md entry**: "Synthetic-fixture HTML comments are
-  regex-visible" — the C22.c WAF false-positive lesson.
-- **Plan is read-only**: unchanged from Session 7 (memory:
+- **C18 hybrid spec (Path A)**: 3 structured-data-rich + 2 modern-
+  minimal. JSON-LD Organization prevalence at 67% in the C18.0
+  probe — above the 50% extinction threshold so the audit's marker
+  doesn't need a Session-7-style spec revision. Original picks were
+  Stripe + HubSpot + Webflow + Notion + Linear; Stripe and Linear
+  were substituted (with Twilio and Snowflake) after verify-before-
+  asking caught FPs (logged in LESSONS.md).
+
+- **C7 Path C (marker relaxation)**: Conformance test accepts either
+  aria-haspopup non-false OR aria-expanded+aria-controls combo. No
+  density thresholds at this stage. Audit's literal
+  aria-haspopup="menu" wording was illustrative-of-archetype, not
+  binding (LESSONS.md "Audit-spec vs. production-reality drift").
+
+- **C7.c Path B (synthetic-with-real-markers)**: Synthetic
+  authored after 5 enterprise real-domain candidates failed in 5
+  distinct ways. Filename `synthetic_microsoft_style_aria_controls.html`
+  per operator spec; enterprise-realistic marker density (10×
+  aria-expanded + 10× aria-controls).
+
+- **LESSONS.md amendment timing for Session 9 close**: bundle the
+  three findings (GitHub joins dd.js FP list; new FN-coverage-gap
+  sub-section; enterprise-archetype-defended-sites append) into
+  one workspace commit alongside SESSION_LOG.md and this template
+  refill. Documented in commit messages, not edited mid-fixture-
+  cycle.
+
+- **Plan is read-only**: unchanged from prior sessions (memory:
   `feedback_remediation_plan_readonly.md`).
+
+---
+
+## Open meta-question for Session 10 retrospective
+
+**Should verify-before-asking be promoted from ad-hoc discipline to
+a named Workstream 0 acceptance criterion alongside 1:1:1?**
+
+Three consecutive weeks of evidence that verify-before-asking
+surfaces real spec/reality mismatches:
+- Week 2 (Session 7 C1.1): Next.js App Router migration — audit
+  marker `__NEXT_DATA__` superseded by `self.__next_f.push(...)` in
+  Next.js 13+ (Oct 2022). Hybrid C1 spec adopted (1 Pages + 2 App
+  Router).
+- Week 3 (Session 9 C18.0): three detector FPs surfaced (dd.js,
+  just-a-moment, _RE_SOFT_404 greedy-span) at a 36% rate across
+  modern SaaS marketing sites; the dd.js FP rate climbed to 33% as
+  the probe extended into enterprise sites during C7.c.
+- Week 3 (Session 9 C7): aria-haspopup="menu" literal absent in
+  0/3 audit-named candidates; relaxed to either-marker (Path C).
+- Week 3 (Session 9 C7.c): three anti-bot FN patterns surfaced
+  (Microsoft "blocked", Adobe HTTP/2 INTERNAL_ERROR, Oracle
+  fw_error_www). None caught by existing detectors.
+
+This is a rate, not a fluke. The discipline is anchored in three
+LESSONS.md sub-sections at Session 9 close:
+- "Probe framework generation before locking a fixture spec" (S7)
+- "Synthetic-fixture HTML comments are regex-visible" (S8)
+- "Detector precision findings" with FPs 1/2/3 and FNs 1/2/3 (S9)
+
+Promotion shape options for the operator to choose at Week 3 retro:
+- **(a) Plan amendment**: add verify-before-asking to plan §3
+  acceptance criteria. Plan is read-only-archival, so this would
+  land as a new document (e.g., `WORKSTREAM_0_ACCEPTANCE_CRITERIA.md`).
+- **(b) CLAUDE.md / `.claude/rules/` codification**: add to the
+  repo-side instructions so every future session reads the rule.
+- **(c) Status quo**: keep as durable lesson in LESSONS.md only;
+  rely on the §14 required-reading discipline to propagate it.
+
+Operator decision deferred to Session 10 retrospective.
 
 ---
 
@@ -167,162 +226,197 @@ in SESSION_LOG.md + LESSONS.md
   move.
 - `workstream-0-week1-end` tag at `4f9d23f` — do not move.
 - `workstream-0-week2-end` tag at `e5d2f91` — do not move.
+- `workstream-0-week3-end` tag at `cf0c14c` — do not move.
 - `BARCADA_CRAWLER_REMEDIATION_PLAN.md` — read-only, period. All
   deviations from the plan land in SESSION_LOG.md and LESSONS.md.
 - The 17 fixtures on the Week 5 cleanup punch list (see
-  SESSION_LOG.md Session 6 entry) — DO NOT touch in Session 9.
+  SESSION_LOG.md Session 6 entry) — DO NOT touch in Session 10.
 
 ---
 
 ## Next concrete work unit
 
-- **Action ID:** **C18.0** (prerequisite prevalence probe before
-  any C18 capture). NOT a numbered audit candidate — this is the
-  probe-before-lock step established as standing discipline.
-- **Scope:** Probe 4-6 modern SaaS marketing sites (suggested:
-  stripe.com, notion.so, linear.app, vercel.com, hubspot.com,
-  webflow.com — vercel was already captured for C1.1.c so probe
-  fresh or reuse). Report per-site:
-    - JSON-LD `@type=Organization` presence
-    - hreflang block presence
-    - canonical link presence
-    - mega-menu marker presence (aria-haspopup, multi-column
-      nested ul)
+- **Action ID:** **W4.0** (meta.json schema lock — prerequisite
+  before any bulk meta.json generation).
+- **Scope:** Review plan §3 Week 4 meta.json schema with operator.
+  Field-by-field decisions on:
+    - timezone handling for `captured_at` (UTC ISO 8601 default?)
+    - `expected_outcome` shape (structured JSON vs. free-text per
+      plan example)
+    - schema_version field (Y/N; if Y, semantic version vs. integer)
+    - capture_method enumeration (live curl with retries / synthetic
+      with real markers / synthetic / replaced-in-place / etc.)
+    - empty-directory handling (do soft_404/ and empty_google_sites/
+      need stub meta.json entries documenting the deletion?)
 - **Acceptance criteria:**
-  - 4-6 candidate URLs probed with the retry-on-TLS-error policy
-    per LESSONS.md (≥3 attempts on failure)
-  - Per-site prevalence table presented to operator
-  - **If JSON-LD @type=Organization prevalence is <50%**: STOP
-    and escalate per LESSONS.md Step 6. Surface a spec-revision
-    recommendation analogous to C1.1 / C1.2 / C1.3 / C1.4 / C22.c
-    decisions. Do not proceed to C18.a until the operator decides
-    on the revised spec.
-  - **If prevalence is ≥50%**: proceed to C18.a candidate
-    presentation as the standing pattern.
-- **Files expected to be touched:** none (probe-only step;
-  candidate captures land in /tmp/, not the repo)
+  - Schema locked in a separate file (e.g.,
+    `tests/fixtures/META_SCHEMA.md` or as a JSON Schema document)
+  - Operator-approved before any bulk generation
+  - One worked example meta.json file committed alongside the
+    schema for reference (probably from one of the C5 or C18
+    fixtures landed in Sessions 8-9)
+- **Files expected to be touched:** new file in
+  `tests/fixtures/META_SCHEMA.md` (or similar), new file as worked
+  example, possibly an update to CLAUDE.md if meta.json conventions
+  are project-wide. NOT bulk meta.json generation in W4.0 —
+  that's W4.1.
 - **Files NOT to be touched:** everything under `eval_data/`,
   `stage1.schema.json`, the tags, `BARCADA_CRAWLER_REMEDIATION_PLAN.md`,
   and the 17 Week-5 punch-list fixtures.
 
 ---
 
-## Required reading (Session 9 first 10 minutes)
+## Required reading (Session 10 first 10 minutes)
 
 In this order:
 1. **This file** (you're reading it).
-2. **`LESSONS.md`** (workspace) — operator patterns and observed
-   conventions, INCLUDING the new "Synthetic-fixture HTML comments
-   are regex-visible" entry and the "Probe framework generation
-   before locking a fixture spec" entry from Session 7.
-3. **`SESSION_LOG.md` Session 8 entry** — what just shipped, the
-   fourth production-extinction finding (EducationalOrganization
-   0/9 in production), the C22.c synthetic-with-real-markers
-   resolution, the 7 commits, the conformance test extension.
-4. **`BARCADA_CRAWLER_REMEDIATION_PLAN.md` §3 Week 3** — C18
-   modern SaaS + C7 mega-menu specs. READ-ONLY.
+2. **`LESSONS.md`** — operator patterns and observed conventions.
+   Pay particular attention to:
+   - "Detector precision findings" (FPs 1/2/3 + FNs 1/2/3 +
+     deeper-circularity meta-observation) — the eventual W4
+     expected-output generation could hit these same detectors.
+   - "Audit-spec vs. production-reality drift" — applies forward to
+     every framework-marker fixture (C1.2 Nuxt 2-vs-3, etc.) AND to
+     audit examples in any other section the W4 work touches.
+   - "Synthetic-fixture HTML comments are regex-visible" — applies
+     to any synthetic fixture's meta.json `expected_outcome`
+     free-text field if that field passes through any regex check.
+3. **`SESSION_LOG.md` Session 9 entry** — what just shipped, the
+   four production-precision findings, the C7.c synthetic
+   resolution, the 9 repo commits, the Week 3 close.
+4. **`BARCADA_CRAWLER_REMEDIATION_PLAN.md` §3 Week 4** — meta.json
+   and expected-outputs spec. **READ-ONLY.**
 5. **`BARCADA_CRAWLER_REMEDIATION_PLAN.md` §11 Risk Register** —
-   "Recapture tooling needs retry policy" still applies.
-6. **`FIXTURE_AUDIT_REPORT.md` §12** — C7 (mega_menu) and C18
-   (legitimate_business expansion) detailed specifications.
-7. **`BARCADA_CRAWLER_REMEDIATION_PLAN.md` §14 Session Continuity
-   Discipline** — referenced for Session 9 close-out cadence.
+   especially "LLM cost drift during baseline regeneration" ($50-
+   200 budget for W4.2 expected-output generation).
+6. **`BARCADA_CRAWLER_REMEDIATION_PLAN.md` §14 Session Continuity
+   Discipline** — referenced for Session 10 close-out cadence.
 
 After reading, verify repo state:
 
 ```
 git -C /Users/administrator/projects/barcada-scraper status
 git -C /Users/administrator/projects/barcada-scraper log --oneline -3
+git -C /Users/administrator/projects/barcada-scraper tag -l 'workstream-*'
 ```
 
-Last commit SHA must be `17e92f8` (C5.d). If anything differs,
-surface to operator before doing work.
+Expected:
+- Last commit SHA: `cf0c14c` (C7.d).
+- Tags: workstream-0-week1-end / week2-end / week3-end all present.
+If anything differs, surface to operator before doing work.
 
-Then begin C18.0 (the prevalence probe). DO NOT skip the probe —
-the 4 prior extinction findings make this discipline non-optional.
+Then begin W4.0 (meta.json schema lock). DO NOT skip — the schema
+must be operator-approved before any bulk generation work begins.
 
 ---
 
 ## Risk register state (plan §11)
 
-Recent additions (set during Session 4, applied through Session 8):
+Recent additions (Sessions 4-9):
 - "Recapture tooling needs retry policy" — STILL applies to every
-  Session 9 capture.
+  Session 10 capture (likely none in W4, but applies if any
+  recapture is triggered during meta.json sourcing).
 - Forward-applicable lessons in LESSONS.md (plan is read-only, so
   they cannot land in §11 itself):
   - "Probe framework generation before locking a fixture spec"
-    (Session 7) — applies to C18 with extra force.
+    (Session 7)
   - "Synthetic-fixture HTML comments are regex-visible" (Session 8)
-    — applies to C18 if synthetic fixtures are needed, and to all
-    future synthetic capture work.
+  - **"Detector precision findings" with FPs and FNs** (Session 9 —
+    NEW). Applies forward: W4.2 expected-output generation may run
+    fixtures through the parser pipeline; pre-existing detector
+    FPs/FNs could produce mis-classified expected outputs if not
+    carefully reviewed. **Manual review of any expected outputs
+    where `exclusion_reason != ''` is recommended before commit.**
+  - **"Audit-spec vs. production-reality drift"** (Session 9 — NEW).
+    Applies forward to any audit literal example referenced in W4
+    fixture work; treat as illustrative, not binding.
 
 Open latent gap (Issue 3 from Week 2 audit erratum, unchanged):
 - Project's ruff `select` does not include "C" (mccabe), so
-  cyclomatic-complexity violations escape pre-push. Manual `ruff
-  check --select C901 tests/scraper/test_fixture_conformance.py`
-  in any conformance commit is the workaround until a project-
-  config commit closes the gap.
+  cyclomatic-complexity violations escape pre-push. Manual
+  `ruff check --select C901 <file>` in any code-modifying commit
+  is the workaround until a project-config commit closes the gap.
 
-No new risks escalated and unresolved by Session 8.
+LLM cost drift risk (plan §11, scheduled for W4.2 activation):
+- Plan budgets $50-200 of LLM cost during Week 4 expected-output
+  generation. Cost ceiling for the full remediation is $100
+  (operator-set 2026-05-19, alert at $50). **The $100 ceiling vs.
+  the $50-200 plan budget is inconsistent.** Either:
+    - (a) Operator raises the ceiling before W4.2.
+    - (b) Plan's $50-200 estimate is reduced through batch
+      optimization, caching, model selection (claude-haiku-4-5
+      for the early-stage Stage 1/2 classifications).
+    - (c) Expected-output generation defers Stage 3 LLM calls and
+      generates only Stage 1/2 expected outputs (Stage 3 LLM
+      coverage lands later).
+  **Operator decision needed at W4.0 or W4.2 latest.**
+
+No new risks escalated and unresolved by Session 9.
 
 ---
 
 ## Cost & schedule tracking
 
 - Cost ceiling: $100 (operator-set 2026-05-19, alert at $50)
-- Cost incurred Sessions 1-8: $0 (no LLM API calls; curl + pytest
+- Cost incurred Sessions 1-9: $0 (no LLM API calls; curl + pytest
   + handwritten synthetic only)
 - Cost budget remaining: $100
+- Cost-vs-plan inconsistency flagged for W4.0 (above; $100 ceiling
+  vs. $50-200 W4.2 budget)
 - Schedule: 3 weeks elapsed of Workstream 0's 5-week budget.
-  Weeks 1-2 complete; Week 3 ~60% complete (C5 + C22 shipped,
-  C18 + C7 carried). Weeks 3 remainder, 4, 5 still ahead.
+  - Weeks 1-3 COMPLETE.
+  - Weeks 4-5 still ahead.
+  - Week 4 likely spans 2-3 sessions given meta.json + expected-
+    output scope.
 
 ---
 
-## Notes for Session 9
+## Notes for Session 10
 
 - **Conformance test red count at handoff is 17** (Week 5 punch
-  list, unchanged from Week 1 close). Every Session 9 commit
+  list, unchanged from Week 1 close). Every Session 10 commit
   should verify the count stays at 17 unless the commit itself
-  adds a known-failing fixture (which Week 3 work should not).
+  adds a known-failing fixture (which W4 work should not — W4 is
+  per-fixture meta.json + expected outputs, not new fixtures).
 - **2 conformance tests SKIP** (empty parametrize for `soft_404/`
   and `empty_google_sites/`) — both await Week 5 C0.3-followup /
   C0.4-followup repopulation.
-- **When Session 9 creates the first `mega_menu/` directory**,
-  the catch-all `test_every_fixture_directory_has_a_test` WILL
-  fail because COVERED doesn't include the new dir. Same dynamic
-  as Session 7 C1.1.a and Session 8 C5.a. Add `mega_menu` to
-  COVERED in the same commit OR roll into a Week-3-close
-  conformance commit (mirror of C1.5 / C5.d).
+- **The Week-3-end test surface is 17 fail / 169 pass / 2 skip**
+  (was 17/161/2 at Week-2-end). W4 work should not change this
+  count unless test infrastructure changes deliberately replace
+  some assertions with expected-output-based ones.
 - **File-based commit messages** still mandatory: heredocs break
   on apostrophes. Use `Write` to `/tmp/<action-id>-msg.txt`, then
   `git commit -F /tmp/...`. Pattern in LESSONS.md.
 - **"Confirm to commit?" gating** before every commit — established
   pattern.
-- **"Verify BEFORE asking for commit confirmation"** — Session 8
-  hardened this discipline; the operator asked "did you double
-  check your work?" multiple times. The standing rule is: every
-  "Confirm to commit?" implies "and yes, the verification table
-  was generated from the on-disk file by re-parsing it before
-  drafting the message." Two precision errors caught in C5.a as
-  a result of relaxing this; subsequent commits ran the full
-  verification up-front.
-- **Synthetic-fixture authoring** (if Session 9 needs one for C18):
-  follow the LESSONS.md anti-trip discipline for the HTML comment
-  header AND run `extract_hard_exclusions(html, "example.com")`
-  before commit to verify `exclusion_reason=''`. Per-branch
-  pattern sweep of `_RE_WAF_CHALLENGE`, `_RE_CLOUDFLARE_CHALLENGE`,
-  `_RE_PARKING_JS`, etc. is the surest verification.
-- **Shell cwd drift**: same warning as Session 8 — use absolute
-  paths or `cd /Users/administrator/projects/barcada-scraper` at
-  the start of each Bash chain.
-- **Pre-push gate may include validate_consistency failure** from
-  operator-side eval_data work. The 4 unstaged operator-side
-  files in the locked tree are documented and routinely pass the
-  gate; if the gate fails, STOP and ask the operator. Never use
+- **Verify-before-asking discipline** — hardened through Session 9
+  (4-5 instances of "did you double check your work?" surfacing
+  real gaps). Every "Confirm to commit?" must be preceded by a
+  full verification table generated by re-parsing the on-disk
+  file. Title-sanity and body-size-sanity checks added to the
+  standard verify set after C7.c (the Microsoft block-page FN
+  catch).
+- **Three LESSONS.md sub-sections to apply forward** in W4:
+  detector precision findings (don't trust raw extract_hard_exclusions
+  output for expected_outcome generation without manual review);
+  audit-spec drift (don't trust plan literal examples for meta.json
+  schema fields without verification); synthetic comments are
+  regex-visible (any free-text field in meta.json that gets parsed
+  must be authored with anti-trip discipline).
+- **Pre-push gate** may include validate_consistency failure from
+  operator-side eval_data work. The 4 unstaged operator-side files
+  in the locked tree are documented and routinely pass the gate;
+  if the gate fails, STOP and ask the operator. Never use
   `--no-verify`.
 - **Plan is read-only** — never edit
   `BARCADA_CRAWLER_REMEDIATION_PLAN.md`. Memory saved as
   `feedback_remediation_plan_readonly.md`.
+- **Shell cwd drift**: use absolute paths or `cd /Users/administrator/
+  projects/barcada-scraper` at the start of each Bash chain.
+- **Workspace cwd**: when editing LESSONS.md / SESSION_LOG.md /
+  this template, work in `/Users/administrator/crawler-audit/`.
+- **W3 retrospective question** flagged above — promote verify-
+  before-asking? Decision shape options listed; operator picks.
 - This template's structured fields will need refilling at
-  Session 9 close. Read plan §14 again if uncertain.
+  Session 10 close.

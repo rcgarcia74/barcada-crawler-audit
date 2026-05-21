@@ -322,6 +322,29 @@ positive/negative fixtures, C19 e-commerce schema, C20 LocalBusiness),
 and to any audit literal-example wording that names specific HTML
 attributes, JavaScript globals, JSON-LD types, or CSS class names.
 
+**Append (Session 9 C7.c, 2026-05-20): the enterprise aria-controls
+archetype is structurally concentrated in heavily-defended sites.**
+The C7.c substitute-candidate round attempted 5 real enterprise sites
+(Microsoft, GitHub, Adobe, IBM, Oracle) targeting the "aria-controls
+cross-references" mega-menu archetype. All 5 failed at a 100% rate in
+5 distinct failure modes: anti-bot CMS interstitial (Microsoft),
+detector FP via FP-1/`dd.js` (GitHub), HTTP/2 INTERNAL_ERROR (Adobe),
+structural marker-spec miss (IBM lacks aria-expanded), edge-firewall
+stub (Oracle). Resolution was synthetic-with-real-markers per §11
+fallback policy.
+
+Implication: audit literal examples drawn from enterprise sites carry
+implicit anti-bot-capture cost that the audit did not account for.
+Future fixture-sourcing work targeting enterprise archetypes (e.g.,
+C20 LocalBusiness with enterprise-tier firms, C21 manufacturing-
+industry corporate sites, audit-future expansions naming Adobe /
+Oracle / IBM / SAP / Microsoft / Salesforce as candidates) should
+budget synthetic-with-real-markers as the **default** fallback rather
+than the last resort. The probe-before-lock cost is unchanged
+(synthetic substitutes still need to satisfy marker fidelity against
+production-observed densities); but plan timelines should not assume
+a 1:1 success rate on enterprise live-capture.
+
 ## Discovery escalation pattern
 
 ### Stop and report when plan contradicts repo reality
@@ -461,13 +484,23 @@ Two distinct detector bugs were discovered:
 Intended to match DataDome's challenge script reference
 (`https://js.datadome.co/dd.js`), but the bare alternation `dd\.js`
 matches **any webpack/Gatsby chunk filename whose content-hash ends in
-`dd.js`**. Empirically tripped by 3 of 11 modern SaaS candidates:
+`dd.js`**. Empirically tripped by **4 of 12** modern enterprise/SaaS
+candidates probed across Session 9 (initial 11-site C18.0 round plus
+1 site added during C7.c substitute-candidate exhaustion):
 
-| Site | Hits | Example chunk filename |
-|---|--:|---|
-| stripe.com | 1 | `chunks/36822-16ae78e6a74311dd.js` (Next.js) |
-| raycast.com | 16 | `chunks/6089-681ded3ed6a016dd.js` (Next.js) |
-| posthog.com | 1 | `templates-app-js-57625ccfa9cdb61501dd.js` (Gatsby) |
+| Site | Hits | Example chunk filename | Surfaced in |
+|---|--:|---|---|
+| stripe.com | 1 | `chunks/36822-16ae78e6a74311dd.js` (Next.js) | C18.0 |
+| raycast.com | 16 | `chunks/6089-681ded3ed6a016dd.js` (Next.js) | C18.0 substitute pool |
+| posthog.com | 1 | `templates-app-js-57625ccfa9cdb61501dd.js` (Gatsby) | C18.0 substitute pool |
+| github.com | 1 | `fetch-utilities-18f7f90effa3f0dd.js` (Next.js) | C7.c substitute pool |
+
+Empirical FP rate climbing as probe scope expands into enterprise: 3 of
+11 SaaS marketing sites = 27% (C18.0 round); 4 of 12 enterprise-and-SaaS
+combined = 33% (after C7.c). The hit rate trend is consistent with the
+combinatorial argument: enterprise sites tend to ship more JS chunks,
+each independently rolling the dice on whether its content-hash ends in
+`dd`.
 
 Content-hash chunk filenames are an effectively-random distribution of
 hex characters. The probability of a 16-char hex hash ending in `dd` is
@@ -520,6 +553,86 @@ This is a distinct category from FPs 1 and 2 above:
 The fix is a non-greedy `(?:search|query|keyword).*?no\s+results?\s+found`
 or a max-distance constraint (e.g., `.{0,500}` between anchors). Not
 in Workstream 0 scope — same anti-pattern caveat as FPs 1 and 2.
+
+### False-negative coverage gaps for anti-bot interstitials
+
+**Established:** Session 9 (C7.c substitute-candidate round, 2026-05-20).
+
+While the dd.js / just-a-moment / soft_404 findings above are false
+**positives** (regex matches when it should not), C7.c surfaced a
+distinct category of detector imprecision: false **negatives** —
+real anti-bot interstitial responses that the existing 15 detector
+branches do NOT match, allowing contaminated captures to pass
+extract_hard_exclusions with `exclusion_reason=''`.
+
+Three flavors observed during C7.c, none caught by any existing branch:
+
+**FN 1: Microsoft "Your request has been blocked" CMS interstitial.**
+microsoft.com returned an HTTP 200 response with body served by
+Microsoft's mscom-data CMS template — title "Your request has been
+blocked. This could be due to several reasons." The block-page body
+ships ~12× aria-expanded markers on the standard Microsoft header
+skeleton — IDENTICAL to the real homepage's marker count — so marker
+counts cannot distinguish contaminated captures from real ones. The
+title-sanity check during verify-before-asking was the cheapest
+distinguishing signal; no body-content detector flagged it. Vocabulary
+gap in the detectors: no alternation for "request has been blocked"
+or "request has been refused" phrasing as a standalone signal.
+
+**FN 2: Adobe HTTP/2 INTERNAL_ERROR.** adobe.com returned HTTP/2 stream
+INTERNAL_ERROR after three retry attempts. curl exits with code 92; no
+response body ever returned to extract. Caught only by retry-policy
+exit-code handling at the capture layer, not by any body-content
+detector — there is no body to inspect. This is a structurally
+different failure mode from FN 1 (TCP/HTTP2-layer block vs.
+application-layer interstitial) but produces the same operational
+effect: the production crawler cannot reach adobe.com today.
+
+**FN 3: Oracle fw_error_www edge-stub.** oracle.com returned a
+1,450-byte minimal HTML body with title `fw_error_www` (Oracle's
+edge firewall stub page). Below most reasonable body-size sanity
+thresholds; not matched by any existing alternation. The page lacks
+the markers that distinguish parking from anti-bot from real content,
+because there's no real content to ship at all.
+
+**Why these matter:** the production crawler's downstream classifier
+operates on the assumption that pages reaching it with
+`exclusion_reason=''` are real, classifiable content. Anti-bot block
+pages with vendor-specific phrasing (Microsoft's CMS template, Oracle's
+fw_error stub) silently feed contaminated samples into the
+classification pipeline. The contaminated samples don't crash the
+classifier — they just get incorrectly classified, distorting per-
+domain metrics and downstream cost-per-useful-record measurements.
+
+**Forward-applicable actions (NOT for Workstream 0):**
+
+1. The focused detector-precision audit (forward action #1 in the
+   Verify-before-asking entry above, owner ambiguous between
+   Workstream B and C) should cover BOTH directions:
+   - FP precision against legitimate HTML (the dd.js / just-a-moment
+     / soft_404 cases above)
+   - **NEW: FN coverage against vendor-specific block / interstitial
+     pages** (the Microsoft / Oracle / Adobe-HTTP2 cases here)
+2. Concrete starting alternations for the FN-coverage dimension:
+   - `your request has been (blocked|refused|denied)` phrasing
+   - `<title>fw_error` and similar edge-firewall stub markers
+   - Body-size sanity check: HTTP 200 responses with body length
+     under 2 KB combined with absent main content markers should
+     trigger an "is_thin_response" informational flag
+   - HTTP/2 INTERNAL_ERROR exit-code handling at the capture layer
+     (separate from body-content detectors) should produce an
+     "is_h2_refused" informational flag
+3. Verify-before-asking discipline forward: title-sanity check
+   ("does the title look like the expected page archetype?") and
+   body-size sanity check ("is the byte size in the expected range
+   for this candidate type?") are cheap pre-commit gates that catch
+   the FN cases the detectors miss. Both should be standard steps
+   in any future fixture-sourcing verify-before-asking script.
+
+Applies forward to: every future fixture-sourcing round (C19
+e-commerce, C20 LocalBusiness, C21 manufacturing, C0.3-followup
+soft_404, C0.4-followup empty_google_sites, Workstream A.0 canary
+wiring), and to the eventual detector-precision audit's scope.
 
 ### The deeper circularity: detector validation has only ever run against the corpus the detectors were curated to match
 
