@@ -1942,3 +1942,364 @@ review. Verify-before-asking applied retroactively to the prompt
 caught the propagated error in two more locations than the original
 question. Demonstrates the pattern: a single targeted check against
 source can unearth multi-location drift.
+
+## Session 12 — W4.2 discovery, halt-and-reconcile, plan absorption (2026-05-21)
+
+Scope: Open Workstream 0 W4.2 (expected/<domain>.json generation
+across 198-fixture corpus). Discovery during pre-script verification
+surfaced a cascade-model drift between the W4.2 framing in the plan +
+SESSION_TRANSITION_TEMPLATE.md (Stage 1 RULES + Stage 2 LR + Stage 3
+sentinel triple, near-zero LLM cost) and current code's actual
+cascade composition. Operator paused W4.2; halt-and-reconcile
+pattern engaged. Session closes with the resulting reconciliation
+absorbed into BARCADA_CRAWLER_REMEDIATION_PLAN.md per
+`RECONCILIATION_2026-05-21.md` §6.1.
+
+──────── W4.2 discovery sequence (cascade-model drift surfaced) ──
+
+Pre-script verification of the W4.2 generation script against
+current code surfaced three findings that contradicted the W4.2
+scope as carried forward from Session 11:
+
+1. **Stage 1 LLM tier fires.** The cascade is RULES + LR + LLM
+   (three-tier), not RULES + LR alone. Per `AUDIT_REPORT.md` §8 and
+   current code at HEAD `5513b4c6`, the Stage 1 LLM tail
+   (`gpt-4.1-nano`) fires on LR-uncertain residual (~5-10 fixtures
+   per Claude Code Q3 cost envelope verification).
+2. **Stage 2 has no LR tier.** Stage 2 is two-pass LLM
+   (summarization Pass 1 + classification Pass 2), not LR-first.
+   Pass 1 (`gpt-4.1-nano` summarizer) fires unconditionally on
+   every eligible row; Pass 2 (`gpt-4.1-mini` classifier) consumes
+   the summary. The architecture rationale document's "Lever 3
+   removed Pass 1" framing is TARGET state, NOT current state
+   (Lever 3 is gated on Phase 4 PR-E, which has not landed).
+3. **Stage 2 fires outbound HTTP.** Stage 2 consumes
+   `pages.parquet` produced by `FetcherSet` HTTP fetches; the
+   fixture HTML is not in that shape. Running Stage 2 against
+   fixtures requires a `FetcherSet` bypass at the `fetcher_core`
+   seam, which does not exist in current code.
+
+Stage 3 input shape verification (Q1–Q5 by Claude Code) further
+surfaced that Stage 3 reads THREE upstream parquets (Stage 2
+predictions, Stage 2 summaries, Stage 3 evidence cache) AND fetches
+its own four T3 paths per domain via the reused Stage 2 `FetcherSet`
+type at `stage3/run.py:111-113`. End-to-end fixture-based cascade
+execution requires FIVE input surfaces to be synthesized or bypassed:
+parser-output parquet, `pages.parquet`, Stage 2 predictions, Stage 2
+summaries, plus the FetcherSet bypass.
+
+The "small W4.1.5" framing that surfaced briefly during chat was
+wrong; the work unit is closer in scope to what plan §4 W6 originally
+scoped for `barcada-baseline generate`, pulled forward by ~2 weeks.
+
+──────── Path-A/B/C/D elicitation + operator pause ──────────────
+
+Claude Code session-side enumerated four candidate paths during the
+halt:
+
+- **Path A:** Mock LLM calls so W4.2 runs at $0 cost; ship sentinel
+  triple for Stage 3 only. Rejected: validates the script not the
+  cascade; defers the real cost-envelope question to a future
+  unblock.
+- **Path B:** Extend the meta.json sentinel pattern to all cascade
+  decisions; emit a fully-sentinelled `expected/<domain>.json` per
+  fixture. Rejected: defeats W4.2's purpose (expected outputs are
+  for comparison testing, not provenance).
+- **Path C:** Build a parser-output → Stage 1 fixture driver only;
+  defer Stage 2/3 to a later work unit. Rejected: leaves W4.2
+  outputs incomplete; W4.3 test-infra cannot validate cascade
+  end-to-end against partial expected outputs.
+- **Path D (sub-path-i):** Build the full fixture-cascade driver
+  (parser-output adapter + FetcherSet bypass + end-to-end
+  orchestrator) as a Phase-4-aligned engineering work unit;
+  W4.2 then runs against the driver. Accepted by operator after
+  reconciliation pass.
+
+Operator paused W4.2 and authorized a reconciliation pass before
+selecting a path.
+
+──────── Reconciliation pass (operator-side, with two CC reports) ─
+
+Operator-side reading covered: all workspace documents (audit
+reports, plan, classification-adjacent plan, SESSION_LOG.md,
+LESSONS.md, SESSION_TRANSITION_TEMPLATE.md), the Phase 4
+implementation plan (`docs/phase4_implementation_plan.md` per audit
+citation at line 111), and an operator-supplied pipeline
+architecture rationale document. Identified plan-vs-architecture
+drift: the architecture rationale describes v1 target state (the
+state Phase 4's eight PRs are designed to produce), NOT current
+code. Current code is closer to `AUDIT_REPORT.md` §8 discovered
+architecture, modified by four landed Phase 4 PRs.
+
+Two Claude Code source-verification reports landed during the
+session (durable artifacts preserved at `~/crawler-audit/working/`):
+
+1. **`phase4_status_2026-05-21.md`** — Per-PR status of the Phase 4
+   eight-PR sequence. PR-COST, PR-A, PR-B, PR-C fully implemented;
+   PR-D not started (operator-led labeling missing); PR-E blocked
+   on PR-D; PR-F partially implemented (constant only, no driver
+   consult); PR-G partially implemented ($4,500 default + docs
+   stub).
+2. **`phase4_current_state_2026-05-21.md`** — Levers 2/3/7 current
+   state (NOT applied) + W4.2 cost envelope (~$0.30 LLM ballpark
+   per current-cascade-composition fixture-corpus distribution).
+3. **`stage3_input_shape_2026-05-21.md`** — Stage 3 input contract
+   (three upstream parquets + four T3 path fetches) + fixture-input
+   adapter sub-option analysis (sub-options (i) and (ii) bypass
+   surfaces).
+
+──────── Seven chat-claim corrections (verify-before-asking pattern) ─
+
+The chat that produced the reconciliation made seven claims along
+the way that source documents disagreed with. Listed here as
+worked examples of the bidirectional verify-before-asking pattern
+(LESSONS.md §"Verify-before-asking discipline" + Session 11
+"Close-out claims-by-analogy"). Full text in
+`RECONCILIATION_2026-05-21.md` §2.
+
+1. "Phase 4 is unimplemented; Stage 3 doesn't exist in code yet."
+   Source: Stage 3 exists at HEAD; four PRs landed.
+2. "PR-COST is implementing the cost journal." Source: cost journal
+   existed at audit time as immutable state machine; PR-COST
+   extended it with enforcement.
+3. "The audit didn't see the architecture document or
+   `phase4_implementation_plan.md`." Source: `AUDIT_REPORT.md`
+   line 111 explicitly cites Phase 4 docs. The gap is between the
+   plan-authoring step and the implementation plan, not between
+   audit and Phase 4.
+4. "The eight PRs have not been executed" (operator recall claim).
+   Source: four PRs (PR-COST, PR-A, PR-B, PR-C) had been executed.
+   Bidirectional: verify-before-asking applies to operator-issued
+   state claims too, not only Claude Code outputs.
+5. "Stage 2 has no LR tier; Stage 2 is LLM-LLM." Source confirmed:
+   Stage 2 is two-pass LLM (summarization + classification). The
+   architecture rationale's single-pass framing is target state,
+   not current state.
+6. "The architecture rationale document describes the production
+   pipeline." Source: it describes v1 target state. Multiple
+   details (Lever 3 single-pass Stage 2, gpt-4.1-nano
+   classification, gpt-4.1-mini Stage 3 primary, Lever 4 parser
+   pre-classifier, Pass-1-dropped) are target, not current.
+7. "A fixture-input adapter layer covers the FetcherSet bypass.
+   W4.1.5 is a small work unit." Source: Stage 3 reads three
+   upstream parquets AND fetches four T3 paths per domain. The
+   work unit is closer in scope to W6 `barcada-baseline generate`.
+
+──────── Operator decisions made during Session 12 ──────────────
+
+1. **Read-only-period discipline broken with explicit operator
+   authorization** for this absorption. One-shot exception; future
+   plan amendments resume the read-only convention unless
+   explicitly re-authorized.
+2. **Reconciliation document location:** `~/crawler-audit/
+   RECONCILIATION_2026-05-21.md`. Treated as one-shot historical
+   record (per AUDIT_REPORT.md preservation convention), not a
+   living document.
+3. **Sequencing:** W4.1.5 (fixture-cascade driver) inserted between
+   W4.1 (complete) and W4.2 (paused). Path-D sub-path (i): real
+   end-to-end driver, NOT mock-LLM or sentinel-extension. W4.2
+   follows W4.1.5 close.
+4. **Tagging at W4.1.5 close** per existing tagging discipline
+   (LESSONS.md "Workstream tag at clean completion" + "tag at
+   clean SHA not milestone SHA"). Tag name:
+   `workstream-0-week4-1-5-end`. Annotation specifies W4.2
+   expected-outputs generation begins on the next commit, with
+   the durability constraint (until W A.0 W6 OR Phase 4 PR-E
+   lands).
+5. **Architecture rationale document placement:**
+   `~/crawler-audit/PIPELINE_ARCHITECTURE_TARGET_STATE.md`. Marked
+   as design-of-record for unimplemented work; do NOT use as
+   source-of-truth for current code.
+6. **Three verification reports preserved as durable workspace
+   artifacts** at `~/crawler-audit/working/phase4_status_2026-05-21.md`,
+   `phase4_current_state_2026-05-21.md`, `stage3_input_shape_2026-05-21.md`.
+
+──────── Drift correction during absorption (Edits 4 + 5 sub-naming) ─
+
+Verify-before-asking during the absorption pass surfaced one
+structural drift in `RECONCILIATION_2026-05-21.md` §6.1: Edits 4
+and 5 referenced "the existing W4.1 close text" and "the existing
+W4.2 sub-section" as if they were structural elements of plan §3
+Week 4. They are not; plan §3 Week 4 was monolithic prose with no
+W4.0/W4.1/W4.2/W4.3 sub-headings. The W4.0/W4.1/W4.1.5/W4.2/W4.3
+naming is a session-convention used in SESSION_LOG.md and
+SESSION_TRANSITION_TEMPLATE.md but had never landed in the plan
+document prior to this session.
+
+Operator authorized Option 2 + refinement: Edit 4 inserted a new
+`### Week 4 (W4.1.5): Fixture-Cascade Driver` heading at the
+insertion point; Edit 5 added a new `### Week 4 (W4.2): Expected
+Outputs (revised scope)` heading at the revision point. No
+retroactive W4.0/W4.1/W4.3 headings were added. Full Week 4
+sub-naming harmonization deferred to a separate operator-authorized
+edit if desired.
+
+This drift correction is the durable record per the LESSONS.md
+"bidirectional claims-by-analogy" pattern: when a reconciliation's
+"currently says" claim disagrees with actual plan content, the
+correction lands as part of the absorption's reporting, not as a
+silent reconcile in favor of one or the other.
+
+During absorption, verify-before-asking surfaced a second conflict:
+the three Claude Code verification reports
+(`phase4_status_2026-05-21.md`, `phase4_current_state_2026-05-21.md`,
+`stage3_input_shape_2026-05-21.md`) were placed at `working/` per
+the absorption prompt's deliverable 4, but `.gitignore` line 2
+excluded `working/` as "Ephemeral working notes from Claude Code
+sessions". Without resolution, the plan §13 Appendix references
+would dangle. Operator authorized Option 2: whitelist the three
+named reports in `.gitignore` with a provenance comment block
+referencing `RECONCILIATION_2026-05-21.md`. The pattern required
+one further refinement during application: a top-level directory
+exclusion (`working/`) cannot be re-included via file-level
+negation in gitignore semantics; the rule was changed to
+`working/*` so that per-file `!working/<name>.md` negations take
+effect. `git check-ignore --verbose` confirmed the three reports
+match the negation rules. Default ephemeral behavior of `working/`
+is preserved (subsequent files under `working/` remain ignored
+unless explicitly whitelisted).
+
+──────── Plan absorption landed: eleven §6.1 amendments ─────────
+
+Coordinated edits applied to BARCADA_CRAWLER_REMEDIATION_PLAN.md
+per `RECONCILIATION_2026-05-21.md` §6.1:
+
+1. §1 "Where the crawler is genuinely strong": Phase 4
+   infrastructure-half bullet + reframed cascade bullet.
+2. §1 "Where the gaps are real": Phase 4 measurement-half
+   gating bullet.
+3. §2 Plan Overview table: new "Phase 4 (cost reduction + infra)"
+   row + parallel-track sentence after table.
+4. §3 Week 4: inserted new `### Week 4 (W4.1.5): Fixture-Cascade
+   Driver` sub-section between meta.json and expected.json
+   discussions.
+5. §3 Week 4: added `### Week 4 (W4.2): Expected Outputs (revised
+   scope)` heading + prerequisite reference + TODO comment on
+   schema example (repo out of scope this session) + durability
+   annotation + cost expectation.
+6. §4 W6: `barcada-baseline generate` reframed as thin wrapper /
+   extension over W4.1.5 driver.
+7. §6 Workstream B: top-of-section Phase 4 / PR-COST note +
+   Action #6 useful-record definition referencing
+   `cost_ceiling_stopped` / `cost_ceiling_global`.
+8. §7 Action #11 (HTML→Markdown): Phase 4 PR-E coordination note.
+9. §11 Risk Register: three new entries (Phase 4 absorption gap,
+   W4.2 lifetime constraint, Phase 4 measurement half blocked).
+10. §13 Appendix: added `docs/phase4_implementation_plan.md`,
+    `PIPELINE_ARCHITECTURE_TARGET_STATE.md`,
+    `RECONCILIATION_2026-05-21.md`, three verification reports.
+11. §14 Session Continuity Discipline: extended durable artifacts
+    list + new plan-authoring-context note (audit-state HEAD
+    `be71d536` vs. current-code HEAD `5513b4c6`).
+
+──────── META_SCHEMA prose-only register grows to six entries ───
+
+Three new entries added to the deferred prose-only register per
+`RECONCILIATION_2026-05-21.md` §6.2 (no machine-schema bump,
+per LESSONS.md "Defer prose-only schema fixes" pattern):
+
+- (d) `tier_decided="parser_rule"` valid vocabulary entry
+  (PR-F partial: constant exists at `stage3/output_schema.py:53`,
+  no driver consult).
+- (e) `expected/<domain>.json` shape reconciliation against
+  `stage3/output_schema.py:112-140` actual columns.
+- (f) Output durability annotation:
+  "until W A.0 W6 supersedes OR until Phase 4 PR-E lands,
+  whichever comes first."
+
+Combined with the three pre-existing entries from Session 11
+(Path-A directory ref, replaced_in_place captured_at semantics,
+approximated_from_synthetic_invalid_fallback vocabulary), the
+register is now six entries. All fold into the eventual v1.1
+machine-schema bump's diff.
+
+──────── Workspace changes landed this session ─────────────────
+
+- `BARCADA_CRAWLER_REMEDIATION_PLAN.md`: eleven §6.1 amendments
+  applied (one coordinated commit).
+- `SESSION_LOG.md`: this entry.
+- `LESSONS.md`: two new entries appended (§8.1 verify-before-
+  asking extension; §8.2 driver-level input contracts).
+- `SESSION_TRANSITION_TEMPLATE.md`: refilled for Session 13 with
+  W4.1.5 as next concrete work unit, six-item deferred prose-only
+  register, locked-artifact reminders extended.
+- `RECONCILIATION_2026-05-21.md`: placed in workspace (operator
+  authorship; preserved as archival historical record).
+- `PIPELINE_ARCHITECTURE_TARGET_STATE.md`: placed in workspace
+  (operator-supplied design-of-record for unimplemented work).
+- `working/phase4_status_2026-05-21.md`,
+  `working/phase4_current_state_2026-05-21.md`,
+  `working/stage3_input_shape_2026-05-21.md`: three Claude Code
+  source-verification reports preserved.
+
+Repo (`/Users/administrator/projects/barcada-scraper/`) NOT
+modified this session. Session 12 is governance-only; repo HEAD
+remains at `5513b4c6` (the four-PR-landed current code).
+
+──────── Operator-interaction notes (Session 12 patterns) ──────
+
+- Verify-before-asking applied bidirectionally: operator-recall
+  claim about Phase 4 not being implemented was contradicted by
+  Claude Code source verification (four PRs landed). Pattern
+  named in LESSONS.md §8.1 addition this session.
+- Driver-level input contracts: W4.2 scoping assumed configuration-
+  toggle work; pre-script verification revealed it requires
+  driver-level adapter engineering. Pattern named in LESSONS.md
+  §8.2 addition this session.
+- Halt-and-reconcile cadence: discovery → halt → enumerate paths
+  → reconcile pass with source verification → operator-authorized
+  absorption. The cadence preserved the read-only-period
+  discipline by making the break explicit, one-shot, and
+  documented.
+- Drift correction during absorption (Edits 4/5 sub-naming):
+  operator authorized Option 2 + refinement before the edits
+  landed. Documented as part of this entry per
+  bidirectional-claims-by-analogy pattern.
+
+──────── Open items entering Session 13 ───────────────────────
+
+- **W4.1.5 fixture-cascade driver** (next concrete work unit).
+  Three engineering surfaces per plan §3 Week 4 (W4.1.5):
+  parser-output adapter, FetcherSet bypass at `fetcher_core` seam,
+  end-to-end cascade orchestrator. Tag `workstream-0-week4-1-5-end`
+  at clean checkout target.
+- **W4.2 expected outputs** follows W4.1.5 close. Cost envelope
+  ~$0.30 per Claude Code Q3 verification. Output durability:
+  until W A.0 W6 OR Phase 4 PR-E lands, whichever comes first.
+- **W4.3 test infrastructure** follows W4.2 close.
+- **W5 multipage + edge cases + repopulation** follows W4.3 close.
+- **Workstream C scope amendment** carried-forward flag: now
+  superseded by the §11 Risk Register entries added this session.
+  The original Workstream C scope amendment (deferred Stage 3
+  expected-output generation) is absorbed into the wider Phase 4
+  reconciliation; the §11 lifetime-constraint entry covers
+  forward-applicable surface.
+
+Carried items status:
+
+- Flag 1 (cost ceiling reconciliation): superseded — W4.2 now
+  runs against the W4.1.5 driver with cost envelope ~$0.30 per
+  CC Q3 verification, well within the $100 ceiling.
+- Flag 2 (verify-before-asking promotion): RESOLVED Session 10
+  → Option (c) status quo, EXTENDED Session 12 (bidirectional
+  pattern; see LESSONS.md §8.1 addition this session).
+- Flag 3 (W4 tag provenance): superseded — W4 close pattern
+  shifts to W4.1.5 / W4.2 / W4.3 sub-tags rather than a single
+  W4 tag.
+
+──────── Cost & schedule tracking ─────────────────────────────
+
+- Cost incurred Sessions 1-12: $0. Session 12 is governance-only
+  (no LLM calls; no repo modifications). Cost ceiling $100
+  untouched. Budget remaining: $100.
+- Schedule: ~3-4 weeks elapsed of Workstream 0's 5-week budget.
+  Weeks 1-3 COMPLETE; Week 4 OPEN (W4.0 done, W4.1 done; W4.1.5
+  PROPOSED for Session 13; W4.2/W4.3 follow). Session 12 added a
+  work unit (W4.1.5) inside Week 4; the budget pressure increases
+  but the cascade-driver work was always implicit in W6 — pulled
+  forward, not net-new. Weeks 4-5 may extend ~1 week beyond the
+  original 5-week plan; revisit at W4.3 close.
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+Next concrete work: Workstream 0 W4.1.5 — fixture-cascade driver
+per plan §3 Week 4 (W4.1.5) + `RECONCILIATION_2026-05-21.md` §5.1.
