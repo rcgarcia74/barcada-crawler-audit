@@ -2303,3 +2303,247 @@ Carried items status:
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
 Next concrete work: Workstream 0 W4.1.5 — fixture-cascade driver
 per plan §3 Week 4 (W4.1.5) + `RECONCILIATION_2026-05-21.md` §5.1.
+
+## Session 13 — W4.1.5 fixture-cascade driver landed (2026-05-21)
+
+Scope: Built the W4.1.5 fixture-cascade driver per plan §3 Week 4
+(W4.1.5) and `RECONCILIATION_2026-05-21.md` §5.1. Three engineering
+surfaces under `tests/runners/fixture_cascade/`; small-subset
+validation against 10 fixtures in fake mode confirmed acceptance
+criteria 1-4 + 6; annotated tag placed at clean checkout SHA;
+pushes landed clean.
+
+──────── Cold-start verification at session open ───────────────
+
+- Workspace HEAD `ce7e8e94` matched outgoing template.
+- `reconciliation-2026-05-21-absorbed` tag at `ce7e8e9` confirmed.
+- Repo HEAD `5513b4c6` matched outgoing template + the three
+  verification reports (`phase4_status_2026-05-21.md`,
+  `phase4_current_state_2026-05-21.md`,
+  `stage3_input_shape_2026-05-21.md` all present).
+- Plan §3 Week 4 (W4.1.5) heading confirmed at line 167; W4.2
+  TODO comment at lines 212-215 located for resolution.
+
+──────── Absorption TODO resolved (W4.1.5.T) ───────────────────
+
+Workspace commit `a34f7a2`. Reconciled the plan §3 W4.2
+`expected/<domain>.json` schema example against
+`src/barcada_scraper/classifier/stage3/output_schema.py:112-140`
+(verified at repo HEAD `5513b4c6`). Replaced the legacy
+`stage3_decision: {partner_type, confidence, tier}` triple with
+the full 18-column shape (identity / verdict / control / evidence
+/ cost telemetry / page-acquisition / provenance). Added
+explanatory line listing valid `tier_decided` values (`llm`,
+`parser_rule`, `abstained`, `upstream_abstained`, `cost_ceiling`)
+per `ALL_TIERS` + cross-reference to deferred prose-only fix
+register entry (e) for the META_SCHEMA v1.0 /
+`expected.schema.json` divergence.
+
+Operator chose "Full 18-col rendition" via AskUserQuestion preview
+before commit. The legacy v1.0 conformance gap is now an explicit
+documented divergence rather than implicit; folds into the next
+machine-schema bump.
+
+──────── Three engineering surfaces ────────────────────────────
+
+Pre-engineering: ran a Claude Code source-verification subagent
+against all three surfaces at session-current repo HEAD. Confirmed
+no module changed since the Session 12 verification SHA. Audit
+identified key gotchas:
+
+- No reusable parser-composition entry point in the production
+  parser; the driver must re-implement the call sequence from
+  `crawler.crawl_domain:527-683` at the test-runner layer.
+- `FetcherSet` lives at `stage2/run.py:138`, NOT in `fetcher_core.py`
+  as the verification report's section heading implied.
+- Stage 1's `_read_shard` is single-file-only (no Hive support); the
+  driver must write parser parquet via `pa.Table.from_pylist` direct,
+  bypassing the production `PartitionedShardWriter` Hive layout.
+- Five fake adjudicators needed for full cascade coverage (Stage 1
+  LLM, Stage 2 summarizer + classifier, Stage 3 evidence + primary).
+- Stage 3 results dataclass uses `total_cost_usd` not
+  `primary_cost_usd`; corrected during integration testing.
+- The fixture corpus has 198 files including 3 nested at
+  `international_business/<locale>/<domain>.html`; `rglob` over
+  `glob('*/*.html')` was needed for full coverage. Surfaced via a
+  test assertion failing on count 195 vs 198.
+
+Operator approved a four-question design sketch via AskUserQuestion
+before any code-modifying commits:
+- Driver location: `tests/runners/fixture_cascade/`.
+- LLM mode: `--llm-mode={fake,real}` flag with fake default.
+- LRBundle: synthesized always-uncertain (predict_proba=0.50) with
+  `synthetic_lr_used: true` annotation in expected.json (META_SCHEMA
+  v1.0 allows extra fields per Draft 7 default).
+- expected.json shape: 18-col stage3_decision; skip v1.0
+  expected.schema.json validation (deferred fix (e)).
+
+**Surface 1 (`W4.1.5.S1`, repo `d337fb5`)**: parser-output adapter
+in `parser_compose.py` + 18 unit tests. Mirrors the 8-call parser
+composition from `crawler.py:527-683` minus IO/SPA/barrier/multi-page
+branches. Writes a single-file parser parquet that Stage 1's
+`_read_shard` consumes. Real-fixture round-trip on hubspot.com
+captured-HTML confirms `flatten_record` + `pa.Table.from_pylist`
+matches FEATURE_SCHEMA_VERSION=5 SCHEMA.
+
+**Surface 2 (`W4.1.5.S2`, repo `02ac0e8`)**: fixture-backed
+`FetcherSet` substitute in `fixture_fetcher.py` + 19 unit tests.
+Duck-typed protocol matching the three production tier fetchers
+(`fetch`, `head`, `aclose`, `provider_name`). One instance wired
+into all three FetcherSet tiers via `build_fixture_fetcher_set`.
+Missing-fixture path returns `ERROR_OTHER` (deliberately NOT in
+`PROTECTION_ERROR_KINDS` so tier promotion stays static). Real
+corpus index covers all 198 fixtures via `rglob`.
+
+**Surface 3 (`W4.1.5.S3`, repo `dd64963`)**: end-to-end cascade
+orchestrator in `cascade.py` + CLI in `cli.py` + consolidator in
+`consolidate.py` + fakes in `fakes.py` + 9 integration tests.
+PR-COST cost journal opened with `JournalState.fresh()` +
+`update_with_retry` pattern per `cli._record_shard_completion`.
+Three stage `run_shard` calls back-to-back; consolidator walks the
+4 per-stage parquets and emits per-fixture expected.json with
+META_SCHEMA v1.0 top-level keys + 18-col stage3_decision.
+
+Total test surface at Session 13 close: **46/46 PASSED** across
+all three surface test modules. Lint + format + McCabe (C901) clean.
+
+──────── Small-subset validation (W4.1.5.V, workspace `c528a47`) ──
+
+Ran `python -m tests.runners.fixture_cascade.cli --output-dir
+/tmp/w415-validation/run01 --run-id w4-1-5-validation-2026-05-21
+--llm-mode fake --max-fixtures 10` against the real corpus.
+
+Result:
+- 10 fixtures processed (sorted-by-domain order: archive.org
+  through bestlogisticsjobs.com).
+- ~6 seconds wallclock; $0.00 cost (fake mode).
+- All 5 intermediate parquets present + stage2_pages.parquet +
+  stage3_pages.parquet.
+- 10/10 `expected/<domain>.json` files emitted matching the plan §3
+  W4.2 shape.
+- Cost journal `run_w4-1-5-validation-2026-05-21.json` carries
+  3 stage shard records (`stage=1/2/3`, `outcome="completed"`).
+
+Acceptance criteria coverage:
+- (1) end-to-end without manual intervention: MET (subset).
+- (2) five intermediate parquets exist + conform: MET.
+- (3) per-fixture expected.json shape: MET (18-col stage3_decision).
+- (4) RUN_ID-stamped cost journal: MET.
+- (5) cost within 3× of $0.30: MET under fake mode; real-mode
+  small-subset validation deferred to operator before W4.2
+  full-corpus generation.
+- (6) no writes outside output_dir: MET.
+
+Durable report at `working/w4_1_5_small_subset_validation_2026-05-21.md`,
+whitelisted in workspace `.gitignore` alongside the three Session 12
+verification reports.
+
+──────── Tag placement + push ─────────────────────────────────
+
+Annotated tag `workstream-0-week4-1-5-end` (tag SHA `f9be833a`)
+placed on repo `main` at `dd64963` per plan §3 W4.1.5 + LESSONS.md
+"tag at clean SHA not milestone SHA" — the Surface 3 commit is the
+clean checkout target after small-subset validation confirmed
+acceptance criteria 1-4 + 6. Annotation: "Fixture-cascade driver
+landed. Reusable at W A.0 W6 as `barcada-baseline generate`
+foundation. W4.2 expected-outputs generation begins on the next
+commit. Output lifetime: until W A.0 W6 OR until Phase 4 PR-E
+lands, whichever comes first."
+
+Push gate:
+- Repo `git push origin main`: clean. Pre-push gate (ruff +
+  vermin --target=3.10- + validate_consistency) all PASS.
+- Repo `git push origin workstream-0-week4-1-5-end`: clean.
+- Workspace `git push origin main`: clean.
+
+Operator initially chose "Hold" on the push gate AskUserQuestion,
+then explicitly authorized push in the follow-up message. No
+`--no-verify` used.
+
+──────── Operator decisions made during Session 13 ────────────
+
+1. **Plan example shape** (TODO resolution): full 18-column
+   rendition. Decided via AskUserQuestion preview before commit.
+2. **Driver location**: `tests/runners/fixture_cascade/` (sibling
+   to tests/fixtures/, clearly test-runner-side).
+3. **LLM-mode wiring**: both fake + real modes via `--llm-mode`
+   CLI flag.
+4. **LRBundle**: synthesized always-uncertain (`predict_proba=0.50`).
+   Operator refinement: annotate LR/LLM-tier rows as
+   `synthetic_lr_used: true` in expected.json. Confirmed v1.0
+   META_SCHEMA allows the additional field; no register bump
+   needed.
+5. **expected.json shape**: 18-col stage3_decision; skip v1.0
+   expected.schema.json validation at W4.1.5 (deferred fix (e)).
+6. **W4.2 worked-example handling deferred**: the
+   `legitimate_business/expected/twilio.com.json` `_placeholder`
+   resolution moves to W4.2 sample-review time (overwrite vs.
+   protect).
+7. **Push hold-then-confirm**: initial Hold, then authorized.
+
+──────── Patterns reinforced this session ─────────────────────
+
+- **Surface-by-surface decomposition with operator approval gates**:
+  three engineering surfaces, each landed as one commit after
+  "Confirm to commit?" approval. Same shape as the W4.1 commit
+  cadence (Session 11) and the absorption-pass commits (Session 12).
+- **Verify-before-asking on schemas**: production schema details
+  (BusinessVerdict's `classification` field vs. `is_business`;
+  PartnerEvidence's `primary_business_model` field; PartnerVerdictPrimary's
+  `partner_type` not `primary_partner_type`) only surfaced via
+  source reads; copying my own first-draft fake adjudicator shapes
+  would have failed at integration-test time. The mid-stream
+  corrections landed before pytest runs against the real schemas.
+- **Driver-level input contracts** (LESSONS.md Session 12 entry):
+  Stage 1's single-file parquet reader vs. Stage 2's directory-aware
+  reader; Stage 3's three-input contract; FetcherSet's duck-typed
+  protocol. All confirmed at session-current HEAD via the
+  pre-engineering subagent audit, before any code lands.
+- **Halt-on-discovery**: the `extract_text_from_html` tuple-return
+  surfaced as a test failure; the 195-vs-198 corpus count surfaced
+  via assertion. Both corrected at first-failure rather than
+  silently accommodated.
+
+No new LESSONS.md entries this session — all observed patterns
+were instances of previously-established discipline.
+
+──────── Workspace changes landed this session ────────────────
+
+- `BARCADA_CRAWLER_REMEDIATION_PLAN.md`: plan §3 W4.2 schema
+  example reconciled (one continuation-of-absorption commit
+  `a34f7a2`).
+- `working/w4_1_5_small_subset_validation_2026-05-21.md`: durable
+  validation artifact created.
+- `.gitignore`: whitelisted the validation report.
+- `SESSION_LOG.md`: this entry.
+- `SESSION_TRANSITION_TEMPLATE.md`: refilled for Session 14 with
+  W4.2 as next concrete work unit.
+
+Repo changes:
+- `tests/runners/__init__.py` + `tests/runners/fixture_cascade/`
+  package (parser_compose / fixture_fetcher / fakes / consolidate /
+  cascade / cli + matching test_* modules).
+- Annotated tag `workstream-0-week4-1-5-end` at `dd64963`.
+
+Test count at Session 13 close: parent suite green; conformance
+suite red count steady at 17 (Week 5 punch list), 169 pass, 2 skip,
+64 hard_exclusions pass — same as Session 11/12 close.
+
+──────── Cost & schedule tracking ─────────────────────────────
+
+- Cost incurred Sessions 1-13: $0. Session 13 ran only in fake
+  mode; no Azure calls. Budget remaining: $100.
+- Schedule: ~4 weeks elapsed of Workstream 0's 5-week budget.
+  - Weeks 1-3 COMPLETE.
+  - Week 4 IN PROGRESS: W4.0 done, W4.1 done, **W4.1.5 DONE**;
+    W4.2 PROPOSED for Session 14; W4.3 follows.
+  - Week 5 ahead.
+  - Per Session 12 framing, W4.1.5 pulled cascade-driver
+    engineering forward from W A.0 W6 by ~2 weeks. Net schedule
+    impact tracked at W4.3 close.
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+Next concrete work: Workstream 0 W4.2 — full-corpus expected.json
+generation via the W4.1.5 fixture-cascade driver in real mode, per
+plan §3 Week 4 (W4.2) + the open items in the Session 13 validation
+report.
