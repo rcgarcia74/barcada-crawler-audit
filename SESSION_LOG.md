@@ -1172,3 +1172,386 @@ Next concrete work: Workstream 0 Week 4 — meta.json schema
 locked, per-fixture meta.json generation across the corpus
 (~197 fixtures), expected-outputs generation (this is where
 the $50-200 LLM cost lands).
+
+---
+
+## Session 10 — Carried-item resolution + W4.0 schema lock (2026-05-20)
+
+Scope: Open Workstream 0 Week 4 with the three carried items from
+Session 9 close (Flag 1 cost ceiling, Flag 2 verify-before-asking
+promotion, Flag 3 W4 tag provenance). Land the W4.0 meta.json +
+expected.json schema lock plus a worked-example pair (twilio.com)
+per plan §3 Week 4. No workstream-0-week4-end tag at session close
+(W4 spans multiple sessions; tag lands at full W4 close).
+
+──────── Repo commits this session (`barcada-scraper`, both on
+        `main`, both pushed to origin) ──────────────────────────────
+
+| # | SHA       | Action                  | Files                                                                                              |
+|--:|-----------|-------------------------|----------------------------------------------------------------------------------------------------|
+| 1 | `9165791` | W4.0-schema-lock        | tests/fixtures/META_SCHEMA.md + tests/fixtures/meta.schema.json + tests/fixtures/expected.schema.json |
+| 2 | `8aafc45` | W4.0-worked-example-twilio | tests/fixtures/html/legitimate_business/twilio.com.meta.json + tests/fixtures/html/legitimate_business/expected/twilio.com.json |
+
+Repo head at session close: `8aafc45`.
+
+──────── Workspace commits this session (`crawler-audit`) ────────
+
+| # | SHA       | Scope |
+|--:|-----------|-------|
+| 1 | (this commit) | Session 10 close: SESSION_LOG.md Session 10 append + LESSONS.md "Verify-before-asking discipline" section (Flag 2 resolution constraints — header naming + operator-ratchet + A/B/C trigger) + SESSION_TRANSITION_TEMPLATE.md refill for Session 11 |
+
+──────── Flag 1 (cost ceiling reconciliation): RESOLVED →
+        Option (c), defer Stage 3 LLM calls ────────────────────────
+
+Selected sub-option (c): expected-output generation defers Stage 3
+LLM calls and generates only Stage 1/2 expected outputs in W4. Stage
+3 expected-output generation lands in Workstream C scope.
+
+Reasoning: (i) the asymmetric-baseline con for option (c) was weaker
+than initially framed — plan §6 lines 313-385 was read in full and
+confirmed Workstream B's expected-output regeneration needs are
+Stage 1-specific (Action #6 cost-per-useful-record) and
+stage-agnostic (Action #21 version stamping); the only Workstream B
+item touching Stage 3 is LLM_OVERUSE in Action #7, which is new
+flag emission rather than a change to Stage 3 decision logic. (ii)
+The Stage 3 baseline gap becomes load-bearing in Workstream C
+(Weeks 13-16) per §7, where extraction work substantially changes
+Stage 3 inputs and "trust the baseline" matters most. Option (c)
+explicitly aligns Stage 3 regeneration with Workstream C ownership.
+(iii) Option (a) doubles operator's prior spend authorization on
+an unvalidated $50-200 estimate (current spend $0); option (b) adds
+W4.2 engineering scope the plan didn't budget and introduces
+schema-shape risk from Haiku-tier abstain divergence from production
+cascade.
+
+Four execution constraints (carried forward; verbatim per operator
+Flag 1 resolution):
+
+1. **W4.0 schema lock must explicitly accommodate deferred Stage 3
+   fields.** Two sub-options presented at W4.0 schema review: (i)
+   include `stage3_decision` field with explicit
+   `"deferred_to_workstream_c"` sentinel value, OR (ii) omit
+   `stage3_decision` from schema v1.0 with documented note that
+   schema v1.1 (Workstream C) will add it. Operator selected (i) at
+   W4.0 review (this session).
+
+2. **W4 close documentation must be explicit.** SESSION_LOG.md
+   Session 10 close + the eventual workstream-0-week4-end tag
+   annotation must state: "Stage 3 expected-outputs deferred to
+   Workstream C per Flag 1 resolution; partial coverage at W4 close
+   is intentional, not incomplete." (This entry satisfies the
+   SESSION_LOG.md portion. The tag annotation lands at full W4
+   close.)
+
+3. **Workstream C scope amendment flagged for operator
+   authorization.** Deferred Stage 3 expected-output generation lands
+   in Workstream C scope. That's a plan-document amendment — read-
+   only territory, operator authorization required. Staged in the
+   W4.0 schema-lock commit message (9165791) and the worked-example
+   commit message (8aafc45) for operator handling. Plan document NOT
+   amended by assistant.
+
+4. **Cost ceiling remains $100, alert at $50.** Option (c) is
+   expected to keep W4.2 spend at near-zero (RULES + LR routing for
+   the corpus majority, LLM only at Stage 1/2 abstain tail). No
+   ceiling change needed. If actual W4.2 spend trends higher than
+   near-zero during execution, stop and escalate before crossing $50
+   alert threshold.
+
+Additional Flag 1 sub-options surfaced at W4.0 schema review:
+
+- **Constraint #1 sub-options (i)/(ii)**: operator selected (i) —
+  include stage3_decision field with sentinel.
+- **Constraint #5 sentinel semantic**: operator selected semantic
+  (α) — comparison-skip directive. Workstream A.0 baseline-v0
+  comparison logic treats `"deferred_to_workstream_c"` as
+  comparison-skip directive; sentinel string to be codified as a
+  named constant in baseline-v0 implementation, not a magic-string
+  scattered through files.
+
+──────── Flag 2 (verify-before-asking promotion): RESOLVED →
+        Option (c), status quo ────────────────────────────────────
+
+Selected sub-option (c): status quo. Keep verify-before-asking
+discipline anchored in LESSONS.md only; rely on plan §14 required-
+reading discipline + operator-ratchet to propagate it. No new
+sibling document (option a rejected). No CLAUDE.md edit or
+.claude/rules/ addition (option b rejected).
+
+Five-bullet reasoning (verbatim per operator Flag 2 resolution):
+
+1. Three LESSONS.md sub-sections already anchor the discipline (S7
+   probe-framework-generation at lines 186-227, S8 synthetic-HTML-
+   comments at lines 423-465, S9 detector-precision-findings at
+   lines 467-696).
+
+2. Template §14 already lists LESSONS.md in required reading
+   (template lines 273-274) — propagation mechanism exists, no new
+   infrastructure needed.
+
+3. Three weeks of evidence are all from Workstream-0 fixture-
+   sourcing context; promoting to acceptance-criterion or code-rule
+   tier before forward-context evidence (Workstream B detector-
+   precision audit, Workstream C extraction work) would codify a
+   discipline that may need refinement when applied to different
+   work shapes.
+
+4. Operator-driven ratchet ("did you double check your work?")
+   remains the enforcement mechanism. Not gated.
+
+5. Options (a) and (b) carried structural risks that weighed against
+   promotion at this evidence stage: option (a) would establish
+   "operator-discipline items can become sibling plans" as a
+   precedent, eroding the read-only-period boundary on
+   BARCADA_CRAWLER_REMEDIATION_PLAN.md established at S7 turn 12;
+   option (b) had unverified loading reliability in the workspace
+   context (crawler-audit/ CLAUDE.md state was Session-10-inference,
+   no direct source), and a verification discipline that itself
+   loads unreliably is self-defeating. Option (c) preserves
+   optionality: if verify-before-asking produces a finding in
+   Workstream A, B, or C, the promotion question reopens with
+   broader evidence base.
+
+Four execution constraints on Option (c) (landed this commit as
+LESSONS.md additions):
+
+1. **LESSONS.md anchor reinforcement** — new header entry naming
+   "verify-before-asking" as the discipline and cross-referencing the
+   three sub-sections (S7, S8, S9) as evidence.
+2. **Operator-ratchet pattern documentation** — entry naming "did
+   you double check" question as the propagation mechanism under
+   option (c).
+3. **Workstream A/B/C trigger condition** — entry documenting the
+   trigger: if verify-before-asking produces a finding in Workstream
+   A, B, or C, the promotion question reopens with broader evidence
+   base. Not a commitment to promote — just a trigger to revisit.
+4. **No new sibling document, no CLAUDE.md edit, no .claude/rules/
+   addition.** Status quo means status quo.
+
+──────── Flag 3 (W4 tag provenance): FLAGGED, not blocker ──────────
+
+Flag 3 was surfaced at Session 10 open per operator instruction;
+acknowledged as proceed-anyway. No action this session. Revisit at
+full W4 close.
+
+──────── W4.0 schema design and lock ─────────────────────────────
+
+Single-unit engineering work: drafted META_SCHEMA.md + meta.schema.json
++ expected.schema.json + worked-example pair as a batch for operator
+review. Two operator corrections applied to the draft mid-review:
+
+- **Correction A**: sub-option (i) pro overclaimed Flag 1 constraint
+  #2 ("automatically satisfied by in-data sentinel"). Workstream-
+  level deferred-by-design documentation still applies independently
+  of per-fixture sentinel. Corrected in the schema spec rationale.
+
+- **Correction B**: `schema_version: const "1.0"` blocked the
+  independent versioning the rationale claimed (any v1.x bump would
+  fail const validation). Two fix options presented: replace const
+  with pattern OR rename to scope-specific fields. Operator selected
+  pattern fix: `{"type": "string", "pattern": "^1\\.[0-9]+$"}` on
+  both meta.schema.json and expected.schema.json. Preserves field
+  name, eval_data/stage1.schema.json precedent (semver string), and
+  symmetry across both schemas; allows independent v1.x progression.
+
+Batch resolutions on review items #1-#8 (all approved or resolved):
+
+1. File location & shape: 3 files — META_SCHEMA.md + meta.schema.json
+   + expected.schema.json under tests/fixtures/. APPROVED.
+2. expected_outcome shape: structured JSON object, deviates from plan
+   §3 W4 free-text example. APPROVED, deviation documented.
+3. stage3_decision handling: sub-option (i) — include with sentinel.
+4. Sentinel semantic for baseline-v0: semantic (α) — comparison-skip
+   directive. Sentinel string to be codified as named constant in
+   Workstream A.0 baseline-v0 implementation.
+5. Empty-directory handling: no stub files; META_SCHEMA.md "Pending
+   directories" section pointer. APPROVED.
+6. capture_method enum: DROP `playwright` (no Session 5-9 capture
+   used it; reserve via semver bump for future SPA hydration work).
+7. Anti-trip discipline scope: VERIFIED regex-isolated. meta.json is
+   not flat-scanned by extract_hard_exclusions; _iter_fixtures globs
+   `*.html` only. Anti-trip discipline codified as future-proofing-
+   only per operator instruction.
+8. `historical_unverified` capture_method: APPROVED as catch-all for
+   pre-Session-1 fixtures + any other corpus fixtures whose origin
+   isn't recoverable.
+
+Two corpus-wide truths landed in META_SCHEMA.md (§5 Historical
+capture limitations):
+
+- **Truth 1 (source_url)**: original capture URL not preserved by
+  `curl -o`. For historical captures (W3 and earlier, ~196 of 198
+  fixtures), accept `<link rel="canonical">` URL as source_url
+  proxy; fall back to bare-domain form when no canonical. Forward
+  W5+ captures: extend tooling to preserve actual URL via
+  `curl -w "%{url_effective}"` — flagged as **Workstream A.12
+  tooling item, NOT W4 scope**.
+- **Truth 2 (content_type, encoding, response_status)**: response
+  headers not preserved for historical captures. Use plan §3 W4
+  defaults (`"text/html; charset=utf-8"`, `"utf-8"`); derive
+  response_status from directory category. Mark approximated fields
+  with `provenance_note`.
+
+`provenance_note` field added to meta.schema.json: optional object
+keyed by approximated-field-name with string value naming the
+approximation source. Operator confirmed structured-object
+interpretation (per-field granularity preserved across ~196
+historical-capture fixtures) over flat-string single-field form.
+
+Item #7 verification result (verbatim, for record):
+- `tests/scraper/test_fixture_conformance.py:30-38`: `_iter_fixtures(category)`
+  returns `sorted((FIXTURES / category).glob("*.html"))`. Strict .html
+  filter; .meta.json files not enumerated.
+- `tests/scraper/test_fixture_conformance.py:50`: only path passed to
+  `extract_hard_exclusions` is `path.read_text(encoding="utf-8")`
+  from the .html path.
+- All other `extract_hard_exclusions` call sites (crawler.py:629,
+  test_hard_exclusions.py) take HTML bodies.
+- No `meta.json` references in src/ or tests/ that touch fixture
+  metadata.
+
+──────── Pattern distinction (single-line note per operator request) ─
+
+Carried-item resolution (Flag 1, Flag 2) used pre-staged options
+from SESSION_TRANSITION_TEMPLATE.md with Session-10-authored
+pros/cons grounded in source files — operator-authority decisions
+routed through batch review of three discrete option sets.
+Engineering design (W4.0 schema spec + worked example) used single-
+unit drafting with recommended approaches, source-cited tradeoffs,
+and batch review at completion — operator review at the artifact
+level, not the per-decision level.
+
+──────── Test surface change (repo) ─────────────────────────────
+
+  test_hard_exclusions.py:        64 passed (unchanged across
+                                  Session 10; same baseline as
+                                  Session 9 close).
+  test_fixture_conformance.py:
+    Pre-Session-10 (cf0c14c):     17 failed, 169 passed, 2 skipped
+    Post-Commit-1 (9165791):      17 failed, 169 passed, 2 skipped
+                                  (.md + 2 .schema.json files;
+                                   _iter_fixtures globs *.html only,
+                                   no test surface change)
+    Post-Commit-2 (8aafc45):      17 failed, 169 passed, 2 skipped
+                                  (.meta.json + expected/*.json
+                                   files; same invisibility from
+                                   _iter_fixtures)
+
+  Failure list at session close is EXACTLY the 17 Week-5 punch-list
+  reds. Byte-for-byte stable across both commits.
+
+──────── Workspace updates this session ─────────────────────────
+
+- SESSION_LOG.md: this entry.
+- LESSONS.md: new "## Verify-before-asking discipline" section with
+  three sub-entries (anchor + operator-ratchet + A/B/C trigger) per
+  Flag 2 Option (c) execution constraints.
+- SESSION_TRANSITION_TEMPLATE.md: refilled for Session 11
+  (Workstream 0 Week 4 continuation — W4.1 bulk meta.json generation
+  next).
+- BARCADA_CRAWLER_REMEDIATION_PLAN.md: NOT updated (read-only per
+  operator). Workstream C scope amendment (deferred Stage 3 expected-
+  output generation) flagged in commit messages for operator
+  handling, not assistant-amended.
+
+──────── Cost & schedule tracking ───────────────────────────────
+
+- Cost incurred Sessions 1-10: $0. No LLM API calls in Session 10
+  itself (schema design + drafting + manual verification + curl +
+  grep + pytest). Cost ceiling $100 untouched. Budget remaining:
+  $100.
+- Schedule: 3 weeks elapsed of Workstream 0's 5-week budget. Weeks
+  1-3 COMPLETE; Week 4 OPEN (~25% complete with W4.0 schema lock
+  done; W4.1 bulk generation + W4.2 expected-output generation
+  pending). Weeks 4-5 still ahead.
+- W4 likely spans 2-3 sessions per template line 129; Session 10
+  closes the schema-lock unit at the natural seam.
+
+──────── Operator-interaction notes (Session 10 patterns) ───────
+
+- "Did you double check your work?" not explicitly asked this
+  session — verify-before-asking discipline was applied proactively
+  before each commit confirmation (verification table generated
+  pre-confirm, anti-trip scan on test_purpose, content_length
+  bit-exact match check, source_url ↔ canonical-link exact match
+  check, captured_at ↔ git author date conversion check). Operator-
+  ratchet did not need to fire because the proactive verification
+  caught what the ratchet would have caught.
+
+- Two Step 6 escalations executed cleanly:
+  - Pros/cons-not-staged drift on Flag 1 (and again on Flag 2) →
+    surfaced before authoring, operator authorized author-with-
+    provenance pattern.
+  - Item #7 verification surfaced regex-isolation cleanly →
+    proceeded under future-proofing interpretation per operator
+    pre-conditional.
+
+- Two corrections applied to the schema draft mid-review (Correction
+  A and Correction B). Both surfaced by operator review, not by
+  assistant self-review. Pattern: assistant's verify-before-asking
+  catches mechanical errors (file paths, byte counts, regex trips);
+  operator review catches semantic errors (overclaim of constraint
+  satisfaction, const-vs-pattern semantics). Different verification
+  layers catch different failure modes.
+
+──────── Open items entering Session 11 ─────────────────────────
+
+Workstream 0 Week 4 continuation:
+
+- **W4.1 bulk meta.json generation across the corpus** (next concrete
+  work unit). 198 fixtures need meta.json files. Per W4.0 schema +
+  Truth 1/2: scripted generation reading each fixture's .html,
+  extracting content_length via os.path.getsize(), deriving
+  captured_at via git log --diff-filter=A --follow --format=%aI,
+  source_url from `<link rel="canonical">` with bare-domain fallback,
+  capture_method per session-log mapping (W0 Sessions 5+ are
+  curl_with_retries; pre-Session-1 are historical_unverified;
+  synthetic-with-real-markers fixtures identifiable by filename
+  prefix), content_type and encoding from plan default, response_status
+  from directory-category mapping. Operator review of script output
+  before bulk commit.
+
+- **W4.2 expected/<domain>.json generation** (Stage 1/2 only per
+  Flag 1 resolution; Stage 3 via canonical sentinel triple).
+  Expected near-zero LLM cost (RULES + LR for the corpus majority).
+  Stop and escalate if actual spend trends higher than near-zero
+  before $50 alert threshold.
+
+- **W4.3 Test infrastructure** (may span into Session 12). Update
+  conformance tests to compare against expected/<domain>.json
+  (replacing the current "exclusion_reason must be empty" style
+  assertions with full comparison). May or may not be Week 4 vs
+  Week 5 work depending on operator preference.
+
+- **W4 close + tag annotation**. At full W4 close, tag
+  `workstream-0-week4-end` at the final green-gate SHA. Annotation
+  must state: "Stage 3 expected-outputs deferred to Workstream C
+  per Flag 1 resolution; partial coverage at W4 close is intentional,
+  not incomplete." (Per Flag 1 constraint #2.)
+
+- **Workstream C scope amendment** flagged for operator authorization.
+  Pending operator handling outside session work.
+
+Carried items status:
+
+- Flag 1 (cost ceiling reconciliation): RESOLVED Session 10 →
+  Option (c) defer Stage 3 to Workstream C.
+- Flag 2 (verify-before-asking promotion): RESOLVED Session 10 →
+  Option (c) status quo. Trigger condition documented in LESSONS.md
+  for forward reopening.
+- Flag 3 (W4 tag provenance): still flagged, not a blocker. Revisit
+  at full W4 close.
+
+Pre-push gate gap (Issue 3 from the Week 2 audit erratum) remains
+open: project's ruff `select` does not include "C" (mccabe), so
+cyclomatic-complexity violations are caught only by manual
+`ruff check --select C901`. Tracked for a future project-config
+commit.
+
+Week 5 punch list (17 fixtures) remains untouched — tracked
+intentional reds, scheduled for Week 5.
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+Next concrete work: Workstream 0 W4.1 — bulk meta.json generation
+across the 198-fixture corpus per the META_SCHEMA v1.0 lock landed
+this session.

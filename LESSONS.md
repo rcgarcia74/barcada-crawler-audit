@@ -693,3 +693,132 @@ test coverage, regression baselines, and operator review. C18.a–e
 drop the FP-tripping candidates (stripe.com, linear.app, raycast.com,
 posthog.com) and proceed with clean substitutes; barriers.py is
 untouched.
+
+---
+
+## Verify-before-asking discipline
+
+### The discipline named (Flag 2 resolution, Session 10)
+
+**Established:** Session 10 (Flag 2 retrospective, 2026-05-20).
+
+"Verify-before-asking" is the durable name for the operator-discipline
+observed across Sessions 7-9. Three LESSONS.md sub-sections constitute
+the evidence anchor:
+
+- **"Probe framework generation before locking a fixture spec"** (S7,
+  Diagnostic patterns, lines 186-227) — fixture-spec verification
+  against current production patterns before locking a fixture set.
+- **"Synthetic-fixture HTML comments are regex-visible"** (S8,
+  Workstream / commit shape patterns, lines 423-465) — author-side
+  verification that synthetic-fixture content does not inadvertently
+  trip detector regexes.
+- **"Detector precision findings"** with FPs 1-3 + FNs 1-3 +
+  circularity meta-observation (S9, Detector precision findings,
+  lines 467-696) — production-corpus verification that surfaces
+  detector precision regressions hiding behind green test suites.
+
+Pattern statement: before locking a fixture, schema, or commit,
+verify the artifact against the on-disk reality (parse it, grep it,
+run the relevant detector) rather than trusting prior assumption.
+Surface discrepancies before drafting the next deliverable.
+
+**Promotion decision (Flag 2, Session 10):** status quo (Option c).
+Keeps the discipline anchored in LESSONS.md, propagated via plan §14
+required-reading + operator-ratchet (next entry), not via plan-
+amendment or CLAUDE.md / .claude/rules/ codification. Reason: three
+weeks of evidence are all from Workstream 0 fixture-sourcing context;
+promotion before forward-context evidence (Workstream A/B/C) would
+codify a discipline that may need refinement when applied to
+different work shapes. Reopening trigger documented in "Workstream
+A/B/C trigger condition" entry below.
+
+Options (a) plan-amendment-via-sibling-document and (b) CLAUDE.md /
+.claude/rules/ codification were rejected with structural-risk
+reasoning recorded in SESSION_LOG.md Session 10 entry. Do not
+relitigate without new forward-context evidence per the trigger
+condition below.
+
+### Operator-ratchet as the propagation mechanism
+
+**Established:** Session 10 (Flag 2 Option (c) execution constraint
+#2, 2026-05-20).
+
+Under Flag 2 Option (c) (status quo), the verify-before-asking
+discipline propagates through sessions via two mechanisms:
+
+1. **Plan §14 required-reading**: each new session opens by reading
+   LESSONS.md among other artifacts (template lines 273-274). Future
+   Claude Code sessions see the discipline named and anchored.
+
+2. **Operator-ratchet**: in-session, the operator periodically asks
+   "did you double check your work?" before commit confirmation.
+   Each instance tightens the verification standard by forcing one
+   more inspection layer.
+
+Empirical pattern observed in Session 9 (SESSION_LOG.md S9 lines
+1103-1114): the question was asked 4-5 times during Session 9, each
+time surfacing 2-3 real gaps in the verification table the assistant
+had drafted (SHA fabrication, full-block dump vs True-flag-only
+filter, comment-text regex trip, missing parametrize-collection
+check, missing post-format re-read, missing direct-helper-call
+verification, missing negative-case coverage). Each iteration
+tightened the verification standard.
+
+Session 10 observation: when the assistant applies verify-before-
+asking *proactively* (verification table generated pre-confirm,
+anti-trip scan on test_purpose, content_length bit-exact match,
+source_url ↔ canonical-link exact match, captured_at ↔ git author
+date conversion check), the operator-ratchet does not need to fire
+because the proactive verification catches what the ratchet would
+have caught. The ratchet is a backstop, not the primary mechanism.
+
+The operator-ratchet is operator-driven, not assistant-driven; status
+quo (Flag 2 Option c) preserves this regime. Promotion to plan-
+amendment or rule-codification would convert the discipline from
+operator-driven to assistant-driven, which is a different regime
+that the three weeks of Workstream 0 evidence does not yet support.
+
+Forward-applicable: any session in any workstream. The operator's
+"did you double check" question is not workstream-bounded.
+
+### Workstream A/B/C trigger condition for reopening the promotion question
+
+**Established:** Session 10 (Flag 2 Option (c) execution constraint
+#3, 2026-05-20).
+
+Flag 2 (Session 10) deferred promotion of verify-before-asking from
+ad-hoc discipline to a named acceptance criterion. The three weeks
+of evidence (Sessions 7-9) are all from Workstream 0 fixture-sourcing
+context. The promotion question reopens — with broader evidence
+base — when the discipline produces a finding outside Workstream 0.
+
+**Trigger condition**: any of the following constitutes a "finding"
+that warrants reopening the Flag 2 promotion question:
+
+- **Workstream A** (compliance foundation, Weeks 8-9): a verify-
+  before-asking instance surfaces a robots.txt parser bug, an
+  identifiable-UA misconfiguration, or a governance-document
+  inaccuracy that would otherwise have shipped.
+- **Workstream A.0** (baseline scaffolding, Weeks 6-7): a verify-
+  before-asking instance surfaces a baseline-v0 comparison-logic
+  gap, a determinism violation, or a synthetic-crawl-tape replay
+  divergence that would otherwise have shipped.
+- **Workstream B** (cost & observability, Weeks 10-12): a verify-
+  before-asking instance surfaces a metric-emission shape mismatch,
+  a per-domain-budget calculation bug, or a detector-precision
+  regression that would otherwise have shipped.
+- **Workstream C** (high-leverage extraction, Weeks 13-16): a
+  verify-before-asking instance surfaces a hydration-extraction
+  marker miss, a mega-menu activation false-negative, or a Stage 3
+  expected-output discrepancy that would otherwise have shipped.
+
+When triggered, the promotion question reopens at the next natural
+session boundary. **Reopening is not a commitment to promote — just
+a trigger to revisit.**
+
+**Anti-pattern**: do NOT reopen the promotion question on a
+Workstream 0 finding (Week 4 expected-output generation, Week 5
+punch-list cleanup, etc.). Workstream 0 evidence is already counted
+in the original Flag 2 deferral; additional same-context evidence
+does not change the evidence base.
