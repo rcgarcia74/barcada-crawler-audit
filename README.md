@@ -46,3 +46,27 @@ overwriting).
 10. Update SESSION_LOG.md if you're keeping one
 11. Commit and push the workspace
 12. Close the session when the work unit is done
+
+## Session handoff documents (added Session 11)
+
+Three workspace-side documents carry remediation context across Claude Code
+sessions:
+
+- `SESSION_LOG.md` — chronological record, one entry per session. Captures
+  scope, commits landed, operator decisions, deferred items, test surface
+  changes, cost & schedule tracking. Append-only; never edit prior entries.
+- `SESSION_TRANSITION_TEMPLATE.md` — cold-start handoff document. Overwritten
+  at each session close with the next session's required reading list, repo
+  state snapshot, active task list, locked artifacts reminder, deferred
+  prose-only fixes register, and the next concrete work unit. Pair with
+  the latest `SESSION_LOG.md` entry to be productive in ~10 minutes from
+  cold.
+- `LESSONS.md` — durable operator patterns and observed conventions
+  (commit-message format, fixture-handling patterns, diagnostic patterns,
+  discovery escalation, workstream/commit shape patterns, detector-precision
+  findings, verify-before-asking discipline). Add a section only when a
+  forward-applicable pattern surfaces that isn't already documented.
+
+Reading order for a new session: `SESSION_TRANSITION_TEMPLATE.md` first,
+then the latest `SESSION_LOG.md` entry, then `LESSONS.md`, then the
+relevant section of `BARCADA_CRAWLER_REMEDIATION_PLAN.md`.

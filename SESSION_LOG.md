@@ -1555,3 +1555,350 @@ Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
 Next concrete work: Workstream 0 W4.1 — bulk meta.json generation
 across the 198-fixture corpus per the META_SCHEMA v1.0 lock landed
 this session.
+
+---
+
+## Session 11 — W4.1 bulk meta.json generation (2026-05-20)
+
+Scope: Open Workstream 0 Week 4 continuation. Draft and run the bulk-
+generation script per W4.0 schema + Truth 1/2 field-derivation
+recipes; sample-review → bulk commit cadence per plan §3 W4 deliverable
+guidance. Pre-script verification surfaced one divergence between the
+documented recipe and repo reality (see below); operator authorized
+path-A correction landing in SESSION_TRANSITION_TEMPLATE.md +
+SESSION_LOG.md without semver-bumping META_SCHEMA.md prose.
+
+──────── Pre-script verification finding (path-A correction landed) ─
+
+Cross-check of `response_status` field-derivation recipe (Session-10
+SESSION_TRANSITION_TEMPLATE.md lines 124-131 + META_SCHEMA.md §2.4
+line 95 + META_SCHEMA.md §5 line 149) against commit `4f8dc06` (C0.7c,
+2026-05-19, Session 5/6 boundary) revealed an audit-spec-vs-production
+drift (LESSONS.md §S9 pattern):
+
+- **Documented recipe**: "401 for the 4 nginx-401 fixtures moved
+  INTO `parking_default_pages/` by C0.7c". Implied directory split
+  inside `parking_default_pages/`.
+- **C0.7c commit reality**: commit message reads "batch-move 4
+  nginx-401 files FROM `parking_default_pages/` TO `auth_403/`".
+  Post-move state (verified Session 11 by `ls`): `auth_403/` contains
+  17 fixtures (13 conforming-403 + 4 401-flavored auth markers);
+  `parking_default_pages/` contains 2 uniform-200 fixtures
+  (`grigolato.net.html` IIS welcome + `sanluishouston.com.html`
+  nginx welcome).
+- **Consequence for W4.1 script**: per-file 401-vs-403 split lives
+  in `auth_403/`, not `parking_default_pages/`. The 4 files needing
+  `response_status: 401`: `sanmarcosdentists.com.html`,
+  `sanmarcosflower.com.html`, `sanmarcosforsale.com.html`,
+  `sanmarcoshouse.com.html`. Remaining 13 in `auth_403/` get 403.
+  `parking_default_pages/` is uniform 200.
+
+Operator authorized **path A**: apply Truth-3-style corpus-wide
+correction in Session 11 only; update SESSION_TRANSITION_TEMPLATE.md
+recipe (forward-applicable, prevents Session 12+ rediscovery); leave
+META_SCHEMA.md prose at v1.0 with the known wording bug; track the
+deferred prose-only fix for fold-in at the next real semver bump.
+Rationale: machine-readable schemas (`meta.schema.json` +
+`expected.schema.json`) carry no directory→response_status mapping —
+only the prose carries the bug, so no functional artifact is broken.
+A v1.0 → v1.1 prose-only bump would churn the locked artifact for a
+text fix that affects no machine validation.
+
+Workspace changes landed this finding:
+- SESSION_TRANSITION_TEMPLATE.md `response_status` recipe
+  (corrected: `auth_403/` per-file 401 split; `parking_default_pages/`
+  uniform 200; includes explicit "CORRECTED RECIPE (Session 11)" note
+  to mark the prior wording as known-stale).
+- SESSION_TRANSITION_TEMPLATE.md new "Deferred prose-only fixes"
+  section (tracks META_SCHEMA.md §2.4 + §5 wording bug for fold-in at
+  next real semver bump).
+- SESSION_LOG.md this entry (chronological record of the finding).
+- META_SCHEMA.md NOT updated (prose-only deferred per operator).
+- meta.schema.json + expected.schema.json NOT updated (unaffected).
+
+──────── Flag A resolution: option (b) — RFC 2606 .invalid fallback ─
+
+During sample-review of W4.1 script output, three design questions
+surfaced (Flags A/B/C). Flag A: for synthetic-variant fixtures with no
+canonical link, the bare-domain fallback `https://<filename-stem>/`
+produces structurally-valid-but-semantically-meaningless URIs (e.g.,
+`https://wordpress_welcome_synthetic/`). Operator selected option (b):
+use RFC 2606 reserved-TLD form `https://<filename-stem>.invalid/`.
+
+Real-domain capture fallbacks (curl_with_retries, historical_unverified,
+replaced_in_place) keep the bare-domain form unchanged — the filename
+stem IS a real registered domain in those cases.
+
+Implementation in `tests/fixtures/generate_meta_json.py`:
+- new helper `synthetic_invalid_url(html_path) -> str`
+- `derive_source_url(html_path, html, capture_method)` now branches on
+  capture_method when canonical is absent: synthetic-variants → .invalid
+  fallback; others → bare-domain fallback
+- new provenance_note vocabulary value
+  `approximated_from_synthetic_invalid_fallback` (distinct from
+  `approximated_from_bare_domain_fallback`); tracked as a deferred
+  prose-only fix in SESSION_TRANSITION_TEMPLATE.md for fold-in at the
+  next real META_SCHEMA semver bump (machine schema unaffected;
+  provenance_note values are `additionalProperties: {type: string}`)
+
+Affects 20 pre-Session-1 synthetic fixtures (filename stems with
+underscores) and any future synthetic-variant fixture authored without
+a canonical link. The 5 synthetic_with_real_markers fixtures retain
+their canonical links (typically `.test` TLD per RFC 2606) and are
+unaffected.
+
+──────── Flag B resolution: option (a) — replacement-commit date ──
+
+For the 2 replaced_in_place files (parking_sale/shelvs.com.html via
+C0.5c, legitimate_business/sanmarcosflowershop.com.html via
+C0.5d-followup), `--diff-filter=A --follow` traces back to the
+original 1697bb5 add commit — but that commit's content no longer
+lives in the file. META_SCHEMA section 2.4 line 93's strict reading
+would use 1697bb5's author date as captured_at; that's semantically
+wrong (it would point at content the file no longer contains).
+Operator selected option (a): use the C0.5x replacement commit's
+author date instead, so captured_at reflects when the *current*
+content was captured.
+
+Tracked as a deferred prose-only fix in SESSION_TRANSITION_TEMPLATE.md
+for fold-in at the next real META_SCHEMA semver bump. Machine schema
+unaffected (captured_at is just `format: date-time`).
+
+──────── Flag C resolution: 10-fixture sample (kept as-is) ────────
+
+10 fixtures covered the 8 required coverage axes plus the
+replaced_in_place case surfaced during the pre-bulk distribution
+check. Operator declined expansion to one-per-category (≈26). Sample
+review was clean (0 validation errors across 10).
+
+──────── W4.1 bulk run (commit `9e1bda9`, pushed to origin/main) ──
+
+Bulk-generation script `tests/fixtures/generate_meta_json.py` ran in
+a single pass against all 198 fixtures. 197 new `<domain>.meta.json`
+files written (the W4.0 worked example
+`legitimate_business/twilio.com.meta.json` was protected and skipped).
+Re-run was a no-op (197 skipped-exists confirms idempotency).
+
+Verification before commit (operator-ratchet fired once mid-stream;
+deeper double-check pass executed; 0 problems surfaced):
+- Strict jsonschema (Draft7Validator) validation of all 198
+  meta.json files: 0 violations
+- 8-fixture cross-capture_method spot check (one per enum value
+  plus locale-subdir + C0.7c 401 override + 2 replaced_in_place):
+  0 problems
+- Visual read of `shelvs.com.meta.json` (replaced_in_place via
+  C0.5c): captured_at = 2026-05-19T19:43:41Z (replacement commit
+  date, not original 1697bb5 add) — Flag B resolution applied
+  correctly
+- Visual read of `synthetic_blog_minimal.meta.json` (C1.4.a
+  synthetic_with_real_markers): canonical `https://barebones-blog.test/`
+  preserved via RFC 2606 `.test` TLD; no .invalid fallback triggered
+- Anti-trip discipline validation passed on all 25 synthetic-variant
+  fixtures (`synthetic` + `synthetic_with_real_markers`)
+- Test surface invariant 17/169/2 held byte-for-byte across the
+  198-file landing (meta.json files invisible to
+  `_iter_fixtures *.html` glob, confirming Session 10 item #7
+  regex-isolation verification)
+- Idempotency confirmed via re-run: 197 skipped-exists, 1
+  skipped-protected, 0 written
+- No debug artifacts in the generator script (0 matches for
+  `breakpoint()`, `pdb.`, bare `except:`, debug prints)
+- No scope creep: 4 unstaged operator-side files in the locked tree
+  (.claude/rules/code-correctness.md, eval_data/*) remained
+  unstaged across the entire bulk operation
+
+Pre-push gate at `9e1bda9` (commit SHA):
+- ruff check                                    PASS
+- ruff check --select C901 (manual McCabe)      PASS
+- ruff format --check                           PASS
+- vermin --target=3.10-                         PASS (informational
+                                                only)
+- validate_consistency.py                       PASS (0/0)
+- pytest test_fixture_conformance               17 fail / 169 pass /
+                                                2 skip (byte-exact)
+- pytest test_hard_exclusions                   64 pass (unchanged)
+- jsonschema strict validation                  0 schema violations
+
+Push: `8aafc45..9e1bda9 main -> main`. Pre-push hook green.
+
+──────── Three META_SCHEMA prose-only fixes deferred ─────────────
+
+All three fold into the next real META_SCHEMA semver bump's diff
+(per Session 11 operator path-A stance — no semver bump for prose
+discrepancies whose machine schemas are unaffected). Tracked in
+SESSION_TRANSITION_TEMPLATE.md "Deferred prose-only fixes" section.
+
+1. Directory reference fix (Session 11 path-A finding, divergence
+   surface). META_SCHEMA section 2.4 line 95 + section 5 line 149
+   say the C0.7c nginx-401 split lives in `parking_default_pages/`;
+   actually C0.7c moved those 4 files out to `auth_403/`.
+
+2. replaced_in_place captured_at semantics extension (Flag B
+   resolution). META_SCHEMA section 2.4 line 93 strict reading uses
+   the first-add commit date; for replaced_in_place files, the
+   replacement commit date is semantically correct.
+
+3. Vocabulary extension (Flag A option b resolution). New canonical
+   value `approximated_from_synthetic_invalid_fallback` added to the
+   provenance_note Recommended source-string vocabulary.
+
+──────── Distribution (corpus-wide truths) ───────────────────────
+
+capture_method:
+  curl_with_retries           20  (W0 Sessions 5+ real captures)
+  historical_unverified      151  (pre-Session-1, commit 1697bb5)
+  synthetic                   20  (pre-Session-1, commit ae3eb77)
+  synthetic_with_real_markers  5  (C1.3.b, C1.4.a/b, C7.c, C22.c)
+  replaced_in_place            2  (C0.5c, C0.5d-followup)
+
+response_status:
+  200                        181  (all non-auth_403/ categories
+                                   including the 2 remaining
+                                   `parking_default_pages/` fixtures)
+  401                          4  (C0.7c-moved files in auth_403/)
+  403                         13  (remaining auth_403/ fixtures)
+
+source_url provenance:
+  approximated_from_canonical_html_link             41
+  approximated_from_bare_domain_fallback           137
+  approximated_from_synthetic_invalid_fallback      20
+
+──────── Test surface change (repo) ──────────────────────────────
+
+  test_hard_exclusions.py:        64 passed (unchanged across
+                                  Session 11; same baseline as
+                                  Session 10 close).
+  test_fixture_conformance.py:
+    Pre-Session-11 (`8aafc45`):   17 failed, 169 passed, 2 skipped
+    Post-commit (`9e1bda9`):       17 failed, 169 passed, 2 skipped
+                                  (198 .meta.json files; invisible
+                                   to `_iter_fixtures` `*.html` glob)
+
+  Failure list at session close is EXACTLY the 17 Week-5 punch-list
+  reds. Byte-for-byte stable across the W4.1 bulk landing.
+
+──────── Workspace updates this session ──────────────────────────
+
+- SESSION_LOG.md: this entry.
+- SESSION_TRANSITION_TEMPLATE.md: corrected response_status recipe
+  + new "Deferred prose-only fixes" section + refilled for
+  Session 12.
+- LESSONS.md: new "Deferred prose-only schema fixes" entry under the
+  "Workstream / commit shape patterns" section (forward-applicable
+  pattern surfaced this session; not previously in LESSONS.md).
+- META_SCHEMA.md NOT updated (three deferred prose-only fixes per
+  operator path-A stance).
+- meta.schema.json + expected.schema.json NOT updated (unaffected
+  by the prose discrepancies).
+- BARCADA_CRAWLER_REMEDIATION_PLAN.md NOT updated (read-only per
+  operator). Workstream C scope amendment (deferred Stage 3
+  expected-output generation) still flagged for operator handling
+  outside session work — carried forward to Session 12.
+
+──────── Operator-interaction notes (Session 11 patterns) ────────
+
+- Verify-before-asking discipline applied proactively before every
+  commit confirmation: divergence found at pre-script verification
+  (path-A finding); bug surfaced in capture_method derivation at
+  pre-sample distribution check (replaced_in_place files traced to
+  1697bb5 via --follow); sample-review surfaced three independent
+  design questions (Flags A/B/C) before bulk authorization.
+
+- Operator-ratchet fired twice this session, both at "Confirm to
+  commit?" gating boundaries:
+  1. At the W4.1 repo commit gate. Deeper-verification pass
+     executed: 8-fixture cross-enum spot check, idempotency re-run,
+     debug-artifact scan, scope-creep scan, visual read of 2
+     generated meta.json files, full pre-push gate replay. 0 new
+     problems surfaced. Operator confirmed commit after the
+     deeper-check report.
+  2. At the workspace close-out commit gate (this entry). Deeper-
+     verification pass executed: Session 11 subsection structure
+     check (12 subsections present), SHA cross-reference check
+     across 4 files (SESSION_LOG, SESSION_TRANSITION_TEMPLATE,
+     LESSONS, /tmp commit-msg), verbatim Flag 1 #2 quote check
+     across 3 files, deferred-fix entry count (3 present), Week 4
+     progress percentage cross-check (~60% consistent across both
+     docs), LESSONS.md placement check (under Workstream / commit
+     shape patterns), template TBD scan (2 intentional, 0 stale),
+     vocabulary value cross-reference (all 3 files reference
+     `approximated_from_synthetic_invalid_fallback`), pytest
+     re-run (17/233/2 stable). 0 new problems surfaced.
+  Pattern observation (forward-applicable): operator-ratchet
+  propagates to ALL commit boundaries within a session, not just
+  the primary work commit. Pre-commit verification discipline
+  applies equally to workspace bookkeeping commits.
+
+- Three operator decisions during W4.1:
+  1. Path A: corpus-wide correction in SESSION_TRANSITION_TEMPLATE.md
+     + SESSION_LOG.md only; META_SCHEMA.md prose stays at v1.0 with
+     known bug; fold into next real schema bump.
+  2. Flag A option (b): RFC 2606 `.invalid` TLD fallback for
+     synthetic-variant fixtures with no canonical.
+  3. Flag B option (a): use replacement commit date as captured_at
+     for replaced_in_place files, not the original add date.
+  4. Flag C: 10-fixture sample (no expansion to per-category).
+
+──────── Open items entering Session 12 ──────────────────────────
+
+Workstream 0 Week 4 continuation:
+
+- **W4.2 expected/<domain>.json generation** (next concrete work
+  unit). Stage 1/2 only per Flag 1 resolution; Stage 3 via canonical
+  sentinel triple. Expected near-zero LLM cost (RULES + LR for the
+  corpus majority). Stop and escalate if actual spend trends higher
+  than near-zero before $50 alert threshold.
+
+- **W4.3 Test infrastructure**. Update conformance tests to compare
+  against expected/<domain>.json (replacing current
+  "exclusion_reason must be empty" assertions with full comparison
+  logic that respects the Stage 3 sentinel comparison-skip directive
+  per Flag 1 constraint #5 semantic α).
+
+- **W4 close + tag annotation**. At full W4 close (W4.3 complete),
+  tag `workstream-0-week4-end` at the final green-gate SHA.
+  Annotation must state per Flag 1 constraint #2: "Stage 3
+  expected-outputs deferred to Workstream C per Flag 1 resolution;
+  partial coverage at W4 close is intentional, not incomplete."
+
+- **Workstream C scope amendment** (carried forward from Session 10
+  + Session 11). Still pending operator handling outside session
+  work; not a Session 12 W4.2 blocker.
+
+Carried items status:
+
+- Flag 1 (cost ceiling reconciliation): RESOLVED Session 10 →
+  Option (c) defer Stage 3 to Workstream C.
+- Flag 2 (verify-before-asking promotion): RESOLVED Session 10 →
+  Option (c) status quo. Trigger condition documented for forward
+  reopening.
+- Flag 3 (W4 tag provenance): still flagged, not a blocker. Revisit
+  at full W4 close.
+
+Three new META_SCHEMA prose-only fixes added to deferred-fixes
+tracker this session; fold into next real schema bump's diff.
+
+Pre-push gate gap (Issue 3 from Week 2 audit erratum) remains open:
+project's ruff `select` does not include "C" (mccabe). Workaround
+this session: manual `ruff check --select C901` on the new
+generator script. First Session-11 code-modifying commit; the gap
+held without incident because manual McCabe was applied.
+
+──────── Cost & schedule tracking ────────────────────────────────
+
+- Cost incurred Sessions 1-11: $0. No LLM API calls in Session 11
+  itself (W4.1 was pure scripted derivation + git log + grep +
+  pytest + jsonschema validation). Cost ceiling $100 untouched.
+  Budget remaining: $100.
+- Schedule: ~3 weeks elapsed of Workstream 0's 5-week budget. Weeks
+  1-3 COMPLETE; Week 4 OPEN (~60% complete with W4.0 schema lock
+  done + W4.1 bulk meta.json done; W4.2 expected-output generation
+  + W4.3 test infrastructure pending). Weeks 4-5 still ahead. W4
+  likely spans 2-3 sessions per Session 10 prediction; Session 11
+  closes the W4.1 unit at a natural seam (bulk meta.json landed and
+  pushed; W4.2/W4.3 are distinct work units).
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+Next concrete work: Workstream 0 W4.2 — expected/<domain>.json
+generation across the 198-fixture corpus per META_SCHEMA v1.0 +
+Flag 1 sentinel triple for stage3_decision.

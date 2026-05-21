@@ -403,6 +403,55 @@ Examples in current corpus:
 - `empty_google_sites/` — emptied by C0.4 (`7f3756b`); awaits
   Week 5 C0.4-followup (3 conforming captures).
 
+### Defer prose-only schema fixes; bump only when machine schema changes
+
+**Established:** Session 11 (Path-A finding + Flag A option b + Flag B
+resolution; commit `9e1bda9` on `barcada-scraper`).
+
+When a discrepancy surfaces between schema *prose* (human-readable
+spec text) and repo reality, and the *machine* schema (`.schema.json`
+constraints actually enforced by validators) is unaffected, do NOT
+semver-bump the schema for the prose correction alone. Instead:
+
+1. Apply the corrected behavior at the consuming layer (script,
+   tooling, generator) per a documented operator decision.
+2. Document the corrected behavior in the forward-applicable home
+   (`SESSION_TRANSITION_TEMPLATE.md` for cold-start handoff; commit
+   message for git-log visibility; `SESSION_LOG.md` for chronological
+   record).
+3. Track the prose discrepancy in a "Deferred prose-only fixes"
+   register inside `SESSION_TRANSITION_TEMPLATE.md`.
+4. Fold the prose correction into the *next* real schema bump's diff
+   (the bump that's already changing machine constraints anyway).
+
+Reasoning: a prose-only semver bump churns the locked artifact for
+zero machine-validation effect, and the bump-cascade risk noted in
+plan §11 (regeneration of all dependent files for schema changes)
+applies to *machine* schema changes — text-only prose isn't load-
+bearing for that cascade.
+
+When NOT to defer: if the prose discrepancy actively misleads tooling
+authoring (e.g., a future fixture-tooling script reads the prose as
+truth and reproduces the bug), promote it to an inline correction in
+the current locked artifact via the operator's approval. The deferred-
+fix register is for low-risk wording bugs only.
+
+Examples landed Session 11:
+- META_SCHEMA.md §2.4 + §5 say C0.7c moved files INTO
+  `parking_default_pages/`. Reality: C0.7c moved them OUT to
+  `auth_403/`. Machine schemas are silent on directory→response
+  mapping; prose-only.
+- META_SCHEMA.md §2.4 line 93 strict reading says `captured_at` =
+  first-add commit date. For `replaced_in_place` files this is
+  semantically wrong (file content was rewritten in a later commit).
+  Machine schema only says `format: date-time`; prose-only.
+- META_SCHEMA.md §2.4 vocabulary list lacks
+  `approximated_from_synthetic_invalid_fallback`. Machine schema is
+  `additionalProperties: {type: string}` (accepts any string);
+  prose-only.
+
+All three deferred to the next real META_SCHEMA semver bump's diff.
+
 ### Conformance test lands with red builds; do not silence with xfail
 
 **Established:** Session 6 (C0.9 `6dace7d`).
