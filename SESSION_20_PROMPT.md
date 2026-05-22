@@ -1,10 +1,11 @@
-# Session 20 prompt — DRAFT — Workstream A.0 Week 7 remainder
+# Session 20 prompt — Workstream A.0 Week 7 remainder
 # (cassettes + canary)
 
-**STATUS: DRAFT.** Drafted at Session 19 close (2026-05-22) with
-fresh context. Operator should review, refine, and invoke as the
-Session 20 prompt. Copy or symlink into `~/Downloads/session-20-prompt.md`
-when ready.
+**FINALIZED at Session 19 close (2026-05-22).** Strengthened with
+explicit halt protocol, non-interleaving rule, per-commit
+checkpoint protocol, cumulative test-count gate, and reviewer-
+feedback hygiene. Invoke from `~/Downloads/session-20-prompt.md`
+(symlink or copy from `~/crawler-audit/SESSION_20_PROMPT.md`).
 
 This prompt pre-resolves the 6 design-gate sub-questions surfaced
 during Session 19's reviewer-feedback review (cassette tool /
@@ -51,6 +52,57 @@ UNLESS Phase 2 design-gate explicitly authorizes a specific module.
 Full regression-protection checklist is in
 `~/crawler-audit/SESSION_TRANSITION_TEMPLATE.md`. Re-read it before
 any code lands.
+
+---
+
+## Reviewer-feedback hygiene (if this prompt is reviewed)
+
+If an external reviewer (operator-invoked) flags items in this
+prompt before Session 20 starts, walk each flagged item against
+on-disk reality at HEAD `467647e` BEFORE applying any change.
+Per Session 19's incident: 3 of 5 "must-fix" items a reviewer
+flagged collapsed under cold-start verification (the SHAs the
+reviewer flagged as "unverified" were already verified). Valid
+completeness items often bear on sub-surfaces a scope decision
+will defer anyway.
+
+Pattern: verify each flagged item against source → classify
+obsolete-vs-valid → route valid items to where they're
+load-bearing (this session or forward to Session 21+ if the
+item bears on a deferred sub-surface).
+
+---
+
+## Halt protocol (when any phase's halt-condition fires)
+
+Halt-condition format in chat (for any phase's halt-on-mismatch):
+
+```
+HALT @ Phase N step S.s
+Expected:    <claim from prompt>
+Observed:    <actual reality from source>
+Discrepancy: <one-line summary>
+Surfacing to operator. Awaiting guidance.
+```
+
+After a halt:
+- DO NOT take any action that mutates the repo or workspace.
+- DO NOT proceed to Phase N+1.
+- Wait for operator response.
+- On operator guidance, either:
+  (a) Resume the phase at the step that failed, with the
+      discrepancy resolved.
+  (b) Skip the phase per operator authorization (rare;
+      document the skip in SESSION_LOG.md).
+  (c) End the session early at Phase 6 close-out with the halt
+      recorded in SESSION_LOG.md.
+
+Halt is not failure — it's the contract. Phase 0 halts catch
+stale state. Phase 1 halts catch unresolved naming/ownership.
+Phase 2 halts catch hidden scope expansion (e.g.,
+`src/barcada_scraper/` touch). Phase 3 halts catch regressions.
+Phase 4 halts catch pre-push gate failures. Each halt is cheaper
+than the consequence of silently proceeding past it.
 
 ---
 
@@ -481,19 +533,133 @@ sequence is:
    Q2.8 scope.
    Combined-suite at boundary.
 
-### At every commit boundary
+### Non-interleaving rule (CRITICAL for bisectability)
 
-- **Combined suite** (conformance + driver + baseline_v0 + new
-  W7 test modules) green.
-- **ruff check + format --check** on touched files green.
-- **`[[double-check-before-commit]]` strict rule**: every
-  concrete claim in commit message verified against source/
-  output BEFORE staging. Build verification table in chat.
-- **`[[git-status-before-wrap]]` partial application**: git
-  status to confirm only intended files staged.
+Do NOT interleave commits across sub-surfaces. Pick an order at
+Phase 1 conclusion (cassettes-then-canary OR canary-then-cassettes)
+and complete each sub-surface fully before starting the next.
 
-HALT IF combined suite goes red and the new failure is NOT a
-deliberate consequence of the surface-under-test.
+Anti-pattern (DO NOT DO):
+
+```
+cassettes-skeleton → canary-skeleton → cassettes-driver
+   → canary-impl → cassettes-tests → canary-tests → ...
+```
+
+This fragments bisect ranges: a `git bisect` for the commit
+that introduced a regression in cassette replay behavior would
+have to skip canary commits, and vice versa. It also breaks
+the "combined-suite green at every commit boundary" guarantee
+— the suite has to be green for BOTH sub-surfaces at every
+boundary, raising the bar for what counts as a clean checkpoint.
+
+Correct pattern:
+
+```
+cassettes-skeleton → cassettes-driver → cassettes-tests
+   → cassettes-corpus-capture → canary-skeleton → canary-impl
+   → canary-tests → canary-scheduler → canary-dashboard
+```
+
+(or canary first, then cassettes — operator-discretion at Phase 1).
+
+If a mid-sub-surface dependency on the other sub-surface emerges
+(e.g., canary subcommand needs to read cassette outputs), HALT
+and surface as a design-gate sub-question before continuing —
+the dependency may indicate a Phase 2 question was missed.
+
+### Per-commit checkpoint protocol (single source of truth)
+
+At EVERY Phase 3 commit boundary, run these 6 steps IN ORDER:
+
+**1. Combined suite**
+
+```
+.venv/bin/python -m pytest \
+    tests/scraper/test_fixture_conformance.py \
+    tests/runners/fixture_cascade/ \
+    tests/baseline_v0/ \
+    <new W7 test paths if any> -q
+```
+
+Expected: previous_baseline + N new tests, all passing.
+If failing tests are NOT a deliberate consequence of the
+surface-under-test → HALT.
+
+**2. Ruff sanity (touched files only)**
+
+```
+.venv/bin/ruff check <touched paths>
+.venv/bin/ruff format --check <touched paths>
+```
+
+If unclean → run `ruff format <touched paths>` and re-test;
+fold the format-fix into the commit (per Session 19's cli.py
+reflow pattern, disclosed explicitly in the commit message).
+
+**3. Verification table (build in chat per `[[double-check-
+before-commit]]` strict rule)**
+
+```
+| Claim                          | Reality      | Status |
+| ------------------------------ | ------------ | ------ |
+| <every concrete claim in       | <verified    | ✓ / ✗  |
+|  the draft commit message>     |  via source> |        |
+```
+
+Any ✗ → fix the claim in the commit message BEFORE staging.
+
+**4. `git status` check**
+
+Only intended files staged; no surprise `eval_data/` or
+`src/barcada_scraper/` changes. Operator-side `eval_data/`
+README + TAXONOMY_GAP_LOG + stage1_labels modifications are
+expected to stay unstaged across sessions (Sessions 8-19
+precedent).
+
+**5. "Confirm to commit?" presented to operator**
+
+Include in chat:
+- Verification table from step 3.
+- Commit message file location (`/tmp/<id>-msg.txt`).
+- File list to stage (M / A / D).
+
+**6. After operator confirms**
+
+Stage + commit + verify the new SHA landed (`git log --oneline -1`)
++ verify combined suite still passes on the new HEAD (re-run
+step 1 once if there's any doubt; otherwise trust the pre-commit
+run since file state hasn't changed).
+
+This 6-step protocol applies UNIFORMLY to every commit in Phase 3
+(and Phase 6's workspace close-out commit). Mechanical; do not
+skip steps. The ~30 seconds per commit cost is the trade for
+catching regressions + claim errors before they propagate to the
+next checkpoint.
+
+### Cumulative test-count gate
+
+Track combined-suite passing count at each commit boundary:
+
+```
+Phase 3 start                  : 332  (Session 19 close baseline)
+After cassettes-skeleton       : ≥ 332 (no new tests added)
+After cassettes-driver         : ≥ 332
+After cassettes-tests          : ≥ 332 + N_cassette_tests
+After cassettes-corpus-capture : same as above (capture commits add
+                                 artifacts, not tests)
+After canary-skeleton          : same as above
+After canary-impl              : same as above
+After canary-tests             : ≥ previous + N_canary_tests
+After canary-scheduler         : same as above (workflow/cron
+                                 config, not Python tests)
+After canary-dashboard         : same as above (or + N_dashboard
+                                 tests if any)
+```
+
+**Rule**: the count NEVER decreases between checkpoints. A
+decrease means a previously-passing test went red — regression.
+HALT.
 
 ---
 

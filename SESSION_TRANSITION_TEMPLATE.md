@@ -11,6 +11,15 @@ Pair this with the latest entry in `SESSION_LOG.md`, with
 `BARCADA_CRAWLER_REMEDIATION_PLAN.md` to start a session cold and
 be productive within ~10 minutes.
 
+**Session 20 invocation prompt:** `~/crawler-audit/SESSION_20_PROMPT.md`
+(finalized at Session 19 close; also at `~/Downloads/session-20-prompt.md`
+for operator-invocation convenience). The prompt enforces 7-phase
+strict ordering (Phase 0 cold-start verify → Phase 1 naming+scope →
+Phase 2 design-gate → Phase 3 implementation → Phase 4 pre-push →
+Phase 5 push+tag → Phase 6 close-out) with halt-on-mismatch
+conditions at each phase. Pre-resolves 12 design-gate sub-questions
+(Sub-question 1.1-1.2 + Q2.1-Q2.10) so Phase 2 elicitation is tight.
+
 ---
 
 ## Handoff metadata
