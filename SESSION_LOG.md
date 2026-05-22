@@ -3135,3 +3135,262 @@ fixtures, multilingual parking, soft_404 + empty_google_sites
 repopulation, edge-case robustness fixtures, and closure of the 17
 W5-punch-list conformance reds via fixture work (NOT test-
 infrastructure work; W4.3 closed the test-infrastructure surface).
+
+## Session 16 — Workstream 0 Week 5 fixture-content closure (2026-05-21)
+
+Scope: Engineering + fixture-sourcing session. Landed 5 of 6 W5
+sub-surfaces per plan §3 Week 5 fixture-content scope. 8 repo
+commits + 1 workspace commit + 1 annotated tag (`workstream-0-week5-
+end` at `ddd3cb0`). LLM spend: $0.000208 (one Stage 1 LLM call in
+the edge-case batch; all other sub-surfaces parser-level abstention).
+Multipage_boilerplate (20 fixtures, plan §3 W5 line 241) deferred
+to Session 17 per mid-session shape decision driven by context
+budget.
+
+──────── Cold-start verification at session open ───────────────
+
+- Workspace HEAD `a42f982` matched outgoing template (Session 15 close).
+- Repo HEAD `b2e2671` (W4.3.D conformance drift check).
+- Tags verified: workstream-0-week4-end at b2e2671, workstream-0-
+  week4-1-5-end at dd64963, reconciliation-2026-05-21-absorbed at
+  ce7e8e9.
+- 198 expected.json + 198 .html fixtures on disk.
+- Driver intact at tests/runners/fixture_cascade/ (zero diff vs dd64963).
+- Driver suite at session open: 46/46 passed.
+- Conformance suite at session open: 17 failed / 169 passed / 2 skipped
+  (the W5 punch list + the 2 empty-directory skips).
+- Schema at v1.1 (18-col stage3); META_SCHEMA at v1.1 prose.
+
+──────── Step A: W5 design-gate elicitation ────────────────────
+
+Operator chose all four recommended options:
+1. Ordering: Natural (C0.3+C0.4 repop → 17-red closure → new fixtures).
+2. Sourcing: Real preferred, synthetic-with-real-markers DEFAULT.
+3. Regeneration: Incremental per-batch (preserves W4.2 ground truth
+   at cc2ba2c; defers full corpus regen to W A.0 W6 baseline-v0).
+4. 17-red closure: Per-fixture decision (replace/recategorize/delete).
+
+──────── Sub-surface 1: W5.C0.3-followup (commit 3ebbcf6) ──────
+
+Repopulated soft_404/ with 6 synthetic-with-real-markers fixtures
+(one per _RE_SOFT_404 alternation). Verify-before-asking surfaced
+two findings:
+1. soft_404 detail prefix routes to is_empty_page=True (not
+   is_parked); the legacy test_soft_404_conformance assertion
+   `is_parked is True` was inconsistent. Operator chose Option B:
+   assertion realignment to `exclusion_reason == "soft_404"` (more
+   semantically precise than the alternative is_empty_page).
+2. _RE_EXPANDED_SOFT_404 (popular_searches / trending_searches /
+   people_also_search_for) is defined twice in barriers.py but
+   NEVER wired into is_placeholder_with_detail — dead-letter in the
+   modern detection path. Documented in commit body; out-of-scope
+   for W5 fixture work.
+
+Test delta: 17/169/2 → 17/175/1 (+6 soft_404 fixtures, -1 skip).
+Cost: $0 (all 6 parser-level abstention).
+
+──────── Sub-surface 2: W5.C0.4-followup (commit 343f1f7) ──────
+
+Repopulated empty_google_sites/ with 3 synthetic-with-real-markers
+fixtures (one per _RE_GOOGLE_SITES alternation:
+sites-viewer-frontend / atari.vw. / normalizedPath.*view/).
+test_empty_google_sites_conformance calls is_empty_google_sites
+directly (no _block indirection, no assertion realignment needed
+this batch).
+
+Test delta: 17/175/1 → 17/178/0 (+3, -1 skip). Both empty-directory
+skips cleared. Cost: $0.
+
+──────── Sub-surface 3: W5 17-red closure (5 commits) ──────────
+
+Explore subagent produced per-fixture disposition table for 17 reds.
+Operator chose: convert all 4 REPLACE candidates to DELETE (real-
+domain recapture with JS execution is Playwright-tier, out-of-scope
+per W4.1.5 driver lock); jvns.ca → spa_shell/ recategorize; 5
+commits one per affected directory.
+
+Disposition tally: 13 DELETE + 4 RECATEGORIZE.
+
+Commits:
+- W5.red-closure-spa_shell (dcfcdf3): sanmarinoiron→legit_business
+  + 2 deletes. 17→14/179.
+- W5.red-closure-auth_403 (917af20): 2 recategorizes
+  (ssptjp→legit_business, ssquaresemi→spa_shell) + 5 deletes.
+  14→7/181.
+- W5.red-closure-legitimate_business (d4e9f67): 4 deletes (all
+  REPLACE→DELETE conversions). 7→3/181.
+- W5.red-closure-legitimate_blog (225bec5): jvns.ca→spa_shell +
+  danluu delete. 3→1/182.
+- W5.red-closure-legitimate_nonprofit (145d2eb): archive.org
+  delete. 1→0/182.
+
+All 17 W5-punch-list reds closed via fixture-content work. Cost: $0
+(no cascade runs; existing expected.json moved with recategorized
+fixtures; drift check passes on byte-identical .html pre/post move).
+
+──────── Sub-surface 4: W5.multilingual (commit 2b518b2) ────────
+
+Added 3 parking_multilingual fixtures (Russian, Chinese, Japanese).
+Each <1000 bytes → Tier 2 short_body secondary signal → parking_
+multilingual detail prefix → is_parked=True.
+
+Test delta: 0/182/0 → 0/185/0. Cost: $0.
+
+Pre-push gate blocked initially on operator-side eval_data/
+stage1_labels.jsonl row 161 (rationale_keywords too long, Session
+15-precedent operator-side blocker). Operator fixed manually;
+gate cleared.
+
+──────── Sub-surface 5: W5.X-driver-test-realign (commit 8d0fc0e) ──
+
+Latent verify-before-asking finding: I had been running ONLY
+test_fixture_conformance.py during the 17-red closure work, not
+the combined driver+conformance suites. test_real_corpus_index_
+covers_198_fixtures (tests/runners/fixture_cascade/test_fixture_
+fetcher.py:309) asserts len(index) >= 198; after the 17-red
+closure deletes pushed corpus to 196 (commit d4e9f67), the
+assertion broke. Surfaced after W5.multilingual landed and I ran
+the combined suite.
+
+Operator-authorized as its own W5.X commit (per cold-start
+"its own commit, not bundled with W5 fixture work" pattern for
+driver-locked-but-needs-realignment changes). Floor lowered
+from 198 to 195. Driver suite restored: 45/1 → 46/0.
+
+──────── Sub-surface 6: W5.edge-case (commit ddd3cb0) ──────────
+
+Added 5 edge-case robustness fixtures to a new edge_case_robustness/
+directory:
+- huge_html_synthetic.html (1.13 MB; soft_404 marker for parser
+  abstention while still stressing _extract_text on the full body)
+- tiny_with_meaningful_content_synthetic.html (1.2 KB, Refinement 4
+  positive-signal path)
+- malformed_unclosed_tags_synthetic.html (unclosed tags; routes to
+  empty_page after regex-strip)
+- big5_declared_utf8_actual_synthetic.html (declared-vs-actual
+  encoding mismatch)
+- shiftjis_declared_utf8_actual_synthetic.html (mirror for Japanese)
+
+Huge fixture generated via inline Python in Bash (not Write tool)
+to avoid adding ~1MB of content to main conversation context — a
+context-discipline pattern worth noting for future large-fixture
+work.
+
+New conformance test: test_edge_case_robustness_conformance —
+shape-correctness + drift check via _block helper. Asserts all 20
+_HARD_EXCLUSION_KEYS present in the extract_hard_exclusions output;
+the drift check enforces value-stability against the cascade-
+captured expected.json. COVERED set updated to include
+edge_case_robustness.
+
+Cascade run: $0.000208 (1 Stage 1 LLM call across 3 escalating
+fixtures; embedding + completion roundtrip). 2 of 5 fixtures
+parser-level abstention; 3 escalated to Stage 1 then classified
+non-business early.
+
+Test delta: 0/185/0 → 0/190/0 conformance; 46/0 driver; combined
+236/0/0.
+
+──────── Multipage_boilerplate deferral ─────────────────────────
+
+Session-shape AskUserQuestion at mid-session: operator chose
+"multilingual + edge-case + close-out, defer multipage". Plan §3
+W5 line 241 spec (20 fixtures = 5 domains × 4 pages) is heavier
+than fits remaining context. Carried forward to Session 17 as
+W5 carry-forward, with W A.0 W6 to follow per operator's
+next-session framing decision.
+
+──────── Operator decisions made during Session 16 ─────────────
+
+1. Step A all 4 recommended options (Natural ordering, real-preferred
+   sourcing, incremental regen, per-fixture red closure).
+2. soft_404 assertion realignment: Option B (exclusion_reason ==
+   "soft_404") over is_empty_page or detector wiring or deferral.
+3. 17-red 4 REPLACE → DELETE conversion (over synthetic substitution,
+   real-domain recapture, or REPLACE-deferral).
+4. jvns.ca → spa_shell (detector signal alignment over DELETE).
+5. 5 per-directory red-closure commits over 1 bundled or 17 per-
+   fixture commits.
+6. Pre-push gate row 161 resolution: operator-side fix (Session 15
+   precedent).
+7. W5.X-driver-test-realign authorized as its own commit (test in
+   driver directory needs corpus-reality alignment).
+8. Session shape: multilingual + edge-case + close-out; defer
+   multipage_boilerplate.
+9. W5 capstone tag PLACED at ddd3cb0 (operator authorized).
+10. Session 17 framing: multipage_boilerplate first (as W5 carry-
+    forward), then W A.0 W6.
+
+──────── Patterns reinforced this session ─────────────────────
+
+- Verify-before-asking discipline (LESSONS S12): caught two major
+  issues — the soft_404 assertion mismatch BEFORE authoring fixtures,
+  and (less elegantly) the driver-test corpus-count assertion AFTER
+  the 17-red closure work was already committed.
+- Sub-agent delegation for per-fixture analysis: Explore subagent
+  produced the 17-red disposition table in one focused call,
+  preserving main-context budget.
+- Context-discipline for large fixtures: generating the 1.13 MB huge
+  fixture via inline Python in Bash kept it out of main conversation
+  context.
+- LESSONS S6 push-blocking pre-push gate: row 161 eval_data/ blocker
+  resolved via operator-side fix (no --no-verify).
+- LESSONS S8 synthetic-fixture HTML comment regex-visibility: all
+  Session 16 fixture comment headers reviewed for anti-trip.
+- W5.X-prefix for driver-locked-but-authorized changes (analogous
+  to the W4.3.X deferred per-tier cost-accounting patch).
+
+──────── New LESSONS entry candidate ──────────────────────────
+
+"Combined-suite verification at every fixture-affecting commit":
+during the 17-red closure work I ran only test_fixture_conformance.py
+after each commit, not the combined driver+conformance suite. The
+test_real_corpus_index_covers_198_fixtures driver-suite assertion
+broke latent at commit d4e9f67 (corpus dropped to 196) and was only
+surfaced after W5.multilingual landed. Forward discipline: run
+BOTH suites (driver + conformance) at every fixture-affecting
+commit, not just the directly-affected one. Costs 30-40s of test
+runtime; saves a multi-commit verify-after-the-fact reconciliation
+cycle.
+
+──────── Workspace changes landed this session ────────────────
+
+- SESSION_LOG.md: this entry (Session 16 append).
+- SESSION_TRANSITION_TEMPLATE.md: refilled for Session 17 (multipage
+  carry-forward, then W A.0 W6).
+
+Repo changes (8 commits + 1 tag):
+- W5.C0.3-followup 3ebbcf6
+- W5.C0.4-followup 343f1f7
+- W5.red-closure-spa_shell dcfcdf3
+- W5.red-closure-auth_403 917af20
+- W5.red-closure-legitimate_business d4e9f67
+- W5.red-closure-legitimate_blog 225bec5
+- W5.red-closure-legitimate_nonprofit 145d2eb
+- W5.multilingual 2b518b2
+- W5.X-driver-test-realign 8d0fc0e
+- W5.edge-case ddd3cb0
+- Tag: workstream-0-week5-end at ddd3cb0
+
+Pushed to origin/main: b2e2671..ddd3cb0; tag also pushed.
+
+Test counts at Session 16 close (verified):
+- Conformance: 190 passed / 0 failed / 0 skipped
+- Driver suite: 46 passed / 0 failed
+- Combined: 236 passed / 0 failed / 0 skipped
+- All 198/198 (+ new W5 additions) expected.json validate against v1.1 schema
+- Corpus: 202 .html fixtures (was 198 at W4.1)
+
+──────── Cost & schedule tracking ─────────────────────────────
+
+- Session 16 LLM spend: $0.000208 (W5.edge-case 1 Stage 1 call).
+- Sessions 1-16 cumulative: $0.263658.
+- Budget remaining: $99.736.
+- Schedule: Week 5 substantially complete (5 of 6 sub-surfaces).
+  Session 17 = W5 wrap-up (multipage_boilerplate, 20 fixtures,
+  estimated $0.026 marginal cost), then W A.0 W6 baseline-v0
+  scaffolding.
+
+Next session prompt: see `SESSION_TRANSITION_TEMPLATE.md`.
+Next concrete work: W5.multipage_boilerplate as W5 carry-forward,
+then W A.0 W6 baseline-v0 CLI scaffolding per plan §4 W6.
