@@ -3999,3 +3999,305 @@ Next concrete work: W A.0 W7 synthetic-crawl-tape capture + canary
 wiring per plan §4 W7. May also extend the `barcada-baseline` CLI
 with the `check` subcommand at the W6-W7 boundary (deferred from
 Session 18 design-gate).
+
+
+## Session 19 — W A.0 W7 baseline-v0 check sub-surface (2026-05-22)
+
+Scope: Engineering session. Landed the W6-W7 boundary `check`
+sub-surface that was carried forward from Session 18's design-gate
+Q3. Cassettes + canary (the other two W7 sub-surfaces in plan §4 W7)
+were intentionally deferred per Session 19 Step A scope decision so
+the cassette tool-selection + corpus + robots-compliance design
+surfaces get their own session prompt. 3 repo commits, all pushed.
+LLM spend: $0 (no real-mode cascade runs; integration tests use
+fake-mode generate -> check seed-and-verify).
+
+──────── Cold-start verification at session open ───────────────
+
+- Workspace HEAD `25ee80b` matched outgoing template (Session 18 close).
+- Repo HEAD `9e9a1fb` (WA0.W6.baseline-v0-capture).
+- All 8 workstream + baseline-v0 tags verified at expected SHAs
+  (pre-remediation 3cbb9b3, week1 4f9d23f, week2 e5d2f91, week3
+  cf0c14c, week4 b2e2671, week4-1-5 dd64963, week5 ddd3cb0,
+  baseline-v0 9e9a1fb).
+- reconciliation-2026-05-21-absorbed tag intact at ce7e8e9.
+- 222 .html + 202 expected.json + 222 meta.json + 1213 baseline-v0
+  files on disk.
+- Driver intact at tests/runners/fixture_cascade/ (zero diff vs
+  dd64963 excluding the operator-authorized 8d0fc0e test realign).
+- Combined suite at session open: 302 passed / 0 failed / 0 skipped
+  (210 conformance + 46 driver + 46 baseline_v0).
+- Schema at v1.1; manifest at baseline-v0/0.1.0; META_SCHEMA v1.1
+  prose.
+
+──────── Prompt review before Step A ──────────────────────────
+
+Operator surfaced an external reviewer's feedback on the session
+prompt (11 items). Walked through each against repo reality:
+
+- Correctness items 1, 4, 5 (workspace SHA, driver_sha, propagation):
+  OBSOLETE. Cold-start verification already confirmed all the SHAs
+  the reviewer flagged as "unverified" against actual repo state.
+- Correctness item 3 (narrow driver-test exclusion): not a defect.
+  Narrow `:(exclude)test_fixture_fetcher.py` is honest about which
+  test file is authorized; widening to `test_*.py` would silently
+  absorb future unauthorized changes.
+- Completeness items 1, 2, 4, 5, 6 (barcada-drift naming, robots.txt
+  for cassettes, capture mode, FP-aware corpus, determinism gate):
+  ALL VALID and load-bearing -- but ALL only apply to cassettes +
+  canary. Folded forward to the future Session 20+ cassettes prompt
+  rather than this session.
+- Completeness item 3 (verify check round-trips manifest shape):
+  done as part of source-verify Step (manifest has the 3 per-fixture
+  `{parser_output,barriers_verdict,stage_decisions}_hash` keys that
+  check needs). Folded as polish for next time's prompt.
+- Polish #4 (`docs/phase4_implementation_plan.md` missing from
+  out-of-scope): VALID minor.
+- Polish #6 (barcada-drift Session 20 handoff item): VALID.
+
+The "must-fix" items in the reviewer's framing collapsed under
+cold-start verification -- canonical example of the "claims-by-
+analogy" failure mode the reviewer was warning against, applied
+this time to the reviewer's own assertions. The 5 valid
+completeness gaps (robots, capture mode, FP corpus, naming,
+determinism) are real and were used as the rationale for the
+Step A scope choice to defer cassettes + canary.
+
+──────── Step A: design-gate elicitation (3 batches) ──────────
+
+Pre-AskUserQuestion source verification at HEAD `9e9a1fb`:
+
+1. `tools/baseline_v0/cli.py`: argparse subparser pattern at
+   `sub = p.add_subparsers(dest="subcommand", required=True)`,
+   `gen = sub.add_parser("generate", ...)` for each subcommand,
+   lazy-import dispatch in `main()` (`from tools.baseline_v0.generate
+   import generate` inside the `if args.subcommand == "generate":`
+   branch). `check` slots in as a sibling subparser with its own
+   `check.py` module.
+2. `tests/fixtures/baseline-v0/manifest.json`: per-fixture entries
+   contain `{barriers_verdict,parser_output,stage_decisions}_hash`
+   keys -- exactly what `check` needs to compare against. No
+   manifest-shape extension required.
+3. `eval_data/canary_50_domains.txt`: 50 real domain lines (87
+   total with comments); lives under the locked `eval_data/`
+   tree (read-only consumable for canary work).
+
+Batch-1 design-gate (3 questions, but operator clarified before
+answering):
+
+Q1. Sub-surface ordering / scope (check / check+canary / check+
+  cassettes / all three).
+Q6. check behavior on diff (summary / full / configurable).
+Q7. Commit shape (per-module / bundled / hybrid).
+
+Operator interrupted Batch-1 to discuss the reviewer's feedback
+(see "Prompt review" above) and chose a narrower scope:
+
+Q1 = **check only**. Reasoning: cassettes carry the largest design
+  surface (5 unanswered questions: tool selection, capture mode,
+  robots.txt compliance, corpus FP-awareness, determinism gate);
+  canary opens the `barcada-drift` naming/ownership question with
+  AI/ML team alignment per CLASSIFICATION_ADJACENT_PLAN.md §Item 8.
+  Both deserve their own session prompts with the reviewer's
+  concerns explicitly addressed. check is the W6-W7 boundary
+  deliverable deferred since Session 18 Q3; smallest surface,
+  largest pent-up demand.
+
+Batch-2 design-gate (after Q1 = "check only"):
+
+Q6 = **Summary diff (recommended)**. Per-fixture component breakdown
+  on mismatch; exit 0/1/2 semantics. Suitable for future Phase 4
+  PR-E CI-gate consumption.
+Q7 = **Per-module (recommended)**. Matches the Session 18 W6 pattern:
+  skeleton -> real -> tests. Combined-suite at each boundary.
+
+──────── Step B: per-module implementation, 3 commits ──────────
+
+`b358a02` WA0.W7.check-skeleton: argparse subparser + dispatch
+  + stub. `tools/baseline_v0/cli.py` + new `tools/baseline_v0/
+  check.py`. New CLI surface: `barcada-baseline check --fixtures
+  <path> --baseline <path> [...8 more args matching generate's
+  shape...]`. Stub returns exit-2 with "not yet implemented"; full
+  --help + dispatch validated. 155 insertions. Combined suite at
+  this commit: 302/0/0.
+
+`eca4ec0` WA0.W7.check: real check() implementation + ruff-format
+  follow-up. `tools/baseline_v0/check.py` (~280 LOC) with 5 sub-
+  helpers (`_load_manifest`, `_expected_hashes_by_key`,
+  `_compute_observed_hashes`, `_diff_observed_vs_expected`,
+  `_emit_summary`) and `check()` at 7 decision points. `tools/
+  baseline_v0/cli.py` got a 5-line ruff-format reflow (multi-line
+  `help=` collapsed -- would have failed pre-push at the skeleton
+  commit's state; bundled here to avoid an extra fixup commit).
+  233 net insertions. Smoke pre-commit: `--max-fixtures 2 --llm-mode
+  fake` returns exit 1 with one MATCH (empty_google_sites/
+  atari_vw_synthetic, stage1 hard-exclude -> deterministic) and
+  one MISMATCH (spa_hydration_nuxt/backmarket.com, stage_decisions
+  drift as expected from fake-vs-real mode swap). WARNING banner
+  fires on `--llm-mode` mismatch with manifest's llm_mode=real.
+  Combined suite: 302/0/0.
+
+`467647e` WA0.W7.check-tests: tests/baseline_v0/test_check.py
+  (NEW, 24 tests) + 6 check-dispatch tests added to test_cli.py.
+  Breakdown: 17 helper unit tests, 3 validation-path tests (exit-2
+  on missing fixture root / missing manifest / empty filter), 4
+  integration tests (drive `generate(fake-mode, max_fixtures=1)`
+  to seed a real manifest, then check -> exit 0; mutate one hash
+  -> exit 1; llm_mode warning fires; cross-module hash-chain
+  sanity gate). 585 insertions. Combined suite at this commit:
+  332/0/0 (302 + 30 new).
+
+──────── Verify-before-asking ratchet during commit 2 ──────────
+
+Operator fired the "did you double check your work before
+committing?" ratchet on the WA0.W7.check commit. Surfaced one
+real claim error: the draft commit message named `auth_403/
+griftdijk.net` as the matching fixture in the 2-fixture smoke,
+but the actual first 2 fixtures alphabetically are
+`empty_google_sites/atari_vw_synthetic` (matched -- synthetic
+fixture, stage1 hard-excludes -> deterministic) and
+`spa_hydration_nuxt/backmarket.com` (mismatched). The wrong name
+was written by pattern-completion from memory; corrected by
+running `_enumerate_single_page_fixtures` and inspecting items[:2]
+pre-commit. Also disclosed two pre-existing rule violations
+(`.get()` x2 + `.items()` x2 matching generate.py's identical
+patterns) inherited by sibling-style consistency.
+
+Operator then codified: "moving forward ALWAYS verify your claim
+BEFORE commit." Extended `[[double-check-before-commit]]` memory:
+every concrete assertion in a commit message (fixture name, file
+count, exit code, line count, test count, helper name) verified
+against actual source/output BEFORE staging. No claims by
+pattern-completion. Build a verification table in chat and
+reconcile before "Confirm to commit?". The ratchet always
+surfaces something; operationalize it as a self-check before the
+operator has to fire it.
+
+──────── Pre-push gate + push ─────────────────────────────────
+
+Pre-push gate at HEAD `467647e`:
+- ruff check .                              -> All checks passed
+- ruff format --check .                     -> 332 files OK
+- git ls-files '*.py' | xargs vermin --target=3.10
+                                            -> Minimum required 3.10
+- eval_data/scripts/validate_consistency.py -> 0 errors / 0 warnings
+
+Push to origin/main: 9e9a1fb..467647e. Pre-push hook re-ran green
+("All checks passed."). 0 ahead / 0 behind verified post-push.
+
+──────── Step F: tag disposition (all deferred) ──────────────
+
+Operator chose `Defer all`. No tags placed this session. Reasoning:
+W7 only partially closed (check landed; cassettes + canary still
+to follow in Session 20+). Tagging `workstream-0-week7-end` at
+467647e would be misleading. `workstream-0-week5-end` (ddd3cb0)
+stays put per Sessions 17-18 precedent. `workstream-0-week5-
+multipage-end` (e060e5f) remains untagged. Future
+`workstream-0-end` (after cassettes + canary land) supersedes
+everything.
+
+──────── Forward-applicable patterns from Session 19 ─────────
+
+1. Verify EVERY claim in commit message before staging. Operator-
+   codified this session after the auth_403/griftdijk.net vs
+   empty_google_sites/atari_vw_synthetic claim error. Build a
+   verification table (claim -> reality -> status) in chat; trace
+   each concrete assertion to source (`wc -l`, pytest -v, grep,
+   programmatic query). Avoid bash pipe artifacts that mask
+   Python exit codes (`cmd | grep | tail` makes `$?` = tail's
+   exit). Memory: `[[double-check-before-commit]]` updated with
+   the strict rule and the Session 19 incident.
+
+2. Mid-implementation ruff format-check, not just pre-push.
+   Skeleton commit b358a02 shipped with multi-line `help=`
+   strings that ruff format wanted collapsed. Pre-push would have
+   caught it but only after the commit was structurally final.
+   Cheaper to run `ruff check + format --check` on the touched
+   files right after every code-touching Edit, not just before
+   the first commit in a series. Bundled the cleanup into the
+   real-impl commit message as an explicit follow-up; tagged the
+   skeleton's lines so future bisect understands why eca4ec0
+   touched cli.py despite scoping check.py.
+
+3. Sibling-module style consistency over project-wide rule
+   compliance for one-file additions. check.py uses `.get()` x2
+   + `.items()` x2 matching generate.py's identical patterns,
+   despite code-readability.md flagging both. Diverging in
+   check.py would create style inconsistency with the immediate
+   sibling and surface a partial refactor without doing the full
+   one. Disclose explicitly in the commit message; let project-
+   wide compliance land as its own refactor scope.
+
+4. Integration tests can self-seed via the module-under-test's
+   siblings. test_check.py drives `generate(fake-mode,
+   max_fixtures=1)` to write a real manifest into a temp dir,
+   then runs check() against it -- both happy-path (exit 0) and
+   mutated-hash (exit 1). Cheaper than mocking the cascade; tighter
+   coverage than synthetic-only unit tests; same fake-mode-zero-
+   cost guarantee. Plus a 4th sanity-gate test that re-hashes the
+   seeded component .json files with check.py's own canonical_json
+   + hash_canonical chain and verifies they equal the manifest's
+   per-entry _hash -- catches future divergence between the
+   generate <-> check hash chains.
+
+5. Reviewer-feedback hygiene before applying. External-reviewer
+   feedback on the session prompt arrived in 11 items. Walked
+   each against actual repo state instead of pattern-applying.
+   3 of 5 "must-fix" items collapsed under cold-start verification
+   (the SHAs the reviewer flagged as "unverified" were already
+   verified). The valid 5 completeness items all bore on
+   sub-surfaces (cassettes, canary) that the Step A scope chose
+   to defer -- so they became Session 20+ prompt-improvement
+   inputs rather than this-session blockers. Pattern: never
+   apply external feedback by pattern; verify each claim against
+   reality first, classify obsolete-vs-valid, then route the
+   valid items to where they're actually load-bearing.
+
+──────── Workspace changes landed this session ───────────────
+
+- SESSION_LOG.md: this entry (Session 19 append).
+- SESSION_TRANSITION_TEMPLATE.md: refilled for Session 20 (W A.0
+  W7 cassettes + canary as the remaining sub-surfaces; check
+  fully closed at 467647e; tags all deferred).
+
+Repo changes (3 commits, all pushed):
+- WA0.W7.check-skeleton                b358a02
+- WA0.W7.check                         eca4ec0
+- WA0.W7.check-tests                   467647e
+
+Tags placed this session: none. All deferred per Step F.
+
+Test counts at Session 19 close (verified):
+- Conformance: 210 passed / 0 failed / 0 skipped (unchanged).
+- Driver suite: 46 passed / 0 failed (unchanged).
+- baseline_v0 suite: 76 passed / 0 failed (was 46;
+  +24 test_check + 6 check-dispatch in test_cli).
+- Combined: 332 passed / 0 failed / 0 skipped (302 -> 332).
+- Corpus: unchanged.
+
+Session 19 LLM spend: $0 (integration tests use fake-mode generate;
+no real-mode cascade runs).
+Cost incurred Sessions 1-19: $0.711 (unchanged).
+Cost budget remaining (cap $100): $99.29.
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+Next concrete work: W A.0 W7 remaining sub-surfaces -- synthetic-
+crawl-tape capture (cassettes) and canary wiring -- per plan §4 W7.
+The Session 20 prompt should fold in the 5 valid completeness items
+from the Session 19 reviewer feedback:
+  - cassette tool selection (vcrpy named in plan; alternatives
+    need justification);
+  - cassette capture mode (network-only vs capture-and-classify;
+    revised cost estimate per choice);
+  - robots.txt compliance gate before live HTTP recording (plan
+    §4 W7 chronology has the W A robots.txt parser AFTER W7;
+    workaround required);
+  - detector-FP-aware corpus curation (LESSONS S9 dd.js /
+    just-a-moment / soft_404 findings may bake into cassettes
+    otherwise);
+  - cassette replay determinism gate (analog of the baseline-v0
+    byte-identical re-run test);
+  - barcada-drift vs barcada-baseline canary-run naming +
+    ownership (CLASSIFICATION_ADJACENT_PLAN.md §Item 8 names a
+    separate barcada-drift CLI with AI/ML team decisions
+    outstanding).

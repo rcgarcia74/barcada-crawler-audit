@@ -1,9 +1,9 @@
-# Session Transition Template — Handoff from Session 18 → Session 19
+# Session Transition Template — Handoff from Session 19 → Session 20
 
 This file is the handoff document filled out at the end of one Claude
 Code session for the next session to read first. Overwritten at each
 transition (use git history to recover prior handoffs). Sessions 1-11
-are summarized in SESSION_LOG.md; Sessions 12-18 are in the most
+are summarized in SESSION_LOG.md; Sessions 12-19 are in the most
 recent SESSION_LOG.md entries.
 
 Pair this with the latest entry in `SESSION_LOG.md`, with
@@ -15,31 +15,33 @@ be productive within ~10 minutes.
 
 ## Handoff metadata
 
-- Outgoing session number: 18
+- Outgoing session number: 19
 - Closing date: 2026-05-22
-- Outgoing session scope: W A.0 W6 baseline-v0 CLI scaffolding. Built
-  `tools/baseline_v0/` as a thin wrapper over the W4.1.5 cascade
-  driver; landed the Hybrid 3-pair baseline-v0 snapshot across 202
-  single-page fixtures (multipage_boilerplate skipped per Session 17
-  Option-3); placed annotated tag `baseline-v0` at the W6 close
-  commit. 5 repo commits + 1 workspace commit. LLM spend: $0.447
-  total (two captures during Step D; bug fix between them).
-- Reason for transition: W A.0 W6 fully closed. Session 19 picks up
-  W A.0 W7 synthetic-crawl-tape capture + canary wiring per plan
-  §4 W7. May also extend `barcada-baseline` with the `check`
-  subcommand at the W6-W7 boundary (deferred from Session 18
-  design-gate Q3).
+- Outgoing session scope: W A.0 W7 baseline-v0 `check` sub-surface
+  (W6-W7 boundary deliverable, carried forward from Session 18
+  design-gate Q3). Cassettes + canary (the other two W7 sub-surfaces
+  per plan §4 W7) were intentionally deferred at Session 19 Step A
+  scope so their design surfaces (cassette tool, capture mode,
+  robots.txt compliance, FP-aware corpus, determinism gate;
+  barcada-drift naming) get their own session prompts. 3 repo
+  commits + 1 workspace commit. LLM spend: $0 (integration tests
+  use fake-mode generate; no real-mode cascade runs).
+- Reason for transition: `check` sub-surface fully closed. Session 20
+  picks up the remaining W A.0 W7 sub-surfaces: synthetic-crawl-tape
+  capture and canary wiring. The Session 20 prompt should fold in the
+  5 valid completeness items from the Session 19 reviewer-feedback
+  review (see "Notes for Session 20" below).
 
 ---
 
 ## Repository state — `/Users/administrator/projects/barcada-scraper/`
 
 - Branch: `main`
-- Last commit SHA: `9e9a1fb` (WA0.W6.baseline-v0-capture).
-- Last commit subject: "WA0.W6.baseline-v0-capture: 202-fixture
-  parallel snapshot at tests/fixtures/baseline-v0/"
+- Last commit SHA: `467647e` (WA0.W7.check-tests).
+- Last commit subject: "WA0.W7.check-tests: tests/baseline_v0/
+  test_check.py + dispatch tests"
 - Branch sync with `origin/main`: 0 commits ahead, 0 commits behind
-  (verified at Session 18 close after push).
+  (verified at Session 19 close after push).
 - Tags (do NOT move):
   - `pre-remediation-2026-05-19` at `3cbb9b3`
   - `workstream-0-week1-end` at `4f9d23f`
@@ -48,217 +50,280 @@ be productive within ~10 minutes.
   - `workstream-0-week4-1-5-end` at `dd64963` (annotated `f9be833a`)
   - `workstream-0-week4-end` at `b2e2671` (annotated `c3c6fb74`)
   - `workstream-0-week5-end` at `ddd3cb0` (annotated `fc1ae2ff`,
-    placed Session 16). Disposition deferred at Sessions 17-18.
-  - `baseline-v0` at `9e9a1fb` (NEW Session 18; annotated `7839c164`).
-- Pre-push gate state at HEAD `9e9a1fb`: ALL CHECKS PASS (ruff +
+    placed Session 16). Disposition deferred at Sessions 17, 18, 19.
+  - `baseline-v0` at `9e9a1fb` (Session 18; annotated `7839c164`).
+- Pre-push gate state at HEAD `467647e`: ALL CHECKS PASS (ruff +
   ruff format + vermin 3.10 target + validate_consistency).
 - Unstaged changes intentionally ignored across sessions (operator-
   side work in the locked tree):
     eval_data/README.md
     eval_data/TAXONOMY_GAP_LOG.md
     eval_data/stage1_labels.jsonl
-  Routinely unstaged through Sessions 8-18.
+  Routinely unstaged through Sessions 8-19.
 - Corpus: 222 .html fixtures (unchanged from Session 17 close).
-- 202 expected.json files (UNCHANGED — baseline-v0 supersession is
-  consumer-level only; W4.3.D conformance keeps reading these until
-  explicit migration at W7 or Phase 4 PR-E).
+- 202 expected.json files (unchanged).
 - 222 meta.json files (unchanged).
-- NEW: tests/fixtures/baseline-v0/ subtree with 1213 files (202
-  fixtures × 6 components + 1 manifest.json), ~6.4 MB.
-- NEW: tools/baseline_v0/ namespace package (CLI module).
-- NEW: tests/baseline_v0/ test module (46 tests).
-- Combined test suite at HEAD `9e9a1fb`: 302 passed / 0 failed / 0
-  skipped (210 conformance + 46 driver + 46 baseline_v0).
+- 1213 baseline-v0 files (202 fixtures × 6 components + manifest.json;
+  unchanged from Session 18 close at `9e9a1fb`).
+- NEW Session 19: `tools/baseline_v0/check.py` (~290 LOC after
+  ruff format; 5 sub-helpers + `check()` at 7 decision points).
+- NEW Session 19: `tests/baseline_v0/test_check.py` (24 tests:
+  17 helper-unit + 3 validation-path + 4 integration).
+- MODIFIED Session 19: `tools/baseline_v0/cli.py` (+`check`
+  subparser + dispatch).
+- MODIFIED Session 19: `tests/baseline_v0/test_cli.py` (+6
+  check-dispatch tests).
+- Combined test suite at HEAD `467647e`: 332 passed / 0 failed / 0
+  skipped (210 conformance + 46 driver + 76 baseline_v0).
 
 ---
 
 ## Workspace state — `/Users/administrator/crawler-audit/`
 
 - Branch: `main`
-- Last commit SHA at Session 18 start: `f8b3995` (Session 17 close-out).
-- Session 18 workspace commit: SESSION_LOG.md Session 18 append +
+- Last commit SHA at Session 19 start: `25ee80b` (Session 18 close-out).
+- Session 19 workspace commit: SESSION_LOG.md Session 19 append +
   this template refill (single workspace commit at session close).
 - Branch sync with `origin/main`: depends on whether the close-out
-  workspace commit is pushed (Session 13-17 precedent: pushed).
+  workspace commit is pushed (Sessions 13-18 precedent: pushed).
 
 ---
 
 ## Active task list
 
-The Session 18 task list (Step A → cli-skeleton → generate +
-determinism → tests → fix-nested-category → baseline-v0 capture →
-pre-push gate → push → tag → close-out) is fully complete. W A.0 W6
+The Session 19 task list (cold-start verify → required reading →
+source-verify cli/generate → Step A → 3 commits → pre-push → push →
+Step F → close-out) is fully complete. `check` sub-surface
 substantively closed.
 
-Suggested Session 19 tasks:
+Suggested Session 20 tasks (W A.0 W7 remainder; the Session 20
+prompt should pre-resolve the 5 reviewer-feedback gaps before
+Step A):
 
-- **W A.0 W7 synthetic-crawl-tape capture** (plan §4 W7).
+- **Synthetic crawl tapes** (plan §4 W7 line 314-323).
 
   For ~20-30 representative domains beyond the fixture corpus:
-  use `vcrpy` (or similar) to record full HTTP exchanges (request +
+  use `vcrpy` or similar to record full HTTP exchanges (request +
   response + headers + timing), save cassettes per domain to
-  `tests/fixtures/synthetic_crawls/<domain>/`, and capture baseline
-  outcomes per domain (Stage 1 decision, costs, schema, errors).
-  This tests interactions between components that fixture-level
-  tests miss.
+  `tests/fixtures/synthetic_crawls/<domain>/`, capture baseline
+  outcomes per domain. Larger design surface than `check`: tool
+  selection, capture mode, robots.txt compliance, FP-aware corpus
+  curation, determinism gate. See "Notes for Session 20" below
+  for the explicit pre-Step-A decision list.
 
-- **W A.0 W7 canary wiring** (plan §4 W7).
+- **Canary wiring** (plan §4 W7 line 325-331; intersects with
+  CLASSIFICATION_ADJACENT_PLAN.md §Item 8 `barcada-drift`).
 
-  Wire the unused `canary_50_domains.txt` to a scheduled job. Run
-  weekly. Build a small trend dashboard showing per-domain
-  agreement with last baseline run, cost per domain over time,
-  anti-bot success rate.
+  Wire `canary_50_domains.txt` (50 vetted lines; eval_data/, locked,
+  read-only consumable) to a scheduled job. Weekly cron. Trend
+  dashboard (per-domain agreement with last baseline, cost per
+  domain over time, anti-bot success rate). The naming/ownership
+  question (`barcada-baseline canary-run` per plan §4 vs.
+  `barcada-drift` per CLASSIFICATION_ADJACENT_PLAN.md §Item 8 with
+  AI/ML team decisions outstanding) should be surfaced at Step A
+  before committing to the CLI shape.
 
-- **`barcada-baseline check` subcommand** (carry-forward from
-  Session 18 design-gate Q3; W6-W7 boundary).
+- **Workstream 0 close tag** (post-cassettes + post-canary).
 
-  Extend the CLI with `barcada-baseline check --fixtures
-  tests/fixtures/html/ --baseline tests/fixtures/baseline-v0/`.
-  Reuse the generate pipeline but compare per-component hashes
-  against the committed baseline-v0 manifest. Exit 0 on match,
-  exit non-zero with diff summary on mismatch. Pairs with the
-  Phase 4 PR-E CI-gate wiring downstream.
+  After W A.0 W7 fully closes, the operator may place
+  `workstream-0-end` at the W7 close commit. Three currently-deferred
+  carry-forward tags supersede via that close:
+    - `workstream-0-week5-end` (already at `ddd3cb0`, S16 close;
+      deferred Sessions 17, 18, 19)
+    - `workstream-0-week5-multipage-end` (operator-discretion at
+      `e060e5f`, S17 multipage close; deferred Sessions 17, 18, 19)
+    - `workstream-0-week7-end` (operator-discretion at the W7 full
+      close commit)
 
-  **Session 19 Step A design-gate elicitation** (suggested if W7 is
-  decomposed):
-  1. Ordering: ship `check` first (small surface, can land in 1 day)
-     vs synthetic crawl tapes first (larger surface, tooling
-     selection decision) vs both in parallel.
-  2. vcrpy vs alternative (e.g. mitmproxy export, custom cassette
-     format). vcrpy is the plan's named choice; alternatives need
-     justification.
-  3. Synthetic-crawl-tape corpus scope: which 20-30 domains? Reuse
-     canary_50_domains.txt subset, or a fresh list?
-  4. Canary scheduler: GitHub Actions cron, cron daemon, or
-     operator-driven manual run for now?
-
-- **Phase 4 PR-E CI-gate wiring (forward look; NOT Session 19
-  scope per the W6 → W7 sequence unless operator explicitly opens
-  it).** Pre-requisite: W A.0 W7 close.
+- **Phase 4 PR-D/E/F/G** (forward look; NOT Session 20 scope
+  unless operator explicitly opens it). Prerequisite: W A.0 W7
+  close (including cassettes + canary).
 
 Task state is session-local in Claude Code; it does NOT carry across
-sessions. Session 19 should TaskCreate fresh tasks on open.
+sessions. Session 20 should TaskCreate fresh tasks on open.
 
 ---
 
-## Outstanding operator-input requests entering Session 19
+## Outstanding operator-input requests entering Session 20
 
-**Material item — workstream-0-week5-end tag disposition (deferred
-again at Session 18 Step F)**: The annotated tag remains at `ddd3cb0`
-(Session 16 close), placed BEFORE the multipage_boilerplate closure
-(Session 17 at `e060e5f`). Operator chose `Defer (recommended)` at
-Session 18; the future workstream-0-end tag (placed after W A.0 W7
-closes) would supersede.
+**Material item — barcada-drift vs barcada-baseline canary-run
+naming + ownership**: Plan §4 W7 line 327 specifies
+`barcada-baseline canary-run --domains canary_50_domains.txt
+--output canary_runs/<date>.parquet`. CLASSIFICATION_ADJACENT_PLAN.md
+§Item 8 separately specifies a `barcada-drift` CLI (crawler-owned,
+~300 LOC) with "Decisions needed from AI/ML team" (drift metric
+definition, alert threshold, canary curation, action on drift).
+These may merge under one umbrella, stay separate (canary-run for
+data collection; drift for orchestration on top), or canary-run
+defers entirely until AI/ML team alignment lands. Surface at
+Session 20 Step A before committing to the CLI shape.
+
+**Material item — cassette tool selection + capture mode + robots
+compliance + corpus curation + determinism gate**: Plan §4 W7
+line 318 names "vcrpy or similar" but the choices have meaningful
+cost + design implications (see "Notes for Session 20" below for
+the explicit pre-Step-A decision list).
+
+**Material item — `workstream-0-week5-end` tag disposition
+(deferred again at Session 19 Step F)**: The annotated tag remains
+at `ddd3cb0` (Session 16 close), placed BEFORE the multipage_
+boilerplate closure (Session 17 at `e060e5f`). Operator chose
+`Defer all` at Session 19 Step F; the future `workstream-0-end`
+tag (placed after W A.0 W7 fully closes) would supersede.
 
 **Material item — per-tier cost-accounting wiring gap (W4.3.X
-candidate, driver-locked)**: Carried forward from Session 14 surface
-+ Sessions 15-18 deferred. W4.1.5 driver's cost-journal `totals.
-stage{1_llm,1_embedding,...}_usd` fields not incremented; per-row
-`stage3_decision.evidence_cost_usd` is $0; total cost telemetry
-is intact. Driver-locked at `dd64963`. Session 18 disposition:
-DEFERRED (no operator request; baseline-v0 capture didn't need
-per-tier extrapolation). Severity: LOW. May surface in W A.0 W7 if
-the synthetic-crawl-tape cost-shape comparison needs per-tier
-accounting.
+candidate, driver-locked)**: Carried forward from Session 14
+surface + Sessions 15-19 deferred. W4.1.5 driver's cost-journal
+`totals.stage{1_llm,1_embedding,...}_usd` fields not incremented;
+per-row `stage3_decision.evidence_cost_usd` is $0; total cost
+telemetry is intact. Driver-locked at `dd64963`. Session 19
+disposition: DEFERRED (no operator request; check sub-surface
+didn't need per-tier extrapolation). Severity: LOW. May surface
+in Session 20 if cassette cost-shape comparison or canary trend
+dashboard needs per-tier accounting.
 
-**Material item — `barcada-baseline check` subcommand design**: see
-suggested Session 19 task above. Deferred from Session 18 Step A
-design-gate Q3 ("generate only at W6").
-
-**No other gates** between Session 19 open and W A.0 W7 work.
+**No other gates** between Session 20 open and W A.0 W7 cassettes
++ canary work.
 
 ---
 
-## Operator decisions made during Session 18 (cross-ref to SESSION_LOG.md)
+## Operator decisions made during Session 19 (cross-ref to SESSION_LOG.md)
 
-1. **Output shape: Hybrid 3-pair** (parser_output + barriers_verdict
-   + stage_decisions, each with .hash sibling). Not the plan-
-   faithful 6-file shape (text_extraction + link_discovery deferred).
-2. **CLI placement: tools/baseline_v0/** (namespace package; no
-   src/barcada_scraper/ surface change).
-3. **Subcommand surface at W6: generate only** (`check` deferred).
-4. **Multipage_boilerplate: Skip entirely** (Session 17 Option-3
-   carry-forward; manifest documents the skip).
-5. **Output location: tests/fixtures/baseline-v0/** (parallel
-   subtree; existing expected/<domain>.json files untouched).
-6. **baseline-v0 tag: At W6 close** (placed at 9e9a1fb).
-7. **Schema definition: Implicit / freeform** (no
-   baseline-v0.schema.json yet; defer formalization to W7+).
-8. **Commit shape: Per-module** (4 W6 commits + 1 fix commit).
-9. **LLM mode: real** (Azure OpenAI; $0.211 total for the
-   committed capture).
-10. **Step F (workstream-0-week5-end disposition): Defer**
-    (carry-forward from Session 17).
+1. **Step A scope: check only** (Q1 narrowed to a single
+   sub-surface). Cassettes + canary deferred to Session 20+ so
+   their design surfaces get proper room.
+2. **Check behavior on diff: Summary diff** (Q6 recommended).
+   Per-fixture component breakdown on mismatch; exit 0/1/2
+   semantics; suitable for future Phase 4 PR-E CI-gate consumption.
+3. **Commit shape: Per-module** (Q7 recommended). 3 commits:
+   skeleton -> real impl -> tests. Combined-suite at each boundary.
+4. **Step F: Defer all tags**. No tags placed this session.
+   `workstream-0-week5-end` (ddd3cb0), the hypothetical
+   `workstream-0-week5-multipage-end` (e060e5f), and the
+   hypothetical `workstream-0-week7-end` all remain deferred until
+   the future `workstream-0-end` supersedes them.
+5. **Always verify every claim in commit message before staging**
+   (operator-codified mid-session after the auth_403/griftdijk.net
+   vs empty_google_sites/atari_vw_synthetic claim error). Memory
+   `[[double-check-before-commit]]` updated.
 
 ---
 
-## Pattern note for Session 19 (W A.0 W7)
+## Pattern notes for Session 20 (W A.0 W7 cassettes + canary)
 
-- **Combined-suite verification at every commit boundary** (NEW
-  Session 16 pattern, re-confirmed Sessions 17 and 18). Run BOTH
-  driver suite + conformance suite + baseline_v0 suite at every
-  fixture-affecting or CLI-affecting commit. Worth ~45-50s of test
-  runtime per commit to avoid multi-commit verify-after-the-fact
-  reconciliation.
+- **Verify EVERY concrete claim in commit message before staging**
+  (Session 19 finding, operator-codified). Fixture names, file
+  counts, exit codes, line counts, test counts, helper names. No
+  claims by pattern-completion. Build a verification table in chat
+  (claim → reality → status) and reconcile before "Confirm to
+  commit?". The operator-ratchet always surfaces something;
+  operationalize as a self-check.
 
-- **Plan-spec interpretation room** (NEW Session 18 finding):
-  plan §4 prose may diverge from the runtime code's surface shape
-  in ways that need a design-gate AskUserQuestion before
-  implementation. For W A.0 W7, the vcrpy cassette format vs
-  synthetic-crawl-tape semantics likely needs the same treatment.
+- **Bash pipe artifacts mask Python exit codes**. `python_cmd
+  2>&1 | grep ... | tail` makes `$?` reflect tail's exit (always
+  0 unless tail itself errors), not python's. Use `> stdout.out
+  2> stderr.err; echo $?` or `${PIPESTATUS[0]}` when exit-code
+  matters. Applied during Session 19 smoke verification.
 
-- **Background process + harness notification** (NEW Session 18
-  finding): long-running cascade or capture runs (~10-15 min wall
-  time at 202 fixtures real mode) fit Bash run_in_background
-  cleanly. The harness notifies on completion without polling.
+- **Mid-implementation ruff format-check, not just pre-push**.
+  Skeleton commit b358a02 shipped with multi-line `help=` strings
+  that ruff format wanted collapsed. Run `ruff check + format
+  --check` on touched files right after each code-touching Edit,
+  not just before the first commit. Bundle cleanup into the
+  follow-up commit message explicitly so future bisect understands
+  cross-file touches.
 
-- **Safety hook blocks destructive ops on untracked dirs**
-  (Session 18 finding): the project's safety-check.sh blocks
-  `rm -rf` even on untracked fixture output dirs. Workaround: ask
-  the operator to execute `! rm -rf <path>` in the chat (the `!`
-  prefix executes inline). Don't bury in tool error retry.
+- **Sibling-module style consistency over project-wide rule
+  compliance for one-file additions** (Session 19 finding).
+  check.py uses `.get()` x2 + `.items()` x2 matching generate.py's
+  identical patterns, despite code-readability.md flagging both.
+  Disclose in commit message; project-wide compliance lands as
+  its own refactor scope.
 
-- **Wrapper-level filtering vs cascade-level** (NEW Session 18
-  finding): when wrapping the cascade, compute the in-scope fixture
-  list path-aware at the wrapper, then pass stems as cascade's
-  `fixture_filter` with `max_fixtures=None`. The wrapper owns the
-  "what's in scope" decision; the cascade handles "process these
-  specific stems".
+- **Integration tests can self-seed via the module-under-test's
+  siblings** (Session 19 pattern). test_check.py drives
+  `generate(fake-mode, max_fixtures=1)` to write a real manifest
+  in a temp dir, then runs check() against it. Cheaper than
+  mocking the cascade; tighter coverage than synthetic-only unit
+  tests; same fake-mode-zero-cost guarantee. The 4th sanity-gate
+  test re-hashes the seeded component .json files with check.py's
+  own canonical_json + hash_canonical chain to catch future
+  divergence between generate <-> check hash chains.
+
+- **Reviewer-feedback hygiene before applying** (Session 19
+  finding). External-reviewer feedback arrives in N items. Walk
+  each against actual repo state before pattern-applying. Verify
+  every flagged SHA, file shape, claim against on-disk reality
+  via cold-start verification or targeted greps. Many "must-fix"
+  items collapse under verification; the valid completeness items
+  often bear on sub-surfaces that scope decisions defer anyway.
+  Route valid items to where they're load-bearing rather than
+  bolting on to the current session.
+
+- **Plan-spec interpretation room** (Session 18 finding, re-
+  confirmed Session 19): plan §4 wording may diverge from runtime
+  code's surface in ways needing a design-gate AskUserQuestion
+  before implementation. For W7 cassettes, the "vcrpy or similar"
+  framing + the "capture baseline outcomes per domain" framing
+  both have multiple valid readings.
+
+- **Background process + harness notification** (Session 18
+  finding): long-running cascade or cassette-recording runs fit
+  `Bash run_in_background` cleanly. Harness notifies on completion
+  without polling.
+
+- **Safety hook destructive-op workaround** (Session 18 finding):
+  safety-check.sh blocks `rm -rf` even on untracked dirs. Ask
+  operator to execute `! rm -rf <path>` in the chat (the `!`
+  prefix executes inline). Don't bury in retry.
+
+- **Manifest in-place metadata refresh** (Session 18 finding):
+  when on-disk content is correct but metadata fields lag (e.g.,
+  driver_sha post a small bug-fix commit), a one-shot manifest
+  re-serialization beats spending another capture cycle's cost.
+
+- **Wrapper-level vs cascade-level filtering** (Session 18
+  finding): wrapper computes in-scope items first (path-aware,
+  excludes multipage_boilerplate/), then passes stems as cascade's
+  `fixture_filter` with `max_fixtures=None`. Wrapper owns "what's
+  in scope"; cascade handles "process these stems".
 
 - **Pricing-as-consistent-failure pattern** (Session 17 finding):
   still applies for any future fixture sourcing — default
   synthetic-with-real-markers for pricing pages.
 
 - **Markdown-render NBSP corruption avoidance** (Session 17
-  finding): when shell commands have numeric flag arguments or
-  whitespace-sensitive syntax, write to /tmp/ via Write tool and
-  run via `bash /tmp/script.sh`. Avoid copy-pasting curl commands
-  through markdown rendering.
+  finding): for whitespace-sensitive shell commands or curl args,
+  write to /tmp/ via Write tool and run via `bash /tmp/script.sh`
+  rather than copy-pasting through markdown rendering.
 
 - **Verify-before-asking discipline extension** (Sessions 12, 16,
-  17, 18): when operator references a SHA, file shape, fixture
+  17, 18, 19): when operator references a SHA, file shape, fixture
   state, or prompt-prescribed layout, verify against current repo
-  state BEFORE acting. Session 18 surfaced the plan-§4-W6-vs-
-  cascade-output-shape mismatch via this discipline.
+  state BEFORE acting. Bidirectional: applies to operator-issued
+  state claims as well as Claude Code outputs and external
+  reviewer claims (Session 19 generalization).
 
-- **Sub-agent delegation for analysis-heavy work**: Session 18
-  used Explore subagent for cold-start required reading +
+- **Sub-agent delegation for analysis-heavy work**: Sessions 17 +
+  18 used Explore subagent for cold-start required reading +
   source-verification of cascade.py/consolidate.py/cli.py/
   fixture_fetcher.py in one consolidated brief. Forward-applicable
-  for any session requiring multi-file/source-tree analysis before
-  design decisions.
+  for any session requiring multi-file/source-tree analysis
+  before design decisions.
 
 - **Per-domain or per-subsurface decomposition with operator
-  approval gates** (Sessions 6, 11, 16, 17, 18 pattern). For
-  Session 19's W A.0 W7 work, per-subsurface commits (e.g.
-  `WA0.W7.check`, `WA0.W7.vcrpy-driver`, `WA0.W7.canary-wiring`)
-  is the natural shape.
+  approval gates** (Sessions 6, 11, 16, 17, 18, 19 pattern). For
+  Session 20's W A.0 W7 remainder, per-subsurface commits (e.g.
+  `WA0.W7.cassettes-skeleton`, `WA0.W7.cassettes-driver`,
+  `WA0.W7.cassettes-capture`, `WA0.W7.canary-skeleton`,
+  `WA0.W7.canary-impl`, `WA0.W7.canary-scheduler`) is the natural
+  shape.
 
-- **Confirm-to-commit gating** before every commit (LESSONS anchor
-  pattern; Sessions 4-18).
+- **Confirm-to-commit gating** before every commit (LESSONS
+  anchor pattern; Sessions 4-19).
 
-- **File-based commit messages** at /tmp/<id>-msg.txt; no
-  Co-Authored-By.
+- **File-based commit messages** at `/tmp/<id>-msg.txt`; no
+  `Co-Authored-By`.
 
 - **Pre-push gate** must run green; never use `--no-verify`. Use
   `git ls-files '*.py' | xargs vermin --target=3.10` (not bare
@@ -266,12 +331,13 @@ design-gate Q3 ("generate only at W6").
 
 - **Driver-locked policy continues** at `dd64963`. Driver TEST
   files may be realigned via W5.X-prefix commits per Session 16
-  precedent. Session 18 did not need a driver-test realign.
+  precedent. Sessions 18 + 19 did not need a driver-test realign.
 
-- **Conformance count discipline**: W A.0 W6 close at 302 combined
-  (210 conformance + 46 driver + 46 baseline_v0). Any new reds in
-  Session 19 should be either (a) deliberate (new W7 surface
-  exposed issue) or (b) immediately investigated.
+- **Conformance count discipline**: W A.0 check sub-surface
+  close at 332 combined (210 conformance + 46 driver + 76
+  baseline_v0). Any new reds in Session 20 should be either (a)
+  deliberate (new W7 surface exposed issue) or (b) immediately
+  investigated.
 
 ---
 
@@ -279,11 +345,13 @@ design-gate Q3 ("generate only at W6").
 
 - All of `eval_data/` — locked. Read-only context only.
 - `stage1.schema.json` v1.0 / 49 keywords — locked.
-- All Workstream 0 + baseline-v0 tags — locked (pre-remediation-
-  2026-05-19 + workstream-0-week{1,2,3,4-1-5,4,5}-end +
-  baseline-v0).
+- All Workstream 0 + baseline-v0 tags — locked
+  (pre-remediation-2026-05-19 + workstream-0-week{1,2,3,4-1-5,4,5}-end
+  + baseline-v0).
 - `BARCADA_CRAWLER_REMEDIATION_PLAN.md` — read-only since Session
   12 absorption.
+- `CLASSIFICATION_ADJACENT_PLAN.md` — read-only governance
+  reference (decisions on Items 6 + 8 outstanding at AI/ML team).
 - `tests/fixtures/META_SCHEMA.md` + `meta.schema.json` v1.0 +
   `expected.schema.json` v1.1 — locked at W4.3 close (Session 15
   commit `7728bdf`). Further bumps require operator authorization.
@@ -303,82 +371,86 @@ design-gate Q3 ("generate only at W6").
   workspace design-of-record; read-only.
 - `~/crawler-audit/RECONCILIATION_2026-05-21.md` — archival
   historical record; do not edit.
-- NEW: `tests/fixtures/baseline-v0/` subtree — locked at Session 18
+- `tests/fixtures/baseline-v0/` subtree — locked at Session 18
   close (9e9a1fb). Future regenerations may overwrite, but the
   current snapshot is the canonical W6 baseline-v0 capture and
   should not be edited piecemeal.
-- NEW: `tools/baseline_v0/` CLI module — production-style code
-  surface; Session 19 may extend (e.g. add `check` subcommand)
-  but should not refactor the existing surfaces without operator
-  authorization.
+- `tools/baseline_v0/` CLI module — production-style code surface.
+  Session 19 added `check.py` + `check` subparser; Session 20 may
+  add cassette-recording driver and `canary-run` subcommand (TBD
+  per Step A naming decision) but should not refactor the existing
+  surfaces without operator authorization.
+- NEW Session 19: `tests/baseline_v0/test_check.py` (24 tests) —
+  Session 20 may extend (e.g., real-mode integration test against
+  the committed baseline-v0 manifest) but should not refactor.
 
 ---
 
 ## Next concrete work unit
 
-- **Action ID:** **W A.0 W7 synthetic-crawl-tape capture + canary
-  wiring** (plan §4 W7).
-- **Scope:** vcrpy or alternative cassette-recording tool for ~20-30
-  representative domains beyond the fixture corpus; cassettes per
-  domain at `tests/fixtures/synthetic_crawls/<domain>/`. Capture
-  baseline outcomes per domain. Canary scheduler wiring for
-  `canary_50_domains.txt`. May also extend `barcada-baseline check`
-  subcommand at the W6-W7 boundary.
+- **Action ID:** **W A.0 W7 cassettes + canary** (plan §4 W7).
+- **Scope:** synthetic-crawl-tape capture for ~20-30 representative
+  domains beyond the fixture corpus; canary scheduler wiring against
+  `canary_50_domains.txt`; trend dashboard. The Session 20 prompt
+  should fold in the 5 reviewer-feedback gaps surfaced in Session 19
+  (see "Notes for Session 20" below) before Step A elicitation.
 - **Acceptance:** synthetic-crawl-tape cassettes recorded and
-  replayable; canary scheduler runs against the unused
-  canary_50_domains.txt; (if check is in scope) `barcada-baseline
-  check` works against the baseline-v0 manifest, exit codes
-  correctly indicate match/mismatch.
+  replayable; canary scheduler runs against canary_50_domains.txt;
+  trend dashboard renders the three metrics (agreement, cost,
+  anti-bot success). Pre-push gate green.
 - **Files expected to be touched:**
-  - New module(s) under `tools/baseline_v0/` (if check lands here)
-    or a new module like `tools/synthetic_crawl/` for the cassette
-    driver.
-  - Tests under `tests/baseline_v0/` (for check) and/or
+  - New module(s) under `tools/baseline_v0/` (e.g.
+    `tools/baseline_v0/canary.py`) or a new namespace like
+    `tools/synthetic_crawl/` for the cassette driver (Step A
+    decision).
+  - Tests under `tests/baseline_v0/` and/or
     `tests/synthetic_crawl/`.
   - New cassette files under `tests/fixtures/synthetic_crawls/`.
-  - Canary scheduler config (GitHub Actions workflow file?).
+  - Canary scheduler config (GitHub Actions workflow file or cron
+    daemon config — Step A decision).
 - **Files NOT to be touched:**
   - All locked artifacts listed above.
   - The 222 existing .html fixtures (corpus stable).
   - The committed baseline-v0/ snapshot at 9e9a1fb (regenerations
     may overwrite, but not piecemeal-edit).
-  - W4.1.5 driver internals (cli.py, cascade.py, parser_compose.py,
-    consolidate.py, fixture_fetcher.py main code) — locked per
-    W4.1.5 policy.
+  - W4.1.5 driver internals — locked per W4.1.5 policy.
   - Production code under `src/barcada_scraper/` unless explicitly
-    authorized at Session 19 design-gate.
+    authorized at Session 20 design-gate.
 
-After W A.0 W7 closes (1-2 sessions), Workstream 0 is fully done
+After W A.0 W7 fully closes (1-2 sessions), Workstream 0 is done
 and Workstream A (Compliance Foundation, plan §5) opens.
 
 ---
 
-## Required reading (Session 19 first 10 minutes)
+## Required reading (Session 20 first 10 minutes)
 
 In this order:
 
 1. **This file** (you're reading it).
-2. **`SESSION_LOG.md` Session 18 entry** — what landed during W6
-   baseline-v0 scaffolding (Hybrid output shape; tools/baseline_v0/
-   namespace package; nested-category bug + fix; full 202-fixture
-   capture in real mode; baseline-v0 tag at 9e9a1fb).
-3. **`LESSONS.md`** — operator patterns and observed conventions.
-   Session 18 forward-applicable findings to fold into LESSONS:
-   plan-spec interpretation room, background-process notification,
-   safety-hook destructive-op workaround, manifest in-place refresh
-   vs full re-run, wrapper-level vs cascade-level filtering.
-4. **`BARCADA_CRAWLER_REMEDIATION_PLAN.md` §4 Week 7** (W A.0 W7
-   synthetic crawl tapes + canary wiring spec).
-5. **`tools/baseline_v0/`** at HEAD `9e9a1fb` — the CLI module that
-   W7's `check` subcommand (if in scope) extends.
-6. **`tests/fixtures/baseline-v0/manifest.json`** at HEAD `9e9a1fb`
-   — the manifest format the `check` subcommand reads.
+2. **`SESSION_LOG.md` Session 19 entry** — what landed during the
+   `check` sub-surface: 3 commits (b358a02 skeleton → eca4ec0 real
+   + cli reflow → 467647e tests); the reviewer-feedback walk-through
+   (3 of 5 "must-fix" items collapsed under cold-start verification);
+   the auth_403-vs-empty_google_sites claim error caught by the
+   double-check ratchet and the resulting always-verify rule.
+3. **`LESSONS.md`** — operator patterns. Session 19 forward-
+   applicable findings to fold in: claim-verification-before-commit
+   strict rule, bash-pipe-exit-code-masking, mid-implementation
+   ruff format-check, sibling-module style consistency rule,
+   integration-tests-self-seed-via-siblings, reviewer-feedback
+   hygiene.
+4. **`BARCADA_CRAWLER_REMEDIATION_PLAN.md` §4 Week 7** (cassettes
+   + canary spec) + `CLASSIFICATION_ADJACENT_PLAN.md §Item 8`
+   (barcada-drift naming question).
+5. **`tools/baseline_v0/check.py` + `tests/baseline_v0/test_check.py`**
+   at HEAD `467647e` — the Session 19 deliverable. Pattern for any
+   future sub-surface that extends `tools/baseline_v0/`.
 
 After reading, verify repo state:
 
 ```
 git -C /Users/administrator/projects/barcada-scraper status
-git -C /Users/administrator/projects/barcada-scraper log --oneline -6
+git -C /Users/administrator/projects/barcada-scraper log --oneline -8
 git -C /Users/administrator/projects/barcada-scraper tag -l
 find /Users/administrator/projects/barcada-scraper/tests/fixtures/html -name '*.html' -type f | wc -l
 find /Users/administrator/projects/barcada-scraper/tests/fixtures/baseline-v0 -type f | wc -l
@@ -386,142 +458,191 @@ find /Users/administrator/projects/barcada-scraper/tests/fixtures/baseline-v0 -t
 ```
 
 Expected:
-- Last commit SHA: `9e9a1fb` (WA0.W6.baseline-v0-capture).
+- Last commit SHA: `467647e` (WA0.W7.check-tests).
 - Tags include `baseline-v0` at 9e9a1fb (annotated 7839c164).
 - 222 .html files.
-- 1213 baseline-v0 files (202 fixtures × 6 components + manifest).
-- Combined suite: 302 passed / 0 failed / 0 skipped.
+- 1213 baseline-v0 files.
+- Combined suite: 332 passed / 0 failed / 0 skipped.
 - 0 ahead / 0 behind origin/main.
 - Only operator-side eval_data/ files showing as unstaged.
 
 If anything differs, surface to operator before doing work.
 
-Then open W A.0 W7 design discussion: cassette tool (vcrpy vs
-alternative), corpus scope (which 20-30 domains), canary scheduler,
-whether to bundle `check` subcommand at the W6-W7 boundary or land
-it as a separate sub-surface. Likely present via AskUserQuestion as
-the first design-gate question after Session 19 cold-start.
+Then open W A.0 W7 cassettes + canary design discussion via
+AskUserQuestion as the first design-gate. The 5 pre-Step-A
+decisions to surface are listed in "Notes for Session 20" below.
 
 ---
 
 ## Risk register state (plan §11)
 
-No new risks escalated and unresolved by Session 18.
+No new risks escalated and unresolved by Session 19.
 
 Forward-applicable entries:
 
-- "Recapture tooling needs retry policy" — STILL applies.
+- "Recapture tooling needs retry policy" — STILL applies. Becomes
+  load-bearing in Session 20 cassette recording: ≥3 retries on
+  TLS/H2/refused-connection per LESSONS S5 + S9 patterns.
 - "Phase 4 measurement half blocked on operator-led labeling" —
   STILL applies.
 - "Cost-journal per-tier accounting gap" (Session 14 surface) —
-  STILL applies. Session 18 disposition: DEFERRED. Severity: LOW.
+  STILL applies. Session 19 disposition: DEFERRED. Severity: LOW.
 - "W4.2 expected-output lifetime constrained" — RESOLVED at
   Session 18 close. baseline-v0 supersedes (consumer-level) at the
-  9e9a1fb tag. The existing expected.json files remain in place
-  per the parallel-subtree design; W4.3.D conformance still reads
-  them. Full file-system supersession happens at W A.0 W7 / Phase 4
-  PR-E consumer migration.
+  9e9a1fb tag. Full file-system supersession happens at W A.0 W7 /
+  Phase 4 PR-E consumer migration.
+- "baseline-v0 metadata field freshness" (Session 18 surface) —
+  STILL applies. Future regenerations should refresh driver_sha +
+  generated_at in-place when content is unchanged.
+- "Wrapper enumeration must match source-tree depth" (Session 18
+  surface) — RESOLVED at Session 18 via the relative_to(fixture_root)
+  pattern. Test coverage in tests/baseline_v0/test_generate.py::
+  test_enumerate_single_page_handles_nested_category.
 
-NEW Session 18 risk-register additions (low-severity):
+NEW Session 19 risk-register additions:
 
-- "baseline-v0 metadata field freshness": the manifest's driver_sha
-  + generated_at can drift if downstream regeneration runs against
-  a later HEAD. Session 18 used an in-place manifest refresh
-  pattern to keep these accurate; document this in future
-  re-capture playbooks.
-- "Wrapper enumeration must match source-tree depth": Session 18's
-  `_enumerate_single_page_fixtures` initially assumed depth-2 flat
-  layout; failed on the 3 depth-3 `international_business/<locale>/`
-  fixtures. Future fixture-walking code should default to relative-
-  path-based category attribution.
+- "Cassette recording without robots.txt compliance" (LOW-MEDIUM):
+  Plan §4 W7 chronology has the W A robots.txt parser AFTER W7.
+  Recording 20-30 live captures of third-party domains in Session
+  20 without robots.txt compliance is the exact compliance gap
+  Workstream A is meant to close. Mitigation options (per Session
+  19 reviewer-feedback review): (a) manually check robots.txt per
+  candidate before recording; (b) restrict corpus to
+  canary_50_domains.txt subset (vetted institutional domains:
+  example.com, iana.org, python.org, wikipedia.org, mit.edu, etc.);
+  (c) defer cassettes to post-Workstream A.
+- "Cassette corpus may bake in detector FPs" (LOW): LESSONS S9
+  documented ~36% FP rate on modern SaaS marketing sites
+  (dd.js / just-a-moment / soft_404 patterns). If Session 20
+  curates a "representative SaaS" cassette corpus, those FPs
+  bake in as expected baseline. Later detector fixes then look
+  like regressions against cassettes. Mitigation: run
+  `extract_hard_exclusions` against each candidate before
+  recording; either drop FP-tripping candidates or document
+  which cassettes encode known FPs.
+- "Cassette network-vs-capture mode cost variability" (LOW):
+  network-only recording is ~$0 per cassette; capture-and-classify
+  is ~$0.30-$1.50 per domain × 20-30 = $6-$45 total. Session 20
+  Step A should pick mode explicitly and revise the budget
+  envelope accordingly.
 
-LLM cost drift risk (plan §11) — Session 18 update:
-- Session 18 incurred $0.447 total (two captures during Step D).
-- Cost incurred Sessions 1-18: $0.263658 + $0.447 = $0.711.
+LLM cost drift risk (plan §11) — Session 19 update:
+- Session 19 incurred $0 (no real-mode cascade runs).
+- Cost incurred Sessions 1-19: $0.711 (unchanged).
 - Cost budget remaining: $99.29.
-- W A.0 W7 estimated cost depends on cassette-capture strategy.
-  Recording-mode vcrpy invocations call live endpoints once per
-  cassette; replay-mode is free. Rough estimate: $0.01-$0.10 per
-  cassette × 20-30 cassettes = $0.20-$3.00 total. Stop and escalate
-  if actual spend trends >3× original $1.00 ballpark.
+- Session 20 estimated cost depends on cassette-capture mode
+  (Step A decision; see risk register entry above).
 
 ---
 
 ## Deferred prose-only fixes register
 
-**Status at Session 18 close: EMPTY.** No new prose-only fixes
-surfaced in Session 18.
-
-Future deferred prose-only fixes (if any surface in Session 19+)
-should be tracked here per the LESSONS.md "Defer prose-only schema
-fixes; bump only when machine schema changes" pattern.
+**Status at Session 19 close: EMPTY.** No new prose-only fixes
+surfaced in Session 19.
 
 ---
 
 ## Cost & schedule tracking
 
 - Cost ceiling: $100 (operator-set 2026-05-19, alert at $50).
-- Cost incurred Sessions 1-18: $0.711.
+- Cost incurred Sessions 1-19: $0.711 (unchanged from S18 close).
 - Cost budget remaining: $99.29.
-- Session 18 actual spend: $0.447 (two captures during Step D).
-- W A.0 W7 estimated spend: $0.20-$3.00 (cassette recording mode
-  for 20-30 domains; replay is free).
-- Schedule: 7 weeks elapsed of Workstream 0's 5-week budget
-  (Workstream A.0 extends Workstream 0 by 2 weeks). W A.0 W6 fully
-  closed this session. Session 19 opens W A.0 W7 (final
-  Workstream 0 sub-task).
+- Session 19 actual spend: $0 (integration tests fake-mode only).
+- Session 20 estimated spend: $0.20-$3.00 (cassette recording
+  mode; replay free) OR $6-$45 (capture-and-classify mode);
+  Step A decision.
+- Schedule: 8 weeks elapsed of Workstream 0's 5-week budget
+  (Workstream A.0 extends Workstream 0 by 2 weeks). W A.0 W6
+  fully closed Session 18; W A.0 W7 check sub-surface fully
+  closed Session 19. Cassettes + canary remain for Session 20+.
 
 ---
 
-## Notes for Session 19
+## Notes for Session 20
 
-- **Conformance test red count entering Session 19: 0** (W6
-  cleanly closed). Any new reds in Session 19 should be immediately
-  investigated.
+The Session 20 prompt should fold in these 5 reviewer-feedback
+gaps from Session 19 BEFORE Step A:
+
+1. **Cassette tool selection** (Step A sub-question): vcrpy
+   (plan's named choice) vs mitmproxy export vs custom cassette
+   format. Justification required if non-vcrpy.
+
+2. **Cassette capture mode** (Step A sub-question): network-only
+   (cassette is the artifact; baseline outcomes generated later
+   from replay) vs capture-and-classify (cassette + pipeline
+   outcomes in one pass). Cost envelope differs by 10-30×.
+   Revise budget envelope per choice.
+
+3. **Robots.txt compliance gate** (Step A sub-question or Step B
+   prerequisite): pre-record per-domain robots.txt check, OR
+   restrict to canary_50_domains.txt vetted subset, OR defer
+   cassettes to post-Workstream A robots-parser-lands. The
+   middle option is likely the cheapest path forward.
+
+4. **Detector-FP-aware corpus curation** (Step A note attached
+   to corpus-scope sub-question): run extract_hard_exclusions
+   against each candidate before recording. Either drop
+   FP-tripping candidates or document which cassettes encode
+   known FPs (LESSONS S9 dd.js / just-a-moment / soft_404).
+
+5. **Cassette replay determinism gate** (Step C requirement):
+   replay-mode produces byte-identical pipeline outputs across
+   two consecutive runs (analog of the baseline-v0
+   byte-identical re-run gate in test_generate.py). If
+   determinism isn't possible (e.g., timestamps in vcrpy
+   cassettes), document the exclusion fields explicitly.
+
+Plus the canary-specific naming question:
+
+6. **barcada-drift vs barcada-baseline canary-run** (Step A
+   sub-question): plan §4 W7 names `barcada-baseline canary-run`
+   for data collection; CLASSIFICATION_ADJACENT_PLAN.md §Item 8
+   names a separate `barcada-drift` CLI (crawler-owned, ~300 LOC)
+   for drift detection orchestration with AI/ML team decisions
+   outstanding. Resolve naming/ownership before committing to
+   the CLI shape.
+
+Other notes:
+
+- **Conformance test red count entering Session 20: 0**
+  (`check` sub-surface cleanly closed at 467647e). Any new reds
+  in Session 20 should be immediately investigated.
 - **0 conformance tests SKIP**.
 - **File-based commit messages** still mandatory.
-- **"Confirm to commit?" gating** before every commit.
-- **Verify-before-asking discipline** — bidirectional. Sessions
-  12, 16, 17, 18 patterns. For W A.0 W7 scaffolding, source-verify
-  the chosen cassette tool's API surface BEFORE designing the
-  wrapper. Re-read relevant `tools/baseline_v0/` modules at
-  session-current HEAD before launching the design-gate
-  AskUserQuestion.
+- **"Confirm to commit?" gating** before every commit, paired
+  with the always-verify-every-claim discipline operator-codified
+  in Session 19.
+- **Verify-before-asking discipline**: bidirectional (operator,
+  Claude Code, and external-reviewer claims; Session 19
+  generalization). Apply to every SHA, file shape, fixture state,
+  prompt-prescribed layout, reviewer-flagged "must-fix" item.
 - **Combined-suite verification at every commit boundary**
-  (Sessions 16-18 pattern). Run conformance + driver + baseline_v0
+  (Sessions 16-19 pattern). Run conformance + driver + baseline_v0
   suites at every commit boundary. ~45-50s runtime.
-- **Pre-push gate** at Session 18 close passed cleanly. Routinely
+- **Pre-push gate** at Session 19 close passed cleanly. Routinely
   passes. Never use `--no-verify`. Use `git ls-files '*.py' |
   xargs vermin --target=3.10`.
 - **Plan is read-only** — never edit
   `BARCADA_CRAWLER_REMEDIATION_PLAN.md`.
 - **W5.X-prefix pattern**: driver-locked test changes are
   authorized via W5.X-prefix commits per Session 16 precedent.
-  Session 18 did not need a similar realign. Session 19 may
-  surface a need if W7 wrapper interactions expose driver-test
-  brittleness.
+  Sessions 18 + 19 did not need a driver-test realign.
 - **Workspace cwd**: when editing LESSONS.md / SESSION_LOG.md /
   this template, work in `/Users/administrator/crawler-audit/`.
-- **W5 tag pattern**: per Sessions 17-18 operator deferrals, the
-  `workstream-0-week5-end` tag remains at `ddd3cb0` (Session 16
-  close). Multipage closure (Session 17, `e060e5f`) and W6 close
-  (Session 18, `9e9a1fb`) NOT separately tagged with a week5
-  marker. Workstream 0 NOT closed yet — W A.0 W7 follows.
-- **W4.2 + W5 ground truth durability**: the cumulative
-  expected.json set at `ddd3cb0` (202 files) remains valid through
-  Session 18 close. baseline-v0 supersedes at the consumer level
-  via the parallel-subtree design; full migration happens
-  downstream.
+- **W5 tag pattern**: per Sessions 17-19 operator deferrals, the
+  `workstream-0-week5-end` tag remains at `ddd3cb0` (S16 close).
+  Workstream 0 NOT closed yet — W A.0 W7 cassettes + canary
+  follows.
 - **baseline-v0 ground truth durability**: the snapshot at
-  `9e9a1fb` is the canonical W6 capture. Future Workstream A/B/C/D
-  changes may produce diffs against this baseline (per
-  `barcada-baseline check`, once that subcommand lands); track
-  intentional diffs as approved drift in the manifest or commit
-  trail.
+  `9e9a1fb` is the canonical W6 capture. The Session 19 `check`
+  subcommand provides the comparison surface against it. Future
+  Workstream A/B/C/D changes may produce diffs against this
+  baseline (per `barcada-baseline check`); track intentional
+  diffs as approved drift in the manifest or commit trail.
 - **Safety hook destructive-op workaround**: the project's
   safety-check.sh blocks `rm -rf` even on untracked dirs. If a
-  Session 19 step needs to clean up untracked output (e.g.
+  Session 20 step needs to clean up untracked output (e.g.
   intermediate cassette runs), ask the operator to execute
   `! rm -rf <path>` in the chat.
 - **This template's structured fields will need refilling at
-  Session 19 close.**
+  Session 20 close.**
