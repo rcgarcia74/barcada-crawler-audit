@@ -3394,3 +3394,314 @@ Test counts at Session 16 close (verified):
 Next session prompt: see `SESSION_TRANSITION_TEMPLATE.md`.
 Next concrete work: W5.multipage_boilerplate as W5 carry-forward,
 then W A.0 W6 baseline-v0 CLI scaffolding per plan §4 W6.
+
+## Session 17 — W5.multipage_boilerplate closure (W5 carry-forward complete) (2026-05-22)
+
+Scope: Engineering + fixture-sourcing session. Landed the final W5
+sub-surface (multipage_boilerplate, 20 fixtures across 5 domains).
+6 repo commits + 1 workspace commit. LLM spend: $0 (Option-3
+design-gate decision skipped the cascade-driver run entirely; the
+$0.026 estimate dropped to zero). Snowflake.com → atlassian.com
+swap based on verify-before-asking finding (snowflake static-curl
+returns SPA shells across all 4 attempted pages, only 15-23 body
+chars per page). Workstream 0 Week 5 now fully closed.
+
+──────── Cold-start verification at session open ───────────────
+
+- Workspace HEAD `cdaa0a1` matched outgoing template (Session 16 close).
+- Repo HEAD `ddd3cb0` (W5.edge-case).
+- All 7 workstream tags verified at expected SHAs (week1 4f9d23f,
+  week2 e5d2f91, week3 cf0c14c, week4 b2e2671, week4-1-5 dd64963,
+  week5 ddd3cb0, pre-remediation 3cbb9b3).
+- reconciliation-2026-05-21-absorbed tag intact at ce7e8e9.
+- 202 .html + 202 expected.json + 202 meta.json fixtures on disk.
+- Driver intact at tests/runners/fixture_cascade/ (zero diff vs dd64963).
+- Combined suite at session open: 236 passed / 0 failed / 0 skipped
+  (190 conformance + 46 driver).
+- Schema at v1.1; META_SCHEMA v1.1 prose.
+
+──────── Step A: design-gate elicitation ──────────────────────
+
+Three sub-questions answered via AskUserQuestion:
+
+1. Domain selection — operator chose Option 2 (5 in-corpus C18
+   SaaS) recommended by Claude Desktop, requesting Claude Code
+   second opinion. Recommendation aligned: hubspot.com, notion.so,
+   snowflake.com, twilio.com, webflow.com. Rationale: known-
+   capturable from Session 9 C18 captures; dual-directory presence
+   is defensive depth, not noise; alternative options had 2 known-
+   anti-bot domains per LESSONS S9 FP1 (github dd.js + stripe
+   Cloudflare).
+
+2. Banner pattern — operator chose "Combination: 3 success + 2 gap
+   probes". 3 success domains exercise the calibrated detect_cross_
+   page_banners() path (sitewide nav at HEAD repeating verbatim);
+   2 gap probes (twilio, webflow) expose detector blind spots.
+
+3. Commit shape — operator chose "5 per-domain commits + 1
+   conformance commit" (6 total).
+
+──────── Step A.1: layout-vs-driver incompatibility surfaced ────
+
+Verify-before-asking on the prompt-prescribed nested layout
+`multipage_boilerplate/<domain>/{home,about,pricing,products}.html`
+surfaced a structural incompatibility with the W4.1.5 driver:
+build_fixture_index keys by path.stem and rglobs the corpus, but 5
+domains × 4 stems (home/about/pricing/products) yields only 4 unique
+stems retained (last-write-wins per fixture_fetcher.py:95-114). 16
+of 20 fixtures would be silently overwritten in the index, breaking
+the cascade-driver run.
+
+Four options presented:
+1. Stem-unique flat layout (deviate from prompt prose)
+2. Stem-unique nested layout (redundant naming)
+3. Skip cascade-driver run, no expected.json (use prompt's exact
+   layout; conformance test uses extract_hard_exclusions directly)
+4. Halt and escalate offline
+
+Operator chose Option 3 with strong architectural rationale: the
+cascade tests SINGLE-page Stage 1/2/3 verdicts; detect_cross_page_
+banners() consumes list[str] of grouped per-domain pages at the
+page_acquisition layer (text_cleaning.py:785), upstream of the
+cascade. Running the cascade on multipage fixtures would test the
+wrong layer regardless of cost. Drift coverage loss (parser-only
+snapshots) deferred as a follow-up if/when parser-layer regression
+detection becomes load-bearing for this corpus.
+
+Trade-off accepted:
+- LOST: snapshot drift comparison for the 20 multipage fixtures.
+- KEPT: inverted assertion (exclusion_reason==''), _HARD_EXCLUSION_
+  KEYS shape stability, COVERED audit coverage, future Action #5
+  evaluation surface.
+
+──────── Step B-1: real captures (curl friction documented) ─────
+
+Operator preferred real captures (Session 16 Step A carry-forward
+sourcing policy). Curl execution surfaced two friction patterns:
+
+1. Safety-hook block on outbound network — operator authorized
+   via `!` prefix in-session execution (forwards stdout/stderr
+   back to Claude Code for inspection).
+
+2. Markdown-render NBSP corruption in copy-paste — multiple curl
+   invocations failed because rendered code blocks contained U+00A0
+   non-breaking spaces where ASCII spaces were intended. First trip
+   on `--retry 3` (curl rejected the "3" as non-numeric); second on
+   `--retry=3` (same character corruption); third on a case-
+   statement `pricing)  path=...` (double-space introduced NBSP
+   that caused bash to silently skip the case body, falling through
+   with stale $path from previous iteration — manifested as notion
+   pricing == about and snowflake pricing == about, both same
+   bytes). Resolution: write multi-line shell scripts to /tmp/ via
+   the Write tool (bytes-on-disk are clean ASCII) and run via
+   `bash /tmp/<script>.sh`. This bypass restored reliable execution.
+
+Capture results (across 3 success domains):
+- hubspot.com: 3 of 4 substantive (home/about/products ~610-660KB
+  HTML, ~15-34KB body text each with sitewide nav at HEAD).
+  Pricing returned 36-char SPA shell (is_spa_shell=True).
+- notion.so: 3 of 4 substantive (home/about/products with 4-23KB
+  body text). Pricing returned 23KB real content BUT tripped
+  is_waf_challenge (LESSONS S9 FP2 — Cloudflare challenge markers
+  embedded in the response HTML).
+- snowflake.com: 0 of 4 substantive. All 4 pages returned 170KB
+  HTML with only 15-23 body chars (heavy SPA shell, ~entirely JS-
+  rendered). Memory [[confirmed-spa-domains]] did NOT include
+  snowflake.com pre-Session 17; this session adds it as observed
+  SPA behavior on static-curl.
+
+Cross-domain finding: 3 of 3 attempted success-pattern domains had
+pricing pages that failed real capture (SPA / WAF / 404). Modern
+SaaS pricing pages are consistently JS-heavy or unavailable at
+top-level paths, even on SSR-friendly marketing sites. Promoted to
+LESSONS as a forward-applicable observation.
+
+──────── Step A.2: snowflake → atlassian swap ──────────────────
+
+Snowflake's static-curl uselessness for cross-page banner detection
+(15-23 body chars per page; no nav text for detect_cross_page_
+banners() to consume) prompted a re-design conversation. Operator
+proposed atlassian.com as the replacement (server-rendered
+marketing, out-of-corpus). Verify-before-asking via one curl
+probe to https://www.atlassian.com/ returned 2.24MB HTML with
+17,205 visible body chars — SSR confirmed.
+
+Subsequent 4-page atlassian capture:
+- home (/): 2.24MB HTML, 17,205 body chars ✓
+- about (/company): 206KB HTML, 11,468 body chars ✓
+- products (/software): 1.7MB HTML, 21,164 body chars ✓
+- pricing (/pricing): HTTP 404 (Atlassian's pricing lives under
+  per-product paths like /software/jira/pricing).
+
+──────── Step B-2: 11 synthetic-with-real-markers fixtures ──────
+
+Clean pattern across all 3 success domains: pricing.html is
+consistently synthetic (3 different failure modes: SPA / WAF /
+404), home/about/products are real captures.
+
+11 synthetic HTML files via a Python generator (/tmp/session-17-
+synth-gen.py written via Write tool to bypass any markdown render
+risk):
+- 3 success-pricing replacements: hubspot.com/pricing.html,
+  notion.so/pricing.html, atlassian.com/pricing.html (each ~2.5KB,
+  embeds same sitewide nav text as sibling real captures).
+- 4 twilio.com gap probes: nav appears MID-PAGE below the head_
+  lines window typical of detect_cross_page_banners. Same nav text
+  on all 4 pages; gap exposed = head_lines threshold miss.
+- 4 webflow.com gap probes: nav at HEAD but text VARIES per page
+  (per-page active-link highlighting + page-specific CTAs). Gap
+  exposed = verbatim-match brittleness.
+
+Same generator wrote 20 meta.json files (per-fixture provenance:
+schema_version 1.0, capture_method enum, response_status, expected_
+outcome, test_purpose, provenance_note).
+
+──────── Step B-4: verify-before-asking on all 20 fixtures ──────
+
+Ran extract_hard_exclusions(html, "example.com") across all 20
+fixtures (9 real + 11 synthetic). Result: 20/20 PASS exclusion_
+reason=''. No detector false-positives. All 20 fixtures legitimate-
+business-surface-clean.
+
+──────── Step C: 5 per-domain conformance tests + COVERED ──────
+
+Added 5 new test_multipage_boilerplate_<domain>_conformance
+parametrize functions to tests/scraper/test_fixture_conformance.py
+following the international_business per-locale precedent. Each
+asserts `_block(path)["exclusion_reason"] == ""` per fixture (the
+inverted-legitimate-business pattern). "multipage_boilerplate"
+added to COVERED set.
+
+Combined suite at first run: 256 passed / 0 failed / 0 skipped
+(236 baseline + 20 multipage). Acceptance target met.
+
+──────── Step D: 6 commits with reversed order ─────────────────
+
+Operator-approved order: conformance test commit FIRST (test file
+only), then 5 per-domain commits (fixtures only). Reason: per-
+domain commits FIRST would leave commits 1-5 in a broken
+intermediate state where test_every_fixture_directory_has_a_test
+fails (multipage_boilerplate dir present but not in COVERED). The
+reversed order keeps combined-suite verification green at every
+commit boundary per the Session 16 forward pattern.
+
+Note on combined-suite count at each commit boundary: the predicted
+236 → 240 → 244 → 248 → 252 → 256 progression in commit 1's
+message was inaccurate. Pytest discovers fixtures via filesystem
+glob, not git tree, so untracked multipage fixtures (pre-positioned
+in Step B) were visible to pytest from commit 1 onward. Actual
+progression: 256 throughout. Commit 1 (W5.multipage-conformance)
+message retains the inaccurate "236 passed" prediction per CLAUDE.md
+no-amend rule; commits 2-6 messages were revised pre-commit to
+reflect actual behavior. Forward discipline: phrase commit message
+verification as "combined suite (working tree): N passed at this
+commit boundary" — not "after this commit adds N tests" — and run
+the suite pre-commit against the working tree to populate the
+correct N.
+
+Commits (in order, all pushed to origin/main):
+- 5bf2ed0 W5.multipage-conformance: 5 per-domain conformance tests
+  + COVERED entry. Test file only. Documents 16-duplicate-stem
+  warning that future cascade runs will log (5 domains × 4 stems
+  = 4 distinct, 16 fixtures shadowed in index; non-fatal — test_
+  real_corpus_index_covers_198_fixtures asserts >= 195, holds at
+  202 + 4 = 206).
+- e288d98 W5.multipage-hubspot: 8 files (3 real + 1 synthetic
+  pricing × .html + .meta.json).
+- 4ea82fe W5.multipage-notion: 8 files.
+- 7e1f266 W5.multipage-atlassian: 8 files. Out-of-corpus swap from
+  snowflake.com documented in commit body.
+- 9f49537 W5.multipage-twilio: 8 files. All 4 synthetic gap probes.
+- e060e5f W5.multipage-webflow: 8 files. All 4 synthetic gap probes.
+
+──────── Pre-push gate (all green) ────────────────────────────
+
+- ruff check .: All checks passed.
+- ruff format --check .: 321 files already formatted.
+- vermin --target=3.10 (tracked .py only): Min 3.10 met. Bare
+  `vermin .` trips on venv-internal pytest 3.14 syntax — pre-
+  existing third-party package issue, NOT project code. Future
+  pre-push gate should use `git ls-files '*.py' | xargs vermin
+  --target=3.10` to filter.
+- validate_consistency: 0 errors / 0 warnings / PASS.
+
+Pushed: ddd3cb0..e060e5f → origin/main.
+
+──────── Cost & schedule tracking ─────────────────────────────
+
+- Session 17 LLM spend: $0 (Option-3 design-gate eliminated the
+  cascade-driver run; original estimate was $0.026).
+- Sessions 1-17 cumulative: $0.263658.
+- Budget remaining: $99.736.
+- Schedule: Workstream 0 Week 5 fully closed (all 6 sub-surfaces
+  landed). Session 18 opens W A.0 W6 baseline-v0 scaffolding.
+
+──────── Forward-applicable findings ──────────────────────────
+
+1. Pricing-as-consistent-failure pattern. Across 3 SSR-friendly
+   modern SaaS marketing sites (hubspot, notion, atlassian),
+   /pricing pages consistently failed real-curl capture (SPA
+   shell / WAF / 404). Future fixture sourcing for marketing-site
+   pricing pages should default to synthetic-with-real-markers;
+   budget for real capture only on sites with confirmed-static
+   pricing pages (older businesses, non-SaaS marketing).
+
+2. Markdown-render NBSP corruption in shell commands. When numeric
+   flag arguments (--retry 3, --max-time 30) or whitespace-sensitive
+   shell syntax (case-statement bodies) are rendered through
+   markdown code blocks and copy-pasted into bash, ASCII spaces may
+   be replaced with U+00A0 non-breaking spaces. Bash silently mis-
+   parses; curl reports "expected a proper numerical parameter".
+   Resolution: write multi-line shell scripts to /tmp/ via the
+   Write tool (bytes-on-disk are clean ASCII) and run via
+   `bash /tmp/<script>.sh`.
+
+3. Working-tree-vs-git-tree visibility for pytest. Pytest's
+   filesystem glob discovers fixtures present on disk regardless
+   of git tracking state. Combined-suite verification at a commit
+   boundary reflects the FULL working tree, not the git-tracked
+   subset. Per-commit test-count predictions in commit messages
+   should account for pre-positioned (but uncommitted) files.
+
+4. detect_cross_page_banners is at the page_acquisition layer,
+   not the cascade layer. Fixtures targeting this detector should
+   NOT go through the W4.1.5 cascade driver (which tests single-
+   page Stage 1/2/3 verdicts, the wrong layer). The Option-3
+   pattern (no expected.json, no cascade run, conformance via
+   extract_hard_exclusions inverted assertion only) is the right
+   shape for future page_acquisition-layer fixture work.
+
+──────── Workspace changes landed this session ────────────────
+
+- SESSION_LOG.md: this entry (Session 17 append).
+- SESSION_TRANSITION_TEMPLATE.md: refilled for Session 18 (W A.0
+  W6 baseline-v0 as primary work unit; W5 fully closed).
+
+Repo changes (6 commits):
+- W5.multipage-conformance 5bf2ed0
+- W5.multipage-hubspot e288d98
+- W5.multipage-notion 4ea82fe
+- W5.multipage-atlassian 7e1f266
+- W5.multipage-twilio 9f49537
+- W5.multipage-webflow e060e5f
+
+No new tags placed this session. workstream-0-week5-end remains at
+ddd3cb0 (Session 16 close). Operator may place a separate marker
+(e.g. workstream-0-week5-multipage-end at e060e5f) or update the
+annotated week5 tag's message to acknowledge the multipage closure
+— deferred to operator discretion.
+
+Pushed to origin/main: ddd3cb0..e060e5f.
+
+Test counts at Session 17 close (verified):
+- Conformance: 210 passed / 0 failed / 0 skipped (190 + 20).
+- Driver suite: 46 passed / 0 failed.
+- Combined: 256 passed / 0 failed / 0 skipped.
+- Corpus: 222 .html fixtures (was 202 at Session 16 close, +20).
+- 202 expected.json (unchanged; multipage_boilerplate has no
+  expected.json per Option-3 decision).
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+Next concrete work: W A.0 W6 baseline-v0 CLI scaffolding per plan
+§4 W6. RECONCILIATION_2026-05-21.md §4.3 + §5.5: thin wrapper over
+W4.1.5 cascade driver, not a from-scratch CLI rebuild.
