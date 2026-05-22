@@ -89,6 +89,211 @@ be productive within ~10 minutes.
 
 ---
 
+## Session 20 execution order (enforce strict sequence)
+
+The phases below are sequential. Do NOT advance to Phase N+1 until
+Phase N's halt-conditions clear. Cassettes and canary are independent
+sub-surfaces inside Phases 2-3; either may be deferred at Phase 1
+without blocking the other, but within each sub-surface the per-module
+commit order is strict.
+
+**Phase 0 — Cold-start verification (mandatory; halt-on-mismatch).**
+   See "Required reading" block below for the exact commands.
+   Expected: HEAD `467647e`, tags 8 (unchanged from S19 close),
+   combined suite 332/0/0, driver-diff vs `dd64963` empty
+   (excluding `test_fixture_fetcher.py`), 222 .html / 202
+   expected.json / 222 meta.json / 1213 baseline-v0 files.
+   HALT IF anything differs.
+
+**Phase 1 — Naming + scope resolution (no code; pre-design-gate).**
+   Resolve via AskUserQuestion BEFORE any Step A elicitation:
+     (a) `barcada-drift` vs `barcada-baseline canary-run` naming +
+         ownership (CLASSIFICATION_ADJACENT_PLAN.md §Item 8 has
+         AI/ML team decisions outstanding). If unresolved, defer
+         canary to a future session and proceed with cassettes
+         only — do NOT commit to a CLI name that AI/ML may
+         override.
+     (b) Sub-surface scope: cassettes only / canary only / both /
+         neither (defer all W7 remainder).
+   HALT IF Phase 1(a) cannot be resolved without external AI/ML
+   consultation — surface to operator before continuing.
+
+**Phase 2 — Design-gate elicitation (no code; AskUserQuestion).**
+   Surface in 2-3 batches as needed; each chosen sub-surface unlocks
+   its own questions. Required pre-source-verification per
+   `[[verify-before-asking-discipline]]`:
+     - Re-read `tools/baseline_v0/cli.py` + `generate.py` at
+       session-current HEAD to confirm the subparser + lazy-import
+       dispatch pattern.
+     - Re-read `tools/baseline_v0/check.py` at session-current HEAD
+       to confirm any new sub-surface's helpers won't collide with
+       the check surface (e.g., shared `COMPONENT_NAMES`, shared
+       hash helpers).
+     - Read `eval_data/canary_50_domains.txt` to confirm the 50
+       vetted domain lines (read-only consumable; do NOT modify).
+   Cassette sub-questions (if cassettes in scope):
+     - Tool selection: vcrpy / mitmproxy export / custom.
+     - Capture mode: network-only / capture-and-classify (cost:
+       $0.20-$3.00 vs $6-$45 envelope).
+     - Robots.txt compliance: per-domain pre-record check /
+       restrict to canary_50 vetted subset / defer to post-W A
+       robots-parser.
+     - Corpus curation: must run `extract_hard_exclusions` against
+       each candidate; either drop FP-tripping candidates or
+       document which cassettes encode known FPs (LESSONS S9).
+     - Module placement: `tools/synthetic_crawl/` namespace
+       package / extension under `tools/baseline_v0/`.
+     - Determinism gate: byte-identical replay across 2 runs /
+       documented-exclusion list of non-deterministic fields.
+   Canary sub-questions (if canary in scope):
+     - Scheduler mechanism: GitHub Actions cron / server cron
+       daemon / operator-driven manual.
+     - Trend dashboard scope: full (3 metrics: agreement, cost,
+       anti-bot) / minimal (1 metric).
+   Shared sub-questions:
+     - Commit shape: per-module / bundled / hybrid.
+     - Tag at session close: `workstream-0-week7-end` at
+       full-W7-close / `workstream-0-end` if cassettes + canary
+       fully close W0 / defer all.
+   HALT IF any decision would require modifications to
+   `src/barcada_scraper/` production code OR to the W4.1.5
+   driver — surface as design-gate before patching.
+
+**Phase 3 — Implementation (per-module commits, strict order).**
+
+   For cassettes (if in scope; each step its own commit + boundary
+   verification):
+     3.1 `WA0.W7.cassettes-skeleton` — subparser + dispatch +
+         stub module. CLI surface validated end-to-end via --help.
+         Combined-suite at boundary.
+     3.2 `WA0.W7.cassettes-driver` — recording mode + replay
+         mode. NO live HTTP yet; tested via mocked HTTP.
+         Combined-suite at boundary.
+     3.3 `WA0.W7.cassettes-tests` — unit (record/replay logic) +
+         integration (mock-HTTP cassette round-trip).
+         Combined-suite at boundary.
+     3.4 `WA0.W7.cassettes-corpus-capture` — actual live recordings
+         of the chosen N-domain corpus. Robots.txt compliance
+         gate from Phase 2 enforced before each record.
+         Cost-aware: halt + re-estimate if actual spend exceeds
+         3× the Phase 2 budget envelope.
+
+   For canary (if in scope):
+     3.5 `WA0.W7.canary-skeleton` — subparser + dispatch + stub.
+         CLI surface validated. Combined-suite at boundary.
+     3.6 `WA0.W7.canary-impl` — parquet output + per-domain
+         pipeline invocation. Combined-suite at boundary.
+     3.7 `WA0.W7.canary-tests` — argparse + parsing + parquet
+         output schema. Combined-suite at boundary.
+     3.8 `WA0.W7.canary-scheduler` — GitHub Actions workflow OR
+         cron config OR operator-doc per Phase 2 decision.
+     3.9 `WA0.W7.canary-dashboard` — trend script/notebook per
+         Phase 2 scope decision.
+
+   At EVERY commit boundary:
+     - Combined suite (conformance + driver + baseline_v0 +
+       any new W7 test modules) green.
+     - ruff check + format --check on touched files green.
+     - `[[double-check-before-commit]]` strict rule: every
+       concrete claim in the commit message verified against
+       source/output BEFORE staging. Build verification table.
+   HALT IF combined suite goes red and the new failure is NOT
+   a deliberate consequence of the surface-under-test.
+
+**Phase 4 — Pre-push gate (whole-tree).**
+   - `ruff check .`                          → must be clean
+   - `ruff format --check .`                 → must be clean
+   - `git ls-files '*.py' | xargs vermin --target=3.10`
+                                             → must hold 3.10 floor
+   - `eval_data/scripts/validate_consistency.py`
+                                             → 0 errors / 0 warnings
+   HALT IF any gate red. Never use `--no-verify`.
+
+**Phase 5 — Push + tag.**
+   - Push to `origin/main` only after operator confirms.
+   - Tag disposition per Phase 2's shared sub-question
+     (`workstream-0-week7-end` / `workstream-0-end` / defer).
+
+**Phase 6 — Workspace close-out.**
+   - Append Session 20 entry to `~/crawler-audit/SESSION_LOG.md`.
+   - Refill `~/crawler-audit/SESSION_TRANSITION_TEMPLATE.md`
+     for Session 21.
+   - Single workspace commit at session close (Sessions 13-19
+     precedent). Push workspace after operator confirms.
+
+---
+
+## Regression-protection checklist (DO NOT BREAK)
+
+The Session 19 `check` sub-surface is a load-bearing surface for
+future Phase 4 PR-E CI-gate wiring. Session 20 cassette + canary
+work MUST NOT regress it. Specifically:
+
+**Code surfaces that must stay green** (not modify unless explicit
+operator authorization at Phase 2 design-gate):
+
+- `tools/baseline_v0/cli.py` — MAY add new subparsers (e.g.,
+  `cassettes`, `canary-run`) following the same lazy-import
+  dispatch pattern. MUST NOT alter the existing `generate` or
+  `check` subparser argument shapes, defaults, or dispatch
+  semantics.
+- `tools/baseline_v0/check.py` — read-only this session.
+- `tools/baseline_v0/generate.py` — read-only this session.
+- `tools/baseline_v0/determinism.py` — read-only. Both cassettes
+  and canary may IMPORT `canonical_json` + `hash_canonical`
+  (analog of how `check.py` reuses them) but must not modify.
+
+**Test surfaces that must stay green** (no edits to existing tests
+unless authorized):
+
+- `tests/baseline_v0/test_check.py` — 24 tests, all green at S19
+  close. MUST stay 24/24 green through every S20 commit boundary.
+- `tests/baseline_v0/test_generate.py` — 18 tests, unchanged.
+- `tests/baseline_v0/test_cli.py` — 15 tests (9 generate + 6 check
+  dispatch). Session 20 MAY add new tests for new subparsers
+  (e.g., `test_cassettes_*`, `test_canary_*`) following the same
+  pattern. MUST NOT modify the 15 existing tests.
+- `tests/baseline_v0/test_determinism.py` — 19 tests, unchanged.
+- `tests/runners/fixture_cascade/` — 46 driver tests. Driver
+  TEST files may be realigned via W5.X-prefix commits per Session
+  16 precedent ONLY IF cassette/canary work surfaces a driver-
+  test brittleness; default position is "don't touch."
+- `tests/scraper/test_fixture_conformance.py` — 210 conformance
+  tests, unchanged.
+
+**Fixture / manifest invariants**:
+
+- `tests/fixtures/baseline-v0/manifest.json` — schema_version
+  `baseline-v0/0.1.0`, fixture_count 202, llm_mode `real`,
+  driver_sha `521e363466435c30deab7cdc63a73649c8de3bce`. Do NOT
+  re-capture during Session 20 (would invalidate the check
+  comparison surface). A future re-capture is a separate
+  operator-authorized work unit.
+- `tests/fixtures/baseline-v0/` per-component files (202 × 6 =
+  1212 + manifest = 1213 total) — do NOT edit piecemeal.
+- The 222 `.html` + 202 `expected.json` + 222 `meta.json`
+  fixtures — corpus stable; do NOT add/remove/modify during
+  Session 20 unless explicitly authorized.
+
+**Subsystem boundaries** (enforced regardless of operator
+authorization):
+
+- `src/barcada_scraper/` — production code; out of scope for
+  W A.0 W7 unless Phase 2 design-gate explicitly authorizes a
+  specific module.
+- `configs/` — pipeline configs; out of scope.
+- `eval_data/` — locked tree; read-only consumable (e.g., reading
+  `canary_50_domains.txt` is allowed; modifying is not).
+- All Workstream 0 tags — locked; do NOT move.
+
+**Cumulative test-count gate**: combined suite at S19 close is
+332/0/0. Session 20 commits must keep `conformance + driver +
+baseline_v0 + new_W7_test_modules` at ≥332 green throughout. A
+single failing test that was passing at session open is a
+regression — investigate immediately, do not advance phases.
+
+---
+
 ## Active task list
 
 The Session 19 task list (cold-start verify → required reading →
