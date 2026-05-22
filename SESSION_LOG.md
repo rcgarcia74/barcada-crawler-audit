@@ -3705,3 +3705,297 @@ Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
 Next concrete work: W A.0 W6 baseline-v0 CLI scaffolding per plan
 §4 W6. RECONCILIATION_2026-05-21.md §4.3 + §5.5: thin wrapper over
 W4.1.5 cascade driver, not a from-scratch CLI rebuild.
+
+## Session 18 — W A.0 W6 baseline-v0 CLI scaffolding (2026-05-22)
+
+Scope: Engineering session. Landed the W A.0 W6 deliverable per plan
+§4 W6 + RECONCILIATION_2026-05-21.md §4.3 + §5.5: `barcada-baseline`
+CLI as a thin wrapper over the locked W4.1.5 cascade driver, plus
+the W6-close baseline-v0 snapshot across 202 single-page fixtures.
+5 repo commits + workspace close-out. LLM spend: $0.447 total (two
+capture runs: $0.236 buggy + $0.211 fixed; second capture is the
+committed snapshot). New annotated tag `baseline-v0` placed at the
+W6 close commit (9e9a1fb).
+
+──────── Cold-start verification at session open ───────────────
+
+- Workspace HEAD `f8b3995` matched outgoing template (Session 17 close).
+- Repo HEAD `e060e5f` (W5.multipage-webflow).
+- All 7 workstream tags verified at expected SHAs (pre-remediation
+  3cbb9b3, week1 4f9d23f, week2 e5d2f91, week3 cf0c14c, week4
+  b2e2671, week4-1-5 dd64963, week5 ddd3cb0).
+- reconciliation-2026-05-21-absorbed tag intact at ce7e8e9.
+- 222 .html + 202 expected.json + 222 meta.json fixtures on disk.
+- Driver intact at tests/runners/fixture_cascade/ (zero diff vs
+  dd64963, excluding the operator-authorized W5.X-driver-test-
+  realign at 8d0fc0e from Session 16).
+- Combined suite at session open: 256 passed / 0 failed / 0 skipped
+  (210 conformance + 46 driver).
+- Schema at v1.1; META_SCHEMA v1.1 prose.
+
+──────── Step A: design-gate elicitation (2 AskUserQuestion batches) ─
+
+Pre-AskUserQuestion source verification at HEAD `e060e5f` (per the
+verify-before-asking discipline extension, Sessions 12/16/17):
+
+1. cascade.py public entry: `run_fixture_cascade_sync(**kwargs) ->
+   CascadeResult` at line 535; async primary `run_fixture_cascade`
+   at line 358 takes (fixture_root, output_dir, configs_dir, run_id,
+   llm_mode, max_fixtures, fixture_filter, stage_budget_usd).
+2. CascadeResult: frozen dataclass with run_id, output_dir,
+   fixture_count, stage{1,2,3}_cost_usd, expected_json_paths.
+3. consolidate.py emits ONE `<domain>.json` per fixture with 5 keys:
+   schema_version + parser_output + barriers_verdict (null) +
+   stage1_decision + stage2_decision + stage3_decision.
+4. fixture_fetcher.py `build_fixture_index` is a `dict[str, Path]`
+   keyed by `path.stem` with last-write-wins on duplicates. The 20
+   multipage_boilerplate fixtures share only 4 distinct stems
+   (home/about/pricing/products); 16 are silently shadowed.
+   `--fixture <stem>` resolves to dict[stem] (one Path, non-
+   deterministic for multipage stems).
+5. Plan §4 W6 calls for SIX per-fixture files under `expected/`:
+   parser_output.json + .hash, text_extraction.txt + .hash,
+   barriers_verdict.json, link_discovery.json — but the cascade
+   today emits the 5-key consolidated shape. "Thin wrapper" framing
+   has interpretive room; surfacing this mismatch became the
+   primary design-gate question.
+
+Batch-1 design-gate (4 questions):
+
+Q1. Output shape — `Hybrid (recommended)` chosen. parser_output.json
+  + .hash + barriers_verdict.json + .hash + stage_decisions.json +
+  .hash (3 component pairs from cascade-available data), with
+  text_extraction + link_discovery documented as deferred surfaces
+  in the manifest. Avoided the plan-faithful 6-file shape (would
+  have required wiring extraction.py + text_cleaning.py + a
+  separable link-discovery path; pushed against the "thin wrapper"
+  framing of RECONCILIATION §5.5).
+Q2. CLI placement — `tools/baseline_v0/` (namespace package; no
+  __init__.py at tools/ since Python 3.3+ namespace-package
+  semantics suffice). Avoided src/barcada_scraper/ production-code
+  surface.
+Q3. Subcommand surface at W6 — `generate only`. `check` deferred to
+  the W6-W7 boundary per RECONCILIATION §5.5 "engineering surface
+  narrows to CLI + determinism + W7 integration prep".
+Q4. Multipage handling — `Skip entirely`. Session 17 Option-3
+  carry-forward; manifest records the deliberate skip (20 fixtures)
+  with the page_acquisition-layer + stem-collision reasoning.
+
+Batch-2 design-gate (4 questions):
+
+Q5. Output location — `tests/fixtures/baseline-v0/` (parallel
+  subtree). Per cold-start prompt §Scope, "W A.0 W6 produces the
+  parallel baseline subtree but does NOT mechanically delete or
+  overwrite the existing expected/<domain>.json files".
+Q6. baseline-v0 tag — `At W6 close` (placed at 9e9a1fb post-capture).
+Q7. Schema definition — `Implicit / freeform`. Defer formal
+  baseline-v0.schema.json to W7 or downstream consumer needs.
+Q8. Commit shape — `Per-module`. 4 baseline commits (cli-skeleton →
+  generate → tests → baseline-v0-capture) + 1 mid-flight bug-fix
+  commit, matching Sessions 11-17 per-surface decomposition.
+
+Mid-session 1-question gate during Step D:
+
+Q9. LLM mode for baseline-v0 capture — `real ($0.26 est)`. Operator
+  chose real mode over fake (no LLM cost) or hybrid (both). Fake
+  mode would have produced placeholder-uniform stage decisions for
+  every fixture; real mode produces fixture-specific Azure-OpenAI-
+  driven decisions matching the W4.2 semantics. Pre-flight 2-fixture
+  dry-run extrapolated to $0.22 across 202, well under the $0.90
+  halt ceiling.
+
+──────── Step B: per-module implementation, 3 commits ──────────
+
+6dd4563 WA0.W6.cli-skeleton: argparse + dispatch. tools/baseline_v0/
+  {__init__,__main__,cli,generate}.py. Generate stub returns exit-2
+  with a "not yet implemented" message — `--help` works end-to-end,
+  argparse routing validated, but the cascade isn't called. 239
+  insertions. Combined suite unchanged at 256/0/0.
+
+db02677 WA0.W6.generate: real generate() + determinism normalization.
+  tools/baseline_v0/{generate.py,determinism.py}. Five module
+  helpers (_apply_filters, _enumerate_single_page_fixtures,
+  _decompose_consolidated, _write_component_pair, _build_manifest)
+  factor the work; the main `generate()` stays at 6 decision
+  points, well under the <15 ceiling. canonical_json uses
+  type()-based float normalization (FLOAT_PRECISION=6) to preserve
+  bool vs int distinction (avoiding the isinstance(True, int)
+  collision). 330 net insertions. Manual smoke-test against 3
+  fixtures + byte-identical re-run determinism gate confirmed
+  before commit. Combined suite unchanged at 256/0/0.
+
+ed1bf3d WA0.W6.tests: 45 tests across 3 modules. tests/baseline_v0/
+  {__init__.py,test_determinism.py,test_cli.py,test_generate.py}.
+  19 determinism unit tests (sort-keys, float normalization,
+  bool/int false-positive guard, hash-format/determinism, round-
+  trip), 9 CLI argparse tests (help, missing-required-args, invalid
+  llm-mode, monkeypatched dispatch + exit-code propagation), 17
+  generate helper + validation tests (synthetic corpus exercising
+  enumerate / decompose / apply_filters / _default_run_id format),
+  plus 2 real-cascade integration tests in fake mode against the
+  real fixture corpus (1-fixture generate + byte-identical re-run
+  determinism, ~4s each). 612 insertions. Combined suite at this
+  commit: 301 passed / 0 failed / 0 skipped (256 baseline + 45
+  new).
+
+──────── Step D: bug surfacing during the first capture run ─────
+
+Operator chose `--llm-mode real` for the W6 capture (Q9). 2-fixture
+dry-run extrapolated to $0.22 across the full 202; well under
+$0.90.
+
+First full 202-fixture capture (background, ~10-15 min wall time):
+exit 0, $0.236 total ($0.005 stage1 + $0.047 stage2 + $0.184 stage3).
+But the output layout revealed a category-attribution bug: 3
+fixtures from international_business/ ended up under top-level
+`br/`, `de/`, and `jp/` directories. Root cause: my
+`_enumerate_single_page_fixtures` used `path.parent.name` as the
+category, which works for the 199 depth-5 fixtures but misreads
+depth-6 nested layouts like
+`tests/fixtures/html/international_business/de/siemens.de.html`
+(parent.name = "de", not "international_business").
+
+The 3 nested fixtures in this layout: siemens.de (de),
+locaweb.com.br (br), hitachi.co.jp (jp). All cascade output for
+these was content-correct; only the path attribution was wrong.
+
+──────── Step D.5: fix-nested-category + re-capture ──────────
+
+521e363 WA0.W6.fix-nested-category: switch to
+  `path.parent.relative_to(fixture_root).as_posix()` so the
+  baseline-v0 subtree mirrors the source layout. Added 1 test
+  (`test_enumerate_single_page_handles_nested_category`) exercising
+  a depth-3 nested corpus alongside a flat one. 29 net insertions.
+  Combined suite: 301 → 302. Cyclomatic complexity of
+  `_enumerate_single_page_fixtures` unchanged at 2 decision points.
+
+Cleanup: the operator removed the buggy baseline-v0/ subtree via
+`! rm -rf tests/fixtures/baseline-v0/` in the chat (the safety hook
+blocks destructive ops from Claude Code directly; per-prompt
+operator-executed cleanup is the workaround).
+
+Second full 202-fixture capture: exit 0, $0.211 total ($0.005
+stage1 + $0.048 stage2 + $0.158 stage3). Slightly less than the
+first run (LLM cost varies somewhat across runs even with cached
+prompts). international_business/{br,de,jp}/<domain>/ layouts
+verified correct in the manifest.
+
+Then refreshed the manifest's driver_sha + generated_at in-place to
+match the post-fix HEAD (521e363) without spending another $0.21
+re-running. The on-disk component files were unchanged; only the
+manifest's metadata fields needed updating.
+
+9e9a1fb WA0.W6.baseline-v0-capture: 1213 files committed under
+  tests/fixtures/baseline-v0/ (202 fixtures × 6 components + 1
+  manifest), ~6.4 MB total, 45,438 insertions. Combined suite at
+  this commit boundary: 302/0/0 (tests don't reference the
+  committed snapshot).
+
+──────── Pre-push gate + tag + push ─────────────────────────────
+
+Pre-push gate at HEAD `9e9a1fb`:
+- ruff check .                              → All checks passed
+- ruff format --check .                     → 330 files OK
+- git ls-files '*.py' | xargs vermin --target=3.10
+                                            → Minimum required 3.10
+- eval_data/scripts/validate_consistency.py → 0 errors / 0 warnings
+
+Annotated tag placed:
+- `baseline-v0` at 9e9a1fb. Annotation summarizes the W6 close:
+  scope (Hybrid 3-pair × 202 fixtures + manifest; 20 multipage
+  skipped), capture metadata (run_id, driver_sha, $0.211 cost),
+  CLI placement, output durability semantics (supersedes W4.2 +
+  W5 expected.json downstream; existing files remain in place),
+  and post-tag combined suite 302/0/0.
+
+Push to origin/main: e060e5f..9e9a1fb. Tag baseline-v0 also pushed.
+0 ahead / 0 behind verified post-push.
+
+──────── Step F: workstream-0-week5-end disposition (deferred) ──
+
+Carry-forward from Session 17. Operator chose `Defer (recommended)`.
+The future workstream-0-end tag (placed after W A.0 W7 closes)
+would supersede; lowest churn.
+
+──────── Forward-applicable patterns from Session 18 ───────────
+
+1. Plan-spec interpretation room: plan §4 W6 wording ("thin wrapper
+   or extension over the W4.1.5 fixture-cascade driver") had
+   multiple valid readings (literal wrap vs plan-faithful 6-file vs
+   Hybrid). Surface as design-gate via AskUserQuestion before
+   implementation, even when the work is "obviously" scoped — the
+   plan's prose vs the runtime code's surface can diverge enough
+   that an AskUserQuestion is the cheapest disambiguation. Pair
+   with verify-before-asking: re-read the actual runtime API shape
+   before drafting the design-gate options.
+
+2. Background process + harness notification: long-running cascade
+   captures (~10-15 min wall time for 202 fixtures real mode) fit
+   the Bash run_in_background pattern cleanly. The harness notifies
+   on completion without polling; don't ScheduleWakeup-poll a
+   harness-tracked background process. Use the wait time for
+   thinking about next steps, but don't begin them until results
+   are in.
+
+3. Safety hook blocks destructive ops on untracked dirs. The
+   project's safety-check.sh blocks `rm -rf <path>` even on
+   untracked fixture output dirs. Workaround: ask the operator to
+   execute `! rm -rf <path>` in the chat (the `!` prefix executes
+   inline). Don't bury this in tool error retry — surface to
+   operator immediately.
+
+4. Manifest in-place refresh vs full re-run: when a capture
+   produces correct on-disk content but a slightly-stale metadata
+   field (here, driver_sha lagging behind a small bug-fix commit),
+   a one-shot manifest re-serialization beats spending another
+   capture cycle's LLM cost. Keep this option in mind when
+   downstream consumers care about metadata accuracy but content
+   is already ground-truth-correct.
+
+5. The `--max-fixtures N` filter at the wrapper level vs the
+   cascade level: the wrapper computed `items` first (path-aware,
+   excludes multipage_boilerplate/), then passed
+   `[stem for stem, _, _ in items]` as cascade's `fixture_filter`
+   with `max_fixtures=None`. This is structurally cleaner than
+   letting the cascade do its own path-naive selection — the
+   wrapper owns the "what's in scope" decision and the cascade
+   handles "process these specific stems". Forward-applicable when
+   other tooling wraps the cascade.
+
+──────── Workspace changes landed this session ────────────────
+
+- SESSION_LOG.md: this entry (Session 18 append).
+- SESSION_TRANSITION_TEMPLATE.md: refilled for Session 19 (W A.0
+  W7 synthetic-crawl-tape capture as primary work unit; W A.0 W6
+  fully closed; baseline-v0 tag placed).
+
+Repo changes (5 commits, all pushed):
+- WA0.W6.cli-skeleton                  6dd4563
+- WA0.W6.generate                      db02677
+- WA0.W6.tests                         ed1bf3d
+- WA0.W6.fix-nested-category           521e363
+- WA0.W6.baseline-v0-capture           9e9a1fb
+
+Tags placed this session: baseline-v0 at 9e9a1fb.
+workstream-0-week5-end disposition deferred (operator decision in
+Step F).
+
+Test counts at Session 18 close (verified):
+- Conformance: 210 passed / 0 failed / 0 skipped (unchanged).
+- Driver suite: 46 passed / 0 failed (unchanged).
+- baseline_v0 suite: 46 passed / 0 failed (NEW; 19 determinism +
+  9 cli + 18 generate including the nested-category test added
+  in 521e363).
+- Combined: 302 passed / 0 failed / 0 skipped (256 → 302).
+- Corpus: 222 .html (unchanged), 202 expected.json (unchanged),
+  202 baseline-v0 fixture directories (NEW), 1 manifest.json (NEW).
+
+Session 18 LLM spend: $0.447 total across two captures.
+Cost incurred Sessions 1-18: $0.263658 + $0.447 = $0.711.
+Cost budget remaining (cap $100): $99.29.
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+Next concrete work: W A.0 W7 synthetic-crawl-tape capture + canary
+wiring per plan §4 W7. May also extend the `barcada-baseline` CLI
+with the `check` subcommand at the W6-W7 boundary (deferred from
+Session 18 design-gate).
