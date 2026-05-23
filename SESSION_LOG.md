@@ -4827,4 +4827,290 @@ Session 21 LLM spend: $0 (parser-only; no fixtures, no live HTTP).
 Cost incurred Sessions 1-21: $0.711 (unchanged).
 Cost budget remaining (cap $100): $99.29.
 
+---
+
+## Session 22 — W A.1 W8 robots integration (closes W A.1) (2026-05-23)
+
+Scope: Engineering session. Candidate F (W A.1 integration) chosen
+at Phase 1 from the 5 S21-handoff candidates (F new + A/B/D/E
+carry-forward). 4 per-module commits (Q-SHARED.1) shipping the
+robots-gate shim, per-domain bypass-config loader, cost-journal
+audit-log field, and minimal-first CRAWLING_POLICY.md docs.
+Annotated tag `workstream-a-week1-end` placed at session-close
+commit per 1.TAG. LLM spend: $0 (no fixtures, no live HTTP).
+
+──────── Cold-start verification at session open ──────────────
+
+Phase 0 ran the 9-step verification. Step 0.1 surfaced a 2-commit
+delta on the workspace tree: HEAD was `190e75b`, not the prompt's
+expected `332f390`. Both commits matched the S20/S21 close-out
+precedent (workspace prompt-drafting + audit work between sessions):
+
+  a27b9d8 Session 22 prompt drafted: scope-agnostic 7-phase
+          template + transition pointer
+  190e75b S22 prompt audit: apply 4 reviewer findings (M-1, S-1,
+          N-1, N-2); skip S-2 (incompatible-alternative)
+
+Operator authorized continuation on the strengthened-prompt
+acknowledgment. All other Phase 0 checks clean: repo HEAD
+`34a59b6`; 9 tags incl. `workstream-0-week7-end`; driver lock
+invariant at dd64963 with the 8d0fc0e exception; fixtures
+222/202/222/1213/20/20; combined suite 420/0/0; manifest
+`baseline-v0/0.1.0` with `driver_sha` prefix `521e363`; schema
+v1.1 18-col stage3; both sub-surface CLIs report expected
+subcommand counts; regression-protection counts (30 check + 23
+canary + 33 cassette + 32 robots) all green. Step 0.9 NEW: parser
+API surface stability check confirmed `RobotsDecision` fields and
+`RobotsPolicy.check` / `__init__` signatures unchanged from
+`34a59b6` (S21 ship).
+
+──────── Phase 1 + Phase 2 design-gate ────────────────────────
+
+Phase 1 decisions:
+- S22 scope = Candidate F (W A.1 integration).
+- Sub-question 1.TAG = "tag per candidate default" — i.e.,
+  `workstream-a-week1-end` if items 1-6 ship cleanly. Pre-resolved
+  at Phase 1 so Phase 5 has no ambiguity.
+
+Phase 2 source-verification surfaced a major plan-vs-reality
+finding BEFORE the design-gate AskUserQuestion went out:
+
+  `link_discovery.py` (the integration site named in plan §5
+  Action #2) is a PURE FUNCTION URL extractor with the docstring
+  explicitly stating "performs NO network I/O." The robots check
+  must happen BEFORE fetch, so the plan's "integrate into
+  link_discovery.py" is architecturally wrong — the right seam
+  is `fetcher_core.fetch_one` (async/httpx) or the orchestrator
+  calling it, which has an impedance mismatch with `RobotsPolicy`
+  (sync/requests). This finding shaped Q-F.1's option set: "shim
+  only" became the recommended choice with worker_loop wiring
+  explicitly deferred to W A.2.
+
+Phase 2 design-gate (Candidate F):
+- Q-F.1 site = new shim module only at
+  `src/barcada_scraper/scraper/robots_gate.py`. Defers the
+  worker_loop / fetcher_core wiring to W A.2 where the sync/async
+  bridge can be designed properly. Tests against the shim's
+  public API.
+- Q-F.2 config = per-domain JSON sidecar with `authorized_by`,
+  `reason`, optional `expires_iso`. Plan §5 Action #2 bullet 4's
+  "explicit per-domain configurable" maps to this shape.
+- Q-F.3 journal = new journal-level field `robots_bypass_log:
+  tuple[BypassAuditEntry, ...]` on `JournalState`. Resumes Q-C.4
+  deferred-from-S21 carry-forward.
+- Q-F.4 disallow = log + skip + drift signal at INFO level with
+  stable prefix `robots_gate.drift_signal` for future
+  barcada-drift grep consumption.
+- Q-F.5 crawl-delay = operator-configurable via
+  `honor_crawl_delay` kwarg, default False (preserves current
+  crawl speed; opt-in for spec compliance).
+- Q-F.6 docs = minimal-first scope; robots compliance only.
+  Rate limits / AUP / CAPTCHA / retention deferred to W A.2+ when
+  their behaviors land in code.
+- Q-F.7 tests = synthetic robots.txt + injectable fetcher
+  (mirrors `tests/scraper/test_robots.py:42-60` style; zero real
+  HTTP).
+- Q-SHARED.1 = per-module commits. 4 commits in this session.
+
+Mid-Phase-3 HALT: before commit 3, surfaced that the Out-of-scope
+allow-list enumerated only `scraper/robots_gate.py` and
+`link_discovery.py`, but Q-F.3's "new journal-level field" answer
+requires touching `classifier/pipeline/cost_journal.py`. Asked
+operator for explicit authorization rather than assuming the
+Q-F.3 answer implicitly authorized the touch. Operator confirmed
+"Yes — authorize cost_journal.py".
+
+──────── Phase 3 — 4 per-module commits ──────────────────────
+
+Commits (in landing order):
+
+  ba87e7e  WA1.W8.robots-gate-shim
+    src/barcada_scraper/scraper/robots_gate.py (339 LOC) +
+    tests/scraper/test_robots_gate.py (427 LOC; 30 tests).
+    Public surface: `RobotsGate(policy, bypass_config,
+    honor_crawl_delay, clock).evaluate(url) -> GateDecision`;
+    frozen dataclasses `GateDecision`, `BypassEntry`,
+    `BypassAuthorization`; module constants
+    `GATE_ACTION_ALLOW/SKIP/BYPASS_ALLOW`, `ALL_GATE_ACTIONS`,
+    `DRIFT_SIGNAL_PREFIX`. Combined suite 420 → 450.
+
+  381ee89  WA1.W8.robots-bypass-config-loader
+    src/barcada_scraper/scraper/robots_bypass_config.py (178 LOC)
+    + tests/scraper/test_robots_bypass_config.py (299 LOC; 30
+    tests). Public surface: `load_bypass_config(path)`,
+    `loads_bypass_config(payload)`, `BypassConfigError`,
+    `REQUIRED_FIELDS`/`OPTIONAL_FIELDS`/`ALLOWED_FIELDS`. Strict
+    JSON schema validation (missing/unknown/empty fields all
+    raise); host keys lower-cased on load. Combined suite
+    450 → 480.
+
+  1d9404e  WA1.W8.cost-journal-bypass-log
+    src/barcada_scraper/classifier/pipeline/cost_journal.py
+    (+50 LOC) + tests/classifier/pipeline/test_cost_journal.py
+    (+208 LOC; 14 new tests + 1 existing updated). NEW frozen
+    dataclass `BypassAuditEntry` (parallel to scraper's
+    `BypassAuthorization`); NEW field
+    `JournalState.robots_bypass_log: tuple[BypassAuditEntry, ...]`
+    with `field(default_factory=tuple)`; NEW method
+    `with_robots_bypass_appended(entry)`; `to_dict` always emits
+    `robots_bypass_log` key; `from_dict` reads
+    `data.get("robots_bypass_log", [])` for back-compat with
+    pre-S22 journals. `_replace` helper updated. `__all__`
+    extended. Combined suite (with classifier/pipeline tests):
+    480 → 538 (538 = 480 + 58 journal tests; 14 are new,
+    44 are pre-existing now riding along).
+
+  fdc8a7a  WA1.W8.crawling-policy-doc
+    docs/CRAWLING_POLICY.md (202 lines / 8.1 KB; no code).
+    Sections: Crawler identity, robots.txt compliance, Bypass-
+    config policy, Operational defaults table, Out-of-scope
+    deferrals (5 sections deferred to W A.2+), References. Q-F.6
+    estimate vs actual: doc is 8.1 KB vs the "~1-2 KB" minimal-
+    first estimate — robots-only scope but thorough; disclosed
+    in the commit body. Combined suite unchanged (538).
+
+Each commit boundary ran the 6-step per-commit checkpoint
+protocol (combined suite re-run, ruff check + format on touched
+files, verification table built in chat, git status check,
+"Confirm to commit?" presented, post-commit SHA + suite
+re-verification).
+
+Mid-implementation style finding (commit 2): ruff applied
+`I001 import-block organization` to `test_robots_bypass_config.py`
+and re-formatted both touched files. Folded the format-fix into
+the commit per the S19+S20+S21 "mid-implementation ruff
+format-check" discipline.
+
+──────── Phase 4 pre-push gate ────────────────────────────────
+
+All 4 gates green on first run:
+
+- ruff check .                              -> All checks passed
+- ruff format --check .                     -> 347 files OK
+- vermin --target=3.10                      -> Minimum 3.10
+- eval_data/scripts/validate_consistency.py -> 0 / 0 / PASS
+
+No eval_data WIP halt fired this session. Operator-WIP rows
+(eval_data README + TAXONOMY_GAP_LOG + stage1_labels) remained
+schema-valid; gate passed unchanged.
+
+──────── Phase 5 push + tag ───────────────────────────────────
+
+Push to origin/main: `34a59b6..fdc8a7a` (4 commits). Pre-push
+hook re-ran all gates green.
+
+Annotated tag `workstream-a-week1-end` placed at `fdc8a7a` per
+Phase 1 1.TAG resolution; tag message summarizes the W A.1 work
+(S21 parser + S22 integration + docs + cost-journal bypass
+marker) and explicitly notes W A.2 deferrals (orchestrator
+fetcher-seam wiring; sync/async bridge). Tag pushed. Tags state
+at S22 close: 10 tags total (was 9; new
+`workstream-a-week1-end` at `fdc8a7a`).
+
+──────── Forward-applicable patterns from Session 22 ─────────
+
+1. Plan-vs-reality verification at Phase 2 catches plan errors
+   pre-design-gate: the plan §5 Action #2 named `link_discovery.py`
+   as the integration site, but Phase 2 source-verification
+   surfaced that the module is pure-function (no I/O). Catching
+   this in source-verify (BEFORE the AskUserQuestion) let Q-F.1's
+   option set reflect on-disk reality ("shim only" as the
+   recommended choice; "shim + worker_loop" as a heavier
+   alternative requiring async-bridge design). Had I asked the
+   question with the plan's wording verbatim, the operator would
+   have chosen "integrate into link_discovery.py" and the
+   implementation would have hit the architectural mismatch
+   mid-Phase-3. Pattern: when the plan references a specific
+   file or function, source-verify the named entity matches the
+   plan's described shape BEFORE drafting Phase 2 questions.
+
+2. Implicit-authorization HALT for src/-locks: the Out-of-scope
+   allow-list enumerated `scraper/robots_gate.py` +
+   `link_discovery.py`, but Q-F.3's "new journal-level field"
+   answer implies touching `cost_journal.py`. Rather than
+   silently assuming the Q-F.3 answer implicitly authorized the
+   touch, surfaced as an explicit operator-confirmation step.
+   Operator confirmed in <1 minute; cheaper than re-doing a
+   commit if the implicit assumption had been wrong. Pattern:
+   any design-gate answer whose implementation requires touching
+   a src/ file NOT in the Out-of-scope's explicit allow-list
+   should HALT for explicit authorization, even when the
+   implementation path seems obvious.
+
+3. Parallel-dataclass pattern across package boundaries:
+   `robots_gate.BypassAuthorization` and
+   `cost_journal.BypassAuditEntry` are field-identical, but kept
+   as separate definitions because the scraper package and the
+   classifier/pipeline package should not depend on each other.
+   Callers do trivial field-by-field copy. Compared to options
+   (a) shared class in scraper (cost_journal → scraper dep) and
+   (b) shared class in cost_journal (scraper → classifier dep),
+   the parallel-definition (c) keeps each module independent at
+   the cost of trivial conversion at the seam. Pattern is
+   forward-applicable to any cross-package audit-record shape.
+
+4. Commit-body disclosure for plan estimate vs actual: Q-F.6's
+   "minimal-first" option cited ~1-2 KB; the actual doc is 8.1 KB.
+   Disclosing the variance in the commit body with the reason
+   ("robots-only but thorough; full-doc alternative would have
+   been mostly empty deferred sections") gives operators an
+   anchor for tightening at W A.2 close if preferred. Without
+   the disclosure, future reviewers would have to compute the
+   variance themselves.
+
+5. Per-module commit shape scales cleanly to 4 commits: Q-SHARED.1
+   chose per-module; S22 landed 4 distinct commits each with
+   their own verification table. Bisectability is real — if any
+   downstream consumer broke at commit 3, `git bisect` would
+   land on `1d9404e` directly without needing manual
+   investigation. Bundled-commit alternative would have collapsed
+   ~750 LOC of impl + ~1100 LOC of tests + 200 LOC of docs into
+   a single commit; commit body would have been a 200-line
+   summary. Pattern: when Q-SHARED.1 chooses per-module, do not
+   collapse sub-surfaces into a single commit even when context
+   pressure tempts it.
+
+──────── Workspace changes landed this session ───────────────
+
+- SESSION_LOG.md: this entry (Session 22 append).
+- LESSONS.md: 5 new forward-applicable patterns from this
+  session appended end-of-file (S22 folding).
+- SESSION_TRANSITION_TEMPLATE.md: refilled for Session 23
+  (W A.2 worker_loop integration; Workstream 0 close via
+  Candidate B; or carry-forwards from S21/S22).
+
+Repo changes (4 commits, all pushed; 1 tag, pushed):
+- WA1.W8.robots-gate-shim                  ba87e7e
+- WA1.W8.robots-bypass-config-loader       381ee89
+- WA1.W8.cost-journal-bypass-log           1d9404e
+- WA1.W8.crawling-policy-doc               fdc8a7a
+- workstream-a-week1-end (annotated)       fdc8a7a
+
+Tags placed this session: 1 (`workstream-a-week1-end` at
+`fdc8a7a`).
+
+Test counts at Session 22 close (verified post-push at HEAD
+`fdc8a7a`):
+- Conformance: 210 passed / 0 failed (unchanged)
+- Driver suite: 46 passed / 0 failed (unchanged)
+- baseline_v0 suite: 99 passed / 0 failed (unchanged)
+- synthetic_crawl suite: 33 passed / 0 failed (unchanged)
+- test_robots.py: 32 passed / 0 failed (unchanged)
+- test_robots_gate.py (NEW): 30 passed / 0 failed
+- test_robots_bypass_config.py (NEW): 30 passed / 0 failed
+- test_cost_journal.py: 44 -> 58 passed (+14 new tests + 1
+  existing updated for new dict key)
+- test_cost_journal_local.py: 13 passed / 0 failed (unchanged)
+- test_cost_journal_adls.py: 1 passed / 0 failed (unchanged)
+- Combined-suite headline (incl. classifier/pipeline ride-along):
+  420 -> 538 (+118 total; +74 net-new S22 tests
+  [30 + 30 + 14 = 74]; +44 pre-existing journal tests now
+  visible in the combined headline because S22 C3 touched the
+  module).
+
+Session 22 LLM spend: $0 (no fixtures recorded; no live HTTP;
+all tests use synthetic data + injectable fetchers).
+Cost incurred Sessions 1-22: $0.711 (unchanged).
+Cost budget remaining (cap $100): $99.29.
+
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.

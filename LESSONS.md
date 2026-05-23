@@ -1372,3 +1372,141 @@ body did NOT explicitly disclose this choice. Minor improvement
 opportunity: when sibling style differs from a project-wide
 template, name the sibling in the commit body so reviewers
 don't flag the deviation.
+
+## Plan-vs-reality at Phase 2 source-verify (S22 folding)
+
+When the remediation plan references a specific file or function
+as an integration target, source-verify that the named entity
+actually has the shape the plan describes BEFORE drafting Phase 2
+questions. S22 prompt §5 Action #2 named `link_discovery.py` as
+the robots integration site — Phase 2 source-verification at S22
+open found the module is pure-function with no I/O ("this module
+performs NO network I/O" right in the docstring), making the
+plan's wording architecturally wrong.
+
+Catching this in source-verify (BEFORE the AskUserQuestion went
+out) let Q-F.1's option set reflect on-disk reality: "shim only"
+became the recommended choice and "shim + worker_loop" became a
+heavier alternative requiring async-bridge design. Had I asked
+the question with the plan's wording verbatim, the operator's
+likely answer would have been "integrate into link_discovery.py"
+and the implementation would have hit the architectural mismatch
+mid-Phase-3 — costing a HALT, a re-design, and a re-confirmation
+round-trip.
+
+Forward-applicable: any Phase 2 question that names a specific
+file as an integration target. Verify the named file matches the
+plan's described shape (signature, return type, I/O surface)
+BEFORE drafting the question. If it doesn't, reframe the question
+options so the design-gate vote reflects the real seam choices,
+not the plan-as-written choices. Disclose the verification finding
+to the operator in chat before the question batch so the operator
+knows why the option list diverges from the plan.
+
+## Implicit-authorization HALT for src/-locks (S22 folding)
+
+When a design-gate question's answer implies touching a src/ file
+NOT in the Out-of-scope clause's explicit allow-list, HALT for
+operator authorization even when the implementation path seems
+obvious. S22 Out-of-scope enumerated `scraper/robots_gate.py` and
+`link_discovery.py` as authorized src/ touches; Q-F.3's "new
+journal-level field" answer implies touching
+`classifier/pipeline/cost_journal.py`, which the Out-of-scope
+clause did NOT enumerate.
+
+Rather than silently assuming the Q-F.3 answer implicitly
+authorized the touch, surfaced as an explicit AskUserQuestion
+step before commit 3 with three options (authorize / pivot to
+separate-file approach / defer Q-F.3 entirely). Operator confirmed
+"authorize" in <1 minute. Total cost: ~30 seconds of chat
+overhead. Cost-if-wrong-assumption: a re-done commit, a
+re-confirmation round-trip, and potentially a wrong-direction
+sub-surface (e.g., separate audit JSON file when the operator
+actually wanted journal-cohesive storage).
+
+Forward-applicable: any design-gate answer whose implementation
+requires touching a src/ file that the prompt's Out-of-scope
+clause does NOT enumerate by name. The HALT is cheap; the
+recovery from an unauthorized touch is not.
+
+## Parallel-dataclass pattern across package boundaries (S22 folding)
+
+When two packages need the same record shape but one shouldn't
+depend on the other, define the dataclass twice (parallel
+definitions) and let callers do field-by-field copy at the seam.
+S22 has `robots_gate.BypassAuthorization` (scraper package) and
+`cost_journal.BypassAuditEntry` (classifier/pipeline package)
+with identical 7-field shapes. Compared alternatives:
+
+  (a) Shared class in scraper, imported by cost_journal:
+      cost_journal → scraper dependency (cross-package, wrong
+      direction for the architecture where scraper outputs feed
+      the classifier).
+  (b) Shared class in cost_journal, imported by scraper:
+      scraper → classifier dependency (also wrong direction;
+      scraper shouldn't know about cost-journal).
+  (c) Parallel definitions, trivial conversion at seam:
+      no cross-package import; each module owns its dataclass;
+      callers map field-by-field. ← S22 chose this.
+
+The trivial-conversion cost is real but small (7-field copy at
+the gate-to-journal boundary, in a single call site). The
+no-cross-package-import benefit is real and durable (either
+module can evolve its field set independently as long as the
+seam-mapper is updated).
+
+Forward-applicable: any cross-package audit-record shape where
+the producer and the persister live in different sub-packages.
+The parallel pattern is the right default when the shape is
+small and stable; lifting to a shared types package is the right
+choice when the shape grows large or many consumers emerge.
+
+## Per-module commit shape scales to 4+ commits cleanly (S22 folding)
+
+Q-SHARED.1's "per-module commits" choice can land 4 or more
+distinct commits per session without losing bisectability or
+clarity. S22 landed 4 commits (shim + loader + journal + docs);
+each had its own verification table, its own commit-message file
+at `/tmp/s22-c<N>-msg.txt`, its own "Confirm to commit?" gate.
+If a downstream consumer breaks at any point, `git bisect` lands
+on the right commit directly.
+
+Compared to a bundled "shim + loader + journal + docs" single
+commit (~750 LOC impl + ~1100 LOC tests + 200 LOC docs):
+
+  - Single commit body would have been a 200-line summary,
+    much harder for a reviewer to skim.
+  - `git bisect` would land on the single commit and require
+    manual investigation to find which sub-surface broke.
+  - Cherry-picking one sub-surface to another branch would not
+    be possible without intermediate untangling.
+
+The per-commit overhead (4 verification tables, 4 commit-message
+files, 4 confirm-cycles) was ~5 minutes of chat overhead total —
+small relative to the implementation work.
+
+Forward-applicable: when Q-SHARED.1 chooses per-module, do not
+collapse sub-surfaces into a single commit even when context
+pressure tempts it. The verification table + commit body
+discipline scales sub-linearly; bisectability + reviewability
+scale super-linearly the more commits there are.
+
+## Phase-2 estimate-vs-actual disclosure in commit body (S22 folding)
+
+When Phase 2 design-gate options cite a size estimate (e.g.,
+"~1-2 KB" or "150-250 LOC") and the actual implementation
+diverges, disclose the variance in the commit body with a brief
+reason. S22 Q-F.6's "minimal-first" option cited ~1-2 KB; the
+actual `docs/CRAWLING_POLICY.md` shipped at 8.1 KB. The commit
+body disclosed: "robots-only but thorough; full-doc alternative
+would have been mostly empty deferred sections."
+
+The disclosure gives operators a calibration anchor for future
+Q-F.6-shape decisions and a one-sentence summary of why the
+estimate was off. Without the disclosure, future reviewers would
+have to compute the variance themselves and guess at the reason.
+
+Forward-applicable: any Phase 2 option whose label or description
+includes a size or LOC estimate. If the actual ships more than
+~2x the estimate (high or low), disclose in the commit body with
+the reason. Saves a reviewer round-trip.
