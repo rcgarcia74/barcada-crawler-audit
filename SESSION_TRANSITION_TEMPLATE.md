@@ -11,9 +11,13 @@ Pair this with the latest entry in `SESSION_LOG.md`, with
 `BARCADA_CRAWLER_REMEDIATION_PLAN.md` to start a session cold and
 be productive within ~10 minutes.
 
-**Session 21 invocation prompt:** not yet drafted. Suggested
-scope candidates are listed in "Notes for Session 21" below; the
-prompt should be authored once Session 21 scope is chosen.
+**Session 21 invocation prompt:** `~/crawler-audit/SESSION_21_PROMPT.md`
+(drafted at Session 20 close; mirrored at `~/Downloads/session-21-prompt.md`
+for operator-invocation convenience). The prompt is scope-agnostic at
+Phases 0/1 and elicits scope-specific design gates at Phase 2 per
+chosen candidate. The 3 carry-forward S20 amendments (MF-1 driver_sha
+prefix-match; MF-2 Q1.1(B) wording; SR-8 Phase 1 HALT tightening) are
+baked into the prompt directly. Re-read it on session open.
 
 ---
 
