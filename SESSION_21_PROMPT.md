@@ -120,16 +120,19 @@ Run in order. Halt and surface to operator on any mismatch.
 ### Step 0.1 — Workspace + repo HEAD
 
 ```
-# Workspace at Session 20 close-out commit:
+# Workspace at Session 21 start (Session 20 close-out + S21
+# prompt-draft commits). Both SHAs are recorded under
+# SESSION_TRANSITION_TEMPLATE.md "Workspace state" section:
 git -C ~/crawler-audit rev-parse HEAD
-# Expect: 1eb9947 (Session 20 close-out) OR a later commit if a
-# Session 21 prompt-finalization landed post-S20-close. If the
-# workspace is N commits ahead and each prior commit is a
-# prompt-finalization or workspace doc edit (verifiable via
-# `git log --oneline 1eb9947..HEAD`), surface the SHA delta and
-# request authorization to proceed (S20 precedent: operator
-# authorized continuation when the 2 extra workspace commits
-# were the strengthened prompt itself).
+# Expect: dccab29 (S21 prompt-draft commit, the most recent at
+# S20 close) OR a later commit if additional workspace doc edits
+# landed post-S20-close. If N commits ahead, verify each prior
+# commit's subject via `git log --oneline dccab29..HEAD` against
+# expected prompt-finalization / doc-edit patterns; surface the
+# SHA delta and request authorization to proceed if anything is
+# unexpected. (S20 precedent: operator authorized continuation
+# when 2 extra workspace commits were the strengthened S20 prompt
+# itself.)
 
 # Repo at Session 20 final commit:
 git -C /Users/administrator/projects/barcada-scraper rev-parse HEAD
@@ -191,10 +194,11 @@ find tests/fixtures/synthetic_crawls -name 'extract_hard_exclusions.json' | wc -
     tests/runners/fixture_cascade/ tests/baseline_v0/ \
     tests/synthetic_crawl/ -q
 # Expect: 388 passed / 0 failed / 0 skipped
+#         (= 210 conformance + 46 driver + 99 baseline_v0 + 33 synthetic_crawl)
 ```
 
-The S20 close baseline is 210 conformance + 46 driver + 99
-baseline_v0 + 33 synthetic_crawl = 388. Any drift = halt.
+The sub-paths add up to the headline: 210 conformance + 46 driver
++ 99 baseline_v0 + 33 synthetic_crawl = 388. Any drift = halt.
 
 ### Step 0.6 — Manifest + schema invariants
 
@@ -217,13 +221,27 @@ print('OK expected.schema.json v1.1 (18-col stage3 shape)')
 
 ### Step 0.7 — Existing sub-surface CLIs all work
 
-```
-.venv/bin/python -m tools.baseline_v0 --help 2>&1 | grep -c 'generate\|check\|canary-run'
-# Expect: 3 (one line each for generate, check, canary-run)
+The patterns below use `grep -oE` (ERE alternation; portable across
+BSD grep on macOS and GNU grep on Linux) + `sort -u | wc -l` to
+count distinct subcommand matches rather than matching lines (which
+would miscount on argparse's single-line `{a,b,c}` usage rendering).
+`\b` word-boundary in ERE avoids substring traps (e.g., `check`
+matching `--check`, `record` matching `recorder`).
 
-.venv/bin/python -m tools.synthetic_crawl --help 2>&1 | grep -c 'record\|replay'
-# Expect: 2 (one line each for record, replay)
 ```
+.venv/bin/python -m tools.baseline_v0 --help 2>&1 \
+    | grep -oE '\b(generate|check|canary-run)\b' | sort -u | wc -l
+# Expect: 3 (distinct subcommands: generate, check, canary-run)
+
+.venv/bin/python -m tools.synthetic_crawl --help 2>&1 \
+    | grep -oE '\b(record|replay)\b' | sort -u | wc -l
+# Expect: 2 (distinct subcommands: record, replay)
+```
+
+Alternatively, rely on Step 0.8's dispatch-test counts as a stronger
+behavioral check — those pytest collects exercise the full
+argparse + dispatch stack and would fail loudly if a subcommand
+were missing.
 
 ### Step 0.8 — Regression-protection sanity
 
@@ -283,7 +301,15 @@ In this order:
 5. **`~/crawler-audit/CLASSIFICATION_ADJACENT_PLAN.md`** §Item
    8 — only if Candidate A (barcada-drift) is chosen.
 
-6. **Repo source pertinent to Phase 2 design-gate** — varies by
+6. **`~/crawler-audit/PIPELINE_ARCHITECTURE_TARGET_STATE.md`** —
+   only if Candidate B (per-tier cost-accounting retrofit) is
+   chosen. Provides the post-Phase-4 target-state cost-envelope
+   baseline against which per-tier accounting fields should be
+   designed. READ-ONLY; do NOT use as current-code source-of-
+   truth — see `BARCADA_CRAWLER_REMEDIATION_PLAN.md` §13 for
+   the "design-of-record vs current-code" framing.
+
+7. **Repo source pertinent to Phase 2 design-gate** — varies by
    chosen candidate; spelled out in each Phase 2 sub-section
    below.
 
@@ -336,9 +362,13 @@ Estimated 100-200 LOC.
 
 ### Candidate C — W A.1 robots.txt parser (W A opens)
 
-Per plan §4 Week 8. Production robots parser used by
-`barcada-scrape` and the future `barcada-drift`. Estimated
-400-600 LOC across parser + tests + integration.
+Per plan §4 Week 8 Action #2 (Severity: CRITICAL, plan-anchored
+estimate **~300 LOC** for the parser proper). If the candidate
+also lands the test suite + integration in `barcada-scrape`'s
+fetcher seam this session, total scope expands to roughly
+**~300 parser + ~150 tests + ~150 integration = ~600 LOC**.
+Split into separate sub-scopes if Phase 2 design-gate decides
+to defer integration to a follow-on session.
 
 **Prerequisites:**
 - Plan §4 W8 read at S21 Phase 1.
@@ -379,17 +409,27 @@ of canary_50.
   could drop those, re-record under different UA, or keep
   as-is.
 
-### Sub-question: Tag at session close
+### Sub-question 1.TAG — Tag at session close (pinned at Phase 1)
 
-Independent of scope choice:
-- If Candidate B chosen AND per-tier cost-accounting fully
-  closes Workstream 0: place `workstream-0-end` tag.
-- If any other candidate chosen: defer tag OR place a candidate-
-  specific tag (e.g., `workstream-a-week1-end` if Candidate C
-  fully ships W A.1).
+Independent of scope choice; resolved fully here at Phase 1 so
+Phase 5 has an unambiguous tag decision. Options per scope:
 
-Phase 2 sub-question Q-TAG below pins the choice once scope
-lands.
+- **Candidate A** (barcada-drift): defer tag OR place candidate-
+  specific (e.g., `barcada-drift-v0` at the closing commit) per
+  operator choice.
+- **Candidate B** (per-tier cost-accounting): if per-tier
+  accounting fully closes Workstream 0, place `workstream-0-end`.
+  Otherwise defer.
+- **Candidate C** (W A.1 robots parser): if the full plan §4 W8
+  Action #2 scope ships (parser + tests + integration), place
+  `workstream-a-week1-end`. If only the parser ships (deferred
+  integration), defer the tag.
+- **Candidate D** (Phase 4 PR-D tooling): defer (tooling is a
+  carry-forward enabler, not a workstream boundary).
+- **Candidate E** (cassette corpus expansion): defer (corpus
+  growth doesn't open or close a workstream boundary).
+
+Phase 5 reads this resolution directly — no Phase 2 re-decision.
 
 ---
 
@@ -483,8 +523,9 @@ patching.
 
 - **Q-SHARED.1 Commit shape**: per-module (S18+19+20 default;
   Recommended) vs per-sub-surface bundled.
-- **Q-SHARED.2 Tag at close** (Q-TAG above): per candidate;
-  see Phase 1 sub-question.
+
+(Tag-at-close is resolved at Phase 1 Sub-question 1.TAG; Phase 5
+reads that resolution directly without re-decision.)
 
 ---
 
@@ -636,7 +677,7 @@ LESSONS "Pre-push gate against operator-WIP territory".
 ## Phase 5 — Push + tag
 
 - Push to `origin/main` after operator confirms.
-- Tag per Phase 1 sub-question Q-TAG decision (or defer).
+- Tag per Phase 1 Sub-question 1.TAG decision (or defer).
 
 If `workstream-0-end` is placed (Candidate B closes Workstream
 0): include annotated message summarizing all W0 weeks
@@ -700,7 +741,7 @@ closure).
    new tests, all passing.
 6. Pre-push gate runs green (incl. eval_data WIP halt protocol
    applied if needed).
-7. Tag placed per Q-TAG OR explicit defer.
+7. Tag placed per Phase 1 Sub-question 1.TAG OR explicit defer.
 8. Regression-protection checklist held:
    - 30 check-surface tests (24 test_check + 6 test_cli check-
      dispatch) stay 30/30 green.

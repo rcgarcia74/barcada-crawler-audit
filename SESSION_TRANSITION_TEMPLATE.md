@@ -108,11 +108,20 @@ baked into the prompt directly. Re-read it on session open.
 - Branch: `main`
 - Last commit SHA at Session 20 start: `4f29bed` (S20 prompt
   finalization).
-- Session 20 workspace commit: SESSION_LOG.md S20 append +
-  LESSONS.md fold-in of S19+S20 patterns per SR-7 + this
-  template refill (single workspace commit at session close).
-- Branch sync with `origin/main`: depends on whether the close-out
-  workspace commit is pushed (Sessions 13-19 precedent: pushed).
+- Session 20 close-out workspace commits (2, both pushed to origin):
+  - `1eb9947` "Session 20 close-out: SESSION_LOG.md append +
+    LESSONS.md fold-in + TRANSITION refill" — SESSION_LOG.md S20
+    append + LESSONS.md fold-in of S19+S20 patterns per SR-7 +
+    this template's first-pass refill.
+  - `dccab29` "Session 21 prompt drafted: scope-agnostic 7-phase
+    template + transition pointer" — SESSION_21_PROMPT.md drafted
+    + Downloads mirror + this template's pointer update.
+- Last commit SHA at Session 21 start: `dccab29` (or later if
+  additional workspace doc edits land before S21 open). The S21
+  prompt's Phase 0 Step 0.1 expects `dccab29` as the starting
+  workspace HEAD.
+- Branch sync with `origin/main`: 0 ahead / 0 behind (verified at
+  Session 20 close after both workspace commits pushed).
 
 ---
 
