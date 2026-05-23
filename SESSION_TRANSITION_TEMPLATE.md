@@ -104,13 +104,17 @@ this session.
   amendment v4; 3 commits ahead of the prompt's expected `dccab29`
   due to between-session prompt-amendment work; authorized at
   Phase 0 per S20 precedent).
-- Session 21 close-out workspace commits (to be made at session
-  close; will appear in next handoff metadata):
-  - "Session 21 close-out: SESSION_LOG.md append + LESSONS.md
-    fold-in + TRANSITION refill" — SESSION_LOG.md S21 append +
-    5 LESSONS.md sections appended + this template refilled.
-- Branch sync with `origin/main`: workspace push to be performed
-  at session close after operator confirmation.
+- Session 21 close-out workspace commits (1, pushed):
+  - `635b4a4` "Session 21 close-out: SESSION_LOG.md append +
+    LESSONS.md fold-in + TRANSITION refill" — SESSION_LOG.md
+    S21 append +222; LESSONS.md +102 across 5 new sections;
+    this template refilled.
+- **Last commit SHA at Session 21 CLOSE: `635b4a4`.** S22 prompt's
+  Phase 0 Step 0.1 MUST anchor workspace expectation to `635b4a4`,
+  NOT chain forward from `dccab29` or `0640939` (which would
+  spuriously surface a 4-commit-delta HALT on S22 open).
+- Branch sync with `origin/main`: 0 ahead / 0 behind (verified
+  at Session 21 close after push).
 
 ---
 
@@ -192,10 +196,32 @@ Estimated 150-250 LOC (parser already exists; this is wiring +
 docs + tests).
 
 Prereqs:
+- **Parser API surface stability** between S21 close and S22 open.
+  The integration design assumes the S21-shipped public API at
+  `34a59b6` (`RobotsPolicy(user_agent, timeout, fetcher).check(url)
+  -> RobotsDecision(allowed, reason, crawl_delay)` + frozen
+  `RobotsFetchResult` + `RobotsFetcher` type alias +
+  `DEFAULT_ROBOTS_TIMEOUT = 10.0`) holds unchanged. If any patch
+  to `src/barcada_scraper/scraper/robots.py` lands before S22
+  open (e.g., a v1.1 parser change), the integration design
+  needs re-derivation at S22 Phase 2 — surface as a HALT at
+  Phase 0 if the file's SHA differs from `34a59b6`'s tree.
+- **Q-C.4 deferred-from-S21**: S21 chose the pure check API
+  ("returns `(allowed, reason, crawl_delay)`; caller decides
+  skip vs warn") and explicitly deferred the bypass mechanism's
+  cost-journal coupling. S22 Phase 2 design-gate MUST resume
+  this as a *known carry-forward* (not a fresh question): how
+  the bypass-config mechanism couples to the existing cost-
+  journal authorization-marker surface, and where the marker
+  literal is written (per-row in stage{1,2,3}_decision? a new
+  journal field?).
 - Decision on bypass-config mechanism (env var / config file /
-  CLI flag / per-domain JSON).
+  CLI flag / per-domain JSON) — pre-resolves the bypass surface
+  before the cost-journal coupling lands.
 - Decision on where the integration plugs in (existing fetcher
-  seam location must be source-verified at Phase 0).
+  seam location must be source-verified at Phase 0; candidates
+  are `link_discovery.py` per plan §5 Action #2 OR a new shim
+  module if `link_discovery.py` lives in a less-touchable area).
 - `CRAWLING_POLICY.md` content scope (full vs minimal-first).
 
 ### Candidate A: `barcada-drift` skeleton (if AI/ML decisions ready)
