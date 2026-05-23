@@ -4606,3 +4606,225 @@ Cost incurred Sessions 1-20: $0.711 (unchanged).
 Cost budget remaining (cap $100): $99.29.
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+
+## Session 21 — W A.1 W8 robots.txt parser (parser-only) (2026-05-23)
+
+Scope: Engineering session. Candidate C (W A.1 robots.txt parser)
+chosen at Phase 1 from the 5 S20-handoff candidates. Sub-question
+1.C-SCOPE pinned to Parser-only (~450 LOC budget; actual 650 LOC
+across 282 impl + 368 tests). Single per-module commit
+`34a59b6 WA1.W8.robots-parser`. No tag placed per 1.TAG
+(workstream-a-week1-end deferred to a future Full-W8 or
+integration session). LLM spend: $0 (parser-only; no fixtures,
+no live HTTP).
+
+──────── Cold-start verification at session open ──────────────
+
+Phase 0 ran the 8-step verification. Step 0.1 surfaced a 3-commit
+delta on the workspace tree: HEAD was `0640939`, not the prompt's
+expected `dccab29`. All 3 commits matched the S20 close-out
+precedent pattern (workspace prompt-amendment commits drafted
+between sessions):
+
+  161efda Session 21 prompt amendments: apply 6 reviewer findings
+          (M-1, S-1/2/3, N-1/2)
+  1f83fab Session 21 prompt amendments v3: apply 3 new reviewer
+          findings (S-2, N-1, N-2); skip S-1 (obsolete)
+  0640939 Session 21 prompt amendments v4: apply N-1 + N-2 polish
+          (DRY + semantic); skip S-1 (carried-obsolete)
+
+Operator authorized continuation on the strengthened-prompt
+acknowledgment (matches S20 precedent). All other Phase 0 checks
+clean: repo HEAD `ea37102`; 9 tags incl. `workstream-0-week7-end`;
+driver lock invariant at dd64963 with the 8d0fc0e exception;
+fixtures 222/202/222/1213/20/20; combined suite 388/0/0; manifest
+`baseline-v0/0.1.0` with `driver_sha` prefix `521e363`; schema v1.1
+18-col stage3; both sub-surface CLIs (baseline_v0 + synthetic_crawl)
+report expected subcommand counts; regression-protection counts
+(30 check + 23 canary + 33 cassette) all green.
+
+──────── Phase 1 + Phase 2 design-gate ────────────────────────
+
+Phase 1 decisions:
+- S21 scope = Candidate C (W A.1 robots.txt parser).
+- Sub-question 1.C-SCOPE = Parser-only (~450 LOC budget). Phase 6
+  acceptance items 1-3 satisfied; item 4 (integration with
+  `barcada-scrape`'s fetcher seam at `link_discovery.py`) is
+  explicitly DEFERRED to Session 22+ as Full-W8 work.
+- Sub-question 1.TAG = defer (Parser-only).
+
+Phase 2 design-gate (Candidate C):
+- Q-C.1 helper = leave S20 cassette gate at
+  tools/synthetic_crawl/recorder.py:69-108 untouched (no
+  refactor; standalone parser + gate may converge in a future
+  session if cross-use grows).
+- Q-C.2-LOC = `src/barcada_scraper/scraper/robots.py` (Phase 2
+  src/ authorization granted for this single file).
+- Q-C.2 library = stdlib `urllib.robotparser` (matches S20
+  baseline; crawl-delay supported natively via
+  `parser.entries` / `default_entry`).
+- Q-C.3 integration = deferred per 1.C-SCOPE Parser-only.
+- Q-C.4 API = pure check API returning
+  `(allowed, reason, crawl_delay)`. Bypass mechanism (W8 plan
+  bullet 4) deferred to integration session.
+- Q-C.5 crawl-delay = honor (W8 plan bullet 3).
+- Q-C.6 tests = synthetic robots.txt strings + injectable
+  fetcher (matches tests/synthetic_crawl/test_recorder.py:91-117
+  pattern).
+- Q-SHARED.1 = per-module commit (one bundled commit since the
+  candidate has one new module + its test file).
+
+Source-verify discipline: before opening Phase 2 AskUserQuestion,
+delegated a multi-file audit to Explore subagent (8-item summary
+on S20 cassette gate + plan §4 W8 + sibling-module conventions +
+test conventions + existing src/ robots references + dependency
+state). Spot-checked 3 most load-bearing claims manually
+(`_check_robots_allowed` signature; plan §4 W8 5-bullet quote;
+no pre-existing robots logic in src/). Subagent output matched
+on-disk reality on all 3 spot-checks.
+
+──────── Phase 3 — single per-module commit ──────────────────
+
+`34a59b6` WA1.W8.robots-parser. Two new files (282 + 368 = 650
+LOC). API surface: `RobotsPolicy(user_agent, timeout=10.0,
+fetcher=None)` with `.check(url) -> RobotsDecision`,
+`.user_agent` / `.cached_hosts` properties, plus
+`RobotsDecision(allowed, reason, crawl_delay)` and
+`RobotsFetchResult(status_code, text, error)` frozen
+dataclasses, `RobotsFetcher` type alias,
+`DEFAULT_ROBOTS_TIMEOUT = 10.0`.
+
+Test coverage: 32 tests across 7 sections (constructor +
+invariants 6; allow/disallow 5; UA specificity 2; crawl-delay 5;
+per-host cache 5; fault tolerance 5; FP/FN guards 4). All tests
+use synthetic robots.txt strings + injectable fetcher closures;
+zero real HTTP; deterministic.
+
+Mid-implementation test failures (2) surfaced real stdlib
+behavioral quirks BEFORE commit per the verify-before-asking
+discipline:
+
+  1. `test_crawl_delay_user_agent_specific` failed because stdlib
+     `RobotFileParser.crawl_delay()` checks `default_entry` (*)
+     FIRST and returns the wildcard delay even when a specific
+     UA has its own `Crawl-delay`. Worked around at the parser
+     layer with `_crawl_delay_for(parser, user_agent)` helper
+     that iterates `parser.entries` (stable but undocumented
+     stdlib attribute, present in CPython for 15+ years) to
+     prefer the named entry. The fix matches W8 plan bullet 3
+     intent ("Respect Crawl-delay directive" -> specific value
+     should win). The test was also slightly wrong:
+     `User-agent: Custom/1.0` in robots.txt does not match input
+     `Custom/1.0` because stdlib `applies_to()` strips the input
+     after `/` and does substring match on the bare bot name.
+     Rewrote with `User-agent: Custom` and documented the
+     convention in the test docstring.
+
+  2. `test_allow_directive_overrides_disallow` failed because
+     stdlib uses first-match-wins ordering for Disallow/Allow
+     rules, not Google-style longest-match. Replaced with a pair
+     of tests pinning both directions
+     (`test_allow_directive_when_listed_before_disallow` and
+     `test_disallow_first_blocks_subpath_even_with_later_allow`).
+
+Combined suite at commit boundary: 388 -> 420 (+32). All
+regression-protection counts held (46 driver / 30 check / 23
+canary / 33 cassette).
+
+──────── Phase 4 pre-push gate ────────────────────────────────
+
+All 4 gates green on first run:
+
+- ruff check .                              -> All checks passed
+- ruff format --check .                     -> 343 files OK
+- vermin --target=3.10                      -> Minimum 3.10
+- eval_data/scripts/validate_consistency.py -> 0 / 0 / PASS
+
+No eval_data WIP halt fired this session. Operator-WIP rows
+(eval_data README + TAXONOMY_GAP_LOG + stage1_labels) remained
+schema-valid; gate passed unchanged.
+
+──────── Phase 5 push (no tag) ────────────────────────────────
+
+Push to origin/main: `ea37102..34a59b6` (1 commit). Pre-push
+hook re-ran all gates green. No tag placed per Phase 1 1.TAG
+(Parser-only defers `workstream-a-week1-end`). Tags state at
+S21 close: unchanged from S20 close — 9 tags total.
+
+──────── Forward-applicable patterns from Session 21 ─────────
+
+1. Test-driven discovery of stdlib quirks: when wrapping a
+   stdlib API, the first test run is the documentation. Two
+   tests in this session failed on first run not from a typo
+   but from undocumented stdlib behavior I'd assumed
+   (crawl_delay wildcard precedence + applies_to bare-token
+   matching). Pattern: don't change the assertion to match
+   observed behavior — first verify the stdlib doc / source to
+   decide whether the quirk is a bug to work around (crawl_delay
+   wildcard) or a contract to document (applies_to bare-token,
+   Disallow first-match-wins). The decision shapes whether the
+   parser layer compensates or the test layer documents.
+
+2. Sibling-module style consistency disclosure: when adding a
+   new `src/barcada_scraper/scraper/*.py` module, the existing
+   sibling convention is the short Barcada copyright header
+   (matching `english_alternative.py`), NOT the long multi-
+   paragraph CLAUDE.md template. The S21 commit did not disclose
+   this choice explicitly in the commit body — minor improvement
+   opportunity. Future per-module commits adding files to a
+   directory with established conventions: state in the commit
+   body which sibling was followed and why.
+
+3. Single-module Phase 3 commits are valid: S20 precedent
+   suggested skeleton -> impl -> tests (3 commits per sub-
+   surface). For Candidate C Parser-only, there was no CLI
+   dispatch and no second consumer, so bundling impl + tests
+   into a single commit was appropriate. Per-module commit
+   shape (Q-SHARED.1) collapses to single-commit when only one
+   module is added.
+
+4. Phase 0 Step 0.1 workspace SHA delta as recurring pattern:
+   S20 had 2 prompt-finalization commits ahead; S21 has 3
+   prompt-amendment commits ahead. Both authorized on
+   continuation. Phase 0 workspace HEAD assertion should ALWAYS
+   allow N-ahead if the N commits match the expected pattern
+   (prompt finalization / amendments / template refills). The
+   S20 prompt already encoded this pattern; S21 reused it
+   cleanly.
+
+5. Explore subagent + spot-check pattern for Phase 2 source-
+   verify: delegate >3-file audits to Explore, then spot-check
+   the 2-3 most load-bearing claims manually. S21 audit covered
+   8 items across 7 files; 3 spot-checks all matched. Spot-
+   checking the entire subagent output isn't necessary — only
+   the claims that shape Phase 2 question wording.
+
+──────── Workspace changes landed this session ───────────────
+
+- SESSION_LOG.md: this entry (Session 21 append).
+- LESSONS.md: 5 new forward-applicable patterns from this
+  session appended end-of-file.
+- SESSION_TRANSITION_TEMPLATE.md: refilled for Session 22 (next
+  scope: remaining S21 candidates A/B/D/E minus the now-shipped
+  Candidate C, OR a Full-W8 integration session to close W A.1
+  fully).
+
+Repo changes (1 commit, pushed):
+- WA1.W8.robots-parser                     34a59b6
+
+Tags placed this session: NONE (deferred per 1.TAG).
+
+Test counts at Session 21 close (verified post-push at HEAD
+`34a59b6`):
+- Conformance: 210 passed / 0 failed (unchanged)
+- Driver suite: 46 passed / 0 failed (unchanged)
+- baseline_v0 suite: 99 passed / 0 failed (unchanged)
+- synthetic_crawl suite: 33 passed / 0 failed (unchanged)
+- test_robots.py (NEW): 32 passed / 0 failed
+- Combined: 420 passed / 0 failed / 0 skipped (388 -> 420, +32)
+
+Session 21 LLM spend: $0 (parser-only; no fixtures, no live HTTP).
+Cost incurred Sessions 1-21: $0.711 (unchanged).
+Cost budget remaining (cap $100): $99.29.
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.

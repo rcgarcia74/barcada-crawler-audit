@@ -1270,3 +1270,105 @@ gate re-ran clean.
 Forward-applicable: any session where the pre-push validate_
 consistency / similar runs against working-tree state and
 operator-WIP intersects locked-artifact territory.
+
+## Library-quirk patterns (S21 folding)
+
+### Test-driven discovery of stdlib quirks
+
+When wrapping a stdlib API, the first test run is the
+documentation. Tests that fail on first run are often pointing
+at undocumented stdlib behavior, not at typos. Pattern:
+
+1. Verify the failure against stdlib doc/source (don't reflexively
+   change the assertion).
+2. Decide whether the quirk is:
+   (a) a bug to work around at the parser layer (write a helper);
+   (b) a contract to document at the test layer (rewrite the
+       assertion + docstring to pin the real behavior).
+3. The decision shapes whether the wrapper compensates or the
+   test merely records.
+
+Concrete S21 examples worked out in
+`src/barcada_scraper/scraper/robots.py` + `tests/scraper/test_robots.py`:
+
+- stdlib `RobotFileParser.crawl_delay()` checks `default_entry` (*)
+  before named entries — masks specific-UA Crawl-delay. Worked
+  around with `_crawl_delay_for(parser, user_agent)` iterating
+  `parser.entries` to prefer the named entry.
+- stdlib `applies_to(useragent)` strips input after `/` and
+  substring-matches the bare bot name. Documented in the test
+  docstring (robots.txt convention: name the bot without version).
+- stdlib Disallow/Allow ordering is first-match-wins, not
+  Google-style longest-match. Two paired tests document both
+  directions.
+
+Forward-applicable: any future stdlib-wrapper (urllib, xml.etree,
+http.client, etc.). When a test fails on the first run, check the
+stdlib source before assuming the test is wrong.
+
+## Workspace HEAD delta tolerance (S21 folding)
+
+Phase 0 workspace HEAD assertions should ALWAYS allow N-ahead
+when the N commits match the expected between-session pattern:
+prompt finalization, prompt amendments, template refills, doc
+edits. Precedent:
+
+- S20: 2 commits ahead of expected (strengthened prompt). Operator
+  authorized continuation.
+- S21: 3 commits ahead of expected (prompt amendments v3 + v4
+  + initial 6 reviewer findings). Operator authorized continuation.
+
+Pattern: prompt's Phase 0 Step 0.1 should explicitly accept
+N-ahead when commit subjects match the expected pattern (avoids
+spurious HALT each session). The S20 prompt already encoded
+this; S21 reused it cleanly.
+
+## Single-module Phase 3 commit collapse (S21 folding)
+
+S20 precedent suggested skeleton -> impl -> tests (3 commits per
+sub-surface). When a Phase 1 candidate ships a single new module
+with no CLI dispatch and no second consumer, per-module commit
+shape (Q-SHARED.1) collapses naturally to a single bundled
+commit. S21 Candidate C (robots parser-only) shipped at
+`34a59b6` as one commit: `src/barcada_scraper/scraper/robots.py`
++ `tests/scraper/test_robots.py`.
+
+Forward-applicable: don't reach for 3-commit ceremony when the
+sub-surface is one module + its tests. Skeleton/impl/tests
+separation is justified when (a) the skeleton needs to land
+first because tests of the impl depend on dispatch wiring, OR
+(b) the impl is large enough that separating tests reduces
+review cognitive load. Otherwise bundle.
+
+## Explore-subagent + spot-check for Phase 2 source-verify (S21 folding)
+
+The verify-before-asking discipline at Phase 2 design-gate
+requires source-grounded answers — but reading 5-8 files in
+the main session burns context. Pattern: delegate the multi-
+file audit to an Explore subagent with a structured prompt
+(citation-heavy summary; word-cap), then spot-check the 2-3
+most LOAD-BEARING claims manually. Spot-checking everything
+defeats the purpose; spot-checking nothing trusts subagent
+output blindly.
+
+S21 audit covered 8 items across 7 files; 3 spot-checks all
+matched on-disk reality. Subagent summary: ~400 words; main-
+session spot-checks: ~30 lines of Read/grep output. Time-to-
+informed-design-gate: ~2 minutes vs ~10 minutes without
+delegation.
+
+Forward-applicable: any Phase 2 source-verify where the audit
+naturally spans >3 files. Define "load-bearing claim" as one
+that would change the question wording if wrong.
+
+## Sibling-module style disclosure (S21 follow-up)
+
+The `[[sibling-module-style-consistency]]` rule says match the
+immediate sibling's conventions and disclose explicitly. S21
+added `src/barcada_scraper/scraper/robots.py` matching
+`english_alternative.py`'s short Barcada copyright header (not
+the long multi-paragraph CLAUDE.md template) — but the commit
+body did NOT explicitly disclose this choice. Minor improvement
+opportunity: when sibling style differs from a project-wide
+template, name the sibling in the commit body so reviewers
+don't flag the deviation.
