@@ -11,6 +11,7 @@ artifacts, not part of the codebase itself.
 - `FIXTURE_AUDIT_DIRECTIVE.md` — Read-only fixture audit directive
 - `FIXTURE_AUDIT_REPORT.md` — Fixture quality audit report
 - `BARCADA_CRAWLER_REMEDIATION_PLAN.md` — Consolidated 20-week plan
+- `scripts/` — Workspace-side helper scripts (see [Scripts](#scripts))
 - `working/` — Ephemeral scratch (gitignored)
 
 ## Usage
@@ -19,6 +20,48 @@ This workspace is read-write for planning documents and read-only with respect
 to the audited repository. Claude Code sessions configured to audit
 `/Users/administrator/projects/barcada-scraper` write only into this workspace,
 never into the repo.
+
+## Scripts
+
+### `scripts/filter_stage1_labels.py`
+
+Filters the eval label set
+(`/Users/administrator/projects/barcada-scraper/eval_data/stage1_labels.jsonl`)
+by field values and writes the matching records to a target file in the same
+JSONL format (original key order preserved). Stdlib-only; no dependencies.
+
+Available fields: `schema_version`, `domain`, `evaluation_split`, `label`,
+`confidence`, `labeler_id`, `labeled_at`, `source`, `notes` (scalar), and
+`rationale_keywords` (list).
+
+Constraints are AND-ed together; comma-separated values within one constraint
+are OR-ed:
+
+- `-f/--filter FIELD=V1,V2` — keep where FIELD equals a value. For the list
+  field `rationale_keywords`, keeps on any overlap (or all values present with
+  `--match-all`).
+- `-x/--exclude FIELD=V` — drop matching records.
+- `-c/--contains FIELD=SUBSTR` — case-insensitive substring match (handy for
+  `notes` / `domain`).
+- `--list-fields` — print the fields and their value distributions, then exit.
+- `--dry-run` — count matches without writing output.
+
+```bash
+# Discover the fields and value distributions
+python3 scripts/filter_stage1_labels.py --list-fields
+
+# Business rows in the train split → new file
+python3 scripts/filter_stage1_labels.py -f label=business -f evaluation_split=train -o train_biz.jsonl
+
+# Non-business rows tagged software_product
+python3 scripts/filter_stage1_labels.py -f label=non-business -f rationale_keywords=software_product -o out.jsonl
+```
+
+`--input` defaults to the stage1 path but is overridable, so the same script
+works on any JSONL label file. It refuses to overwrite an existing output
+(without `--overwrite`) or the input file itself. Matched records are
+re-serialized from parsed JSON, so output is semantically identical to the
+source but not a byte-for-byte copy of each line.
 
 ## Updating the Plan
 
