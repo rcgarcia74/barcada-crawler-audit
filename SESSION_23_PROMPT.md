@@ -243,8 +243,29 @@ localize which sub-suite drifted:
 .venv/bin/python -m pytest tests/scraper/test_robots_bypass_config.py -q    # expect  30
 ```
 
-If S23 scope touches the cost journal, also use the broader suite
-(adds classifier/pipeline tests; total 538):
+**Dual-baseline pre-resolution (per S22 N-3 review)**:
+
+After Phase 1 scope choice, pre-resolve which baseline applies to
+ALL Phase 3 commits in S23 so the verification-table-build step
+never has to mentally switch:
+
+- **If Candidate G chosen at Phase 1 → use 538 baseline** for
+  every Phase 3 commit (Candidate G writes to the journal at
+  Q-G.4 commit-N, so the journal suite must ride along from
+  commit 1 to make the per-commit gate honest about new tests).
+- **If any other candidate (A, B, D, E, H) chosen → use 480
+  baseline** (none of these touch the journal; including journal
+  tests would dilute the gate's signal-to-noise on net-new tests).
+
+Definition of "touching the journal" for this rule: ANY of (a)
+importing from `barcada_scraper.classifier.pipeline.cost_journal`
+in production code; (b) adding/modifying tests in
+`tests/classifier/pipeline/test_cost_journal*.py`; (c) reading
+or writing a `JournalState` instance in test fixtures. Mere
+documentation references DO NOT count.
+
+If Candidate G is chosen, run the broader suite at Phase 0
+Step 0.5 as the canonical baseline:
 
 ```
 .venv/bin/python -m pytest tests/scraper/test_fixture_conformance.py \
@@ -255,7 +276,7 @@ If S23 scope touches the cost journal, also use the broader suite
     tests/classifier/pipeline/test_cost_journal.py \
     tests/classifier/pipeline/test_cost_journal_local.py \
     tests/classifier/pipeline/test_cost_journal_adls.py -q
-# Expect: 538 passed (480 + 58 journal)
+# Expect: 538 passed (= 480 headline + 43 + 13 + 2 = 538 journal-suite total)
 ```
 
 ### Step 0.6 — Manifest + schema invariants (unchanged)
@@ -317,9 +338,19 @@ print('OK expected.schema.json v1.1 (18-col stage3 shape)')
 .venv/bin/python -m pytest tests/scraper/test_robots_bypass_config.py -q
 # Expect: 30 passed
 
-# S22 cost-journal field additions (14 new + 44 prior = 58 total)
+# S22 cost-journal field additions (14 new on top of 29 prior = 43 total).
+# Per-file counts verified post-S22-close via pytest --collect-only:
+#   test_cost_journal.py        = 43 (29 pre-S22 + 14 new S22 tests)
+#   test_cost_journal_local.py  = 13 (pre-S22; unchanged)
+#   test_cost_journal_adls.py   =  2 (pre-S22; unchanged)
+#   journal-suite total         = 58 (matches the 538 - 480 = 58 broader-
+#                                     suite delta in Step 0.5).
 .venv/bin/python -m pytest tests/classifier/pipeline/test_cost_journal.py -q
-# Expect: 58 passed
+# Expect: 43 passed
+.venv/bin/python -m pytest tests/classifier/pipeline/test_cost_journal_local.py -q
+# Expect: 13 passed
+.venv/bin/python -m pytest tests/classifier/pipeline/test_cost_journal_adls.py -q
+# Expect: 2 passed
 ```
 
 ### Step 0.9 — S22-shipped public API stability (Candidate G prereq)
@@ -362,13 +393,20 @@ from barcada_scraper.classifier.pipeline.cost_journal import (
     JournalState, BypassAuditEntry,
 )
 
-# RobotsGate constructor + evaluate signature
+# RobotsGate constructor + evaluate signature.
+#
+# Use SUBSET (<=) not STRICT EQUALITY (==) for constructor / method
+# parameter sets — a v1.1 patch that adds an optional kwarg (e.g.,
+# drift_signal_sink=None) doesn't invalidate the W A.2 integration
+# design, so HALTing on it is spurious (SR-4 pattern, S22 v2 LESSONS).
+# Dataclass field-set checks below DO use == because adding a new
+# field IS a real shape change that must surface.
 init_params = set(inspect.signature(RobotsGate.__init__).parameters)
-assert {'self', 'policy', 'bypass_config', 'honor_crawl_delay', 'clock'} == init_params, init_params
+assert {'self', 'policy', 'bypass_config', 'honor_crawl_delay', 'clock'} <= init_params, init_params
 evaluate_params = set(inspect.signature(RobotsGate.evaluate).parameters)
-assert {'self', 'url'} == evaluate_params, evaluate_params
+assert {'self', 'url'} <= evaluate_params, evaluate_params
 
-# Dataclass field sets
+# Dataclass field sets — STRICT EQUALITY ON PURPOSE.
 assert {f.name for f in GateDecision.__dataclass_fields__.values()} == \
     {'action', 'reason', 'crawl_delay', 'bypass'}, 'GateDecision drifted'
 assert {f.name for f in BypassEntry.__dataclass_fields__.values()} == \
@@ -380,7 +418,8 @@ assert {f.name for f in BypassAuditEntry.__dataclass_fields__.values()} == \
     {'host', 'url', 'user_agent', 'robots_reason', 'authorized_by',
      'bypass_reason', 'authorized_at_iso'}, 'BypassAuditEntry drifted'
 
-# Module constants
+# Module constants — strict equality (these are stable identifiers
+# integration callers compare against; renames are breaking changes).
 assert GATE_ACTION_ALLOW == 'allow'
 assert GATE_ACTION_SKIP == 'skip'
 assert GATE_ACTION_BYPASS_ALLOW == 'bypass_allow'
@@ -391,11 +430,11 @@ assert OPTIONAL_FIELDS == ('expires_iso',)
 assert ALLOWED_FIELDS == REQUIRED_FIELDS + OPTIONAL_FIELDS
 assert issubclass(BypassConfigError, ValueError)
 
-# Loader signatures
+# Loader signatures — subset check (allows optional kwargs to grow).
 assert 'path' in set(inspect.signature(load_bypass_config).parameters)
 assert 'payload' in set(inspect.signature(loads_bypass_config).parameters)
 
-# JournalState new method + field
+# JournalState new method + field — subset on signature, strict on field shape.
 assert 'entry' in set(inspect.signature(JournalState.with_robots_bypass_appended).parameters)
 s = JournalState.fresh(run_id='x', ceiling_usd=1.0)
 assert s.robots_bypass_log == ()
@@ -661,12 +700,17 @@ surface as a design-gate sub-question before patching.
 
 - **Q-G.1 Sync/async path**: (i) async-wrap `RobotsPolicy.check`
   (touches `robots.py` — S21 lock; requires explicit
-  authorization) vs (ii) keep `RobotsPolicy` sync and call
-  `RobotsGate.evaluate` from a sync boundary in `worker_loop`
-  before entering async (Recommended — preserves S21+S22 locks)
-  vs (iii) build a parallel async `RobotsPolicyAsync` class in
-  `scraper/robots_async.py` (new file, no S21 lock; but
-  increases surface).
+  authorization at Phase 2) vs (ii) keep `RobotsPolicy` sync and
+  call `RobotsGate.evaluate` from a sync boundary in `worker_loop`
+  before entering async (Recommended — preserves S21+S22 locks).
+  A third option of building a parallel `RobotsPolicyAsync` in
+  `scraper/robots_async.py` was considered and **rejected from
+  the option set at prompt-drafting time** because it expands
+  S23 scope by ~150-200 LOC (parallel parser + duplicate
+  quirk-handling or shared base-class refactor) — out of scope
+  for a W A.2 integration session. If the operator later
+  determines a parallel async parser is the right shape, that
+  is its own S24+ candidate.
 - **Q-G.2 Integration site**: the actual pre-fetch site in
   `worker_loop`. Source-verify via Explore before drafting
   option list — DO NOT pattern-apply plan §5 wording.
@@ -861,10 +905,10 @@ After commit 2                 : >= 480 + N_commit_1_tests + N_commit_2_tests
 **Rule**: the count NEVER decreases between checkpoints. A decrease
 means a previously-passing test went red — regression. HALT.
 
-If S23 scope touches the journal (most Candidate G paths will),
-use 538 as the baseline instead of 480 (the broader suite).
-Whichever baseline is chosen at commit 1, hold it consistent
-across all subsequent commits in S23.
+Baseline pre-resolved at Phase 1 per the dual-baseline rule in
+Phase 0 Step 0.5: Candidate G → 538, all other candidates → 480.
+Whichever baseline is bound at Phase 1, hold it consistent across
+ALL Phase 3 commits in S23 — do not switch mid-session.
 
 ---
 
@@ -931,12 +975,18 @@ deferrals).
   Session 24 — explicitly pin the S24 Phase 0 workspace anchor SHA
   per S21+S22 post-audit pattern (LESSONS "Workspace HEAD delta
   tolerance"); do not omit. After the close-out commit lands,
-  expect a 1-commit follow-up pinning the actual SHA — this
-  follow-up commit's SHA is the canonical S24 anchor.
+  expect **1-2 follow-up commits** pinning the actual SHA (S21
+  needed 1; S22 needed 2 — the second pinned the canonical
+  baseline test count discovered during audit). The most recent
+  follow-up commit's SHA is the canonical S24 anchor; no
+  hard ceiling on follow-up count, but each should narrow toward
+  a fully self-contained handoff (no remaining placeholders or
+  unverified claims).
 - Update `~/crawler-audit/LESSONS.md` with any new forward-
   applicable patterns surfaced this session.
-- Single workspace commit at session close + 1 follow-up commit
-  pinning the anchor SHA. Push workspace after operator confirms.
+- Workspace close-out: 1 primary commit + 1-2 follow-up commits
+  pinning the anchor SHA and any audit-surfaced corrections.
+  Push workspace after operator confirms.
 
 Note: drafting the next-session prompt (`SESSION_24_PROMPT.md`)
 is NOT a built-in Phase 6 step. Per S20→S21, S21→S22, and S22→S23
@@ -1002,20 +1052,27 @@ Carry-forward from S22 prompt (unchanged):
    self-contained.
 3. Reviewer audience tone per Q-H.3.
 
-### Shared (all candidates)
+### Shared (all candidates additionally satisfy)
 
-5. Combined suite at session close: existing 480 baseline + N new
-   tests, all passing. (Or 538 baseline if scope touches journal.)
-6. Pre-push gate runs green (incl. eval_data WIP halt protocol
-   applied if needed).
-7. Tag placed per Phase 1 Sub-question 1.TAG OR explicit defer.
-8. Regression-protection checklist held (see "Out-of-scope" below).
-   In particular: ALL S21+S22 deliverables stay at the SHAs they
-   landed at; their public APIs are unchanged. The 32 robots-parser
-   tests stay 32/32 green; the 30 robots_gate tests stay 30/30
-   green; the 30 robots_bypass_config tests stay 30/30 green; the
-   58 cost_journal tests stay 58/58 green (or 59+ if S23 adds
-   tests).
+Items numbered S1-S4 to avoid collision with candidate-specific
+numbering (S22 v3 review found that "Shared" items 5-8 would
+collide with Candidate G's items 5-8).
+
+- **S1.** Combined suite at session close: existing 480 baseline
+  + N new tests, all passing. (Or 538 baseline if Candidate G is
+  chosen at Phase 1 — see Phase 0 Step 0.5 dual-baseline note.)
+- **S2.** Pre-push gate runs green (incl. eval_data WIP halt
+  protocol applied if needed).
+- **S3.** Tag placed per Phase 1 Sub-question 1.TAG OR explicit
+  defer.
+- **S4.** Regression-protection checklist held (see "Out-of-scope"
+  below). In particular: ALL S21+S22 deliverables stay at the
+  SHAs they landed at; their public APIs are unchanged. The 32
+  robots-parser tests stay 32/32 green; the 30 robots_gate tests
+  stay 30/30 green; the 30 robots_bypass_config tests stay 30/30
+  green; the 43 cost_journal tests stay 43/43 green (or grow if
+  S23 adds tests); the 13 cost_journal_local + 2 cost_journal_adls
+  tests stay 13/13 + 2/2 green.
 
 ---
 

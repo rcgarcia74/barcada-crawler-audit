@@ -5098,15 +5098,23 @@ Test counts at Session 22 close (verified post-push at HEAD
 - test_robots.py: 32 passed / 0 failed (unchanged)
 - test_robots_gate.py (NEW): 30 passed / 0 failed
 - test_robots_bypass_config.py (NEW): 30 passed / 0 failed
-- test_cost_journal.py: 44 -> 58 passed (+14 new tests + 1
-  existing updated for new dict key)
+- test_cost_journal.py: 29 -> 43 passed (+14 new tests + 1
+  existing updated for new dict key). (S23-prompt-review
+  correction: the original close-report claimed "44 -> 58
+  passed" which was wrong — pytest --collect-only post-S22
+  verified 43 tests total in this file; the 14-new delta
+  was correct, but the pre-S22 count was 29 not 44, and the
+  post-S22 count is 43 not 58.)
 - test_cost_journal_local.py: 13 passed / 0 failed (unchanged)
-- test_cost_journal_adls.py: 1 passed / 0 failed (unchanged)
+- test_cost_journal_adls.py: 2 passed / 0 failed (unchanged).
+  (S23-prompt-review correction: original close-report said
+  "1 passed"; actual is 2.)
 - Combined-suite headline (incl. classifier/pipeline ride-along):
   420 -> 538 (+118 total; +74 net-new S22 tests
   [30 + 30 + 14 = 74]; +44 pre-existing journal tests now
   visible in the combined headline because S22 C3 touched the
-  module).
+  module — composed as 29 pre-S22 test_cost_journal + 13
+  test_cost_journal_local + 2 test_cost_journal_adls = 44).
 
 **Canonical S22-close baseline for S23 Phase 0 Step 0.5
 (VERIFIED post-push at HEAD `fdc8a7a`):**
