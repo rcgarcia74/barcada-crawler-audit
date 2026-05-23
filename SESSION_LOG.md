@@ -4301,3 +4301,308 @@ from the Session 19 reviewer feedback:
     ownership (CLASSIFICATION_ADJACENT_PLAN.md §Item 8 names a
     separate barcada-drift CLI with AI/ML team decisions
     outstanding).
+
+## Session 20 — W A.0 W7 cassettes + canary (2026-05-22 → 2026-05-23)
+
+Scope: Engineering session. Both remaining W A.0 W7 sub-surfaces
+landed (cassettes + canary), closing W7 fully. 8 repo commits +
+1 annotated tag, all pushed. LLM spend: $0 (cassettes recorded
+network-only per Q2.2; canary-run smoke + tests all mocked or
+fake-mode).
+
+──────── Cold-start verification at session open ───────────────
+
+Phase 0 ran the 7-step verification. Step 0.1a halted: workspace
+HEAD was `4f29bed`, not the prompt's expected `868f141`. The two
+extra workspace commits (`433a4dc` + `4f29bed`) were the
+strengthened S20 prompt itself ("FINALIZED at Session 19 close
+(2026-05-22). Strengthened with…"). All other Phase 0 checks
+were clean: tags 8/8 at expected SHAs (incl. baseline-v0
+`9e9a1fb`); driver locked at dd64963 with the operator-authorized
+8d0fc0e exception; fixtures 222/202/222/1213; combined suite
+332/0/0; manifest baseline-v0/0.1.0; check sub-surface CLI works.
+Operator authorized continuation on the strengthened-prompt
+acknowledgment.
+
+──────── Prompt-amendments review ────────────────────────────
+
+Operator surfaced 12 amendment items mid-session (3 must-fix +
+7 strongly-recommended + 2 nice-to-have). Walked each against
+on-disk reality per the Session 19 reviewer-feedback hygiene
+pattern:
+
+- Apply mid-session (8): MF-3 acceptance-criterion 12 (24→30
+  check-surface tests, verified test_check has 24 + test_cli has
+  6 check-dispatch = 30); SR-5 Q2.2 cost calibration (S18 actual
+  was $0.211/202 fixtures = $0.001/fixture, the prompt's $0.30-
+  $1.50/domain was 300-1500× off); SR-6 Q2.4a sidecar JSON
+  format; SR-9 Q2.8 dashboard pre-condition (2+ runs needed);
+  SR-7 LESSONS folding disposition (Phase 6); SR-10 Q1.3
+  cassettes-vs-canary ordering (Phase 1 sub-question);
+  NTH-11 + NTH-12 small notes.
+- Skip (1): SR-4 Step 0.8 baseline smoke run — as written would
+  HALT spuriously (manifest llm_mode=real vs default --llm-mode
+  fake -> warning fires + all stage_decisions hashes diverge ->
+  exit 1; the behavior it intends is already covered by Step 0.5
+  suite which includes the 4 integration tests).
+- Carry-forward (3): MF-1 driver_sha prefix; MF-2 Q1.1(B)
+  wording; SR-8 Phase 1 HALT condition tightening. None affect
+  S20 execution.
+
+──────── Phase 1 + Phase 2 design-gate ────────────────────────
+
+Phase 1 decisions:
+- Q1.1 = (A) barcada-baseline canary-run ships this session;
+  barcada-drift defers to a later session pending
+  CLASSIFICATION_ADJACENT_PLAN.md §Item 8 AI/ML team alignment.
+- Q1.2 = both cassettes + canary land this session.
+- Q1.3 = cassettes first, then canary (front-load the larger
+  design surface).
+
+Phase 2 cassette decisions:
+- Q2.1 = vcrpy (plan's named choice; new dev dep)
+- Q2.2 = network-only (per SR-5 cost calibration: real cost
+  ~$0.001/fixture would project to $0.02-$0.03 for 20-30 domains
+  in capture-and-classify mode, but network-only keeps separation
+  of concerns clean)
+- Q2.3 = per-domain robots.txt pre-record check via stdlib
+  urllib.robotparser
+- Q2.4 = canary_50 subset (20-30) with extract_hard_exclusions
+  gate per LESSONS S9 detector-FP findings
+- Q2.4a = sidecar JSON per cassette (machine-queryable for
+  future detector-precision audits)
+- Q2.5 = new `tools/synthetic_crawl/` namespace package
+- Q2.6 = byte-identical replay across 2 runs (analog of W6
+  generate determinism gate)
+
+Phase 2 canary decisions:
+- Q2.7 = full launchd kit (plist + install/uninstall + wrapper
+  + README), weekly Saturday 09:00 local time. Operator picked
+  launchd over GitHub Actions / server cron.
+- Q2.8 = defer dashboard entirely. The 2-runs-needed-for-trend
+  precondition (SR-9) made shipping a dashboard skeleton this
+  session premature. Future session opens it after 2+ canary
+  runs exist in production.
+
+Phase 2 shared decisions:
+- Q2.9 = per-module commits (per S18+19 precedent)
+- Q2.10 = workstream-0-week7-end tag at full-W7-close
+
+──────── Phase 3 — 8 per-module commits ─────────────────────
+
+Cassettes sub-surface (4 commits, abfe803 → 7f11879):
+
+`abfe803` WA0.W7.cassettes-skeleton. New tools/synthetic_crawl/
+  namespace package (__init__.py 32L + __main__.py 22L + cli.py
+  127L + recorder.py 52L = 233 LOC). argparse subparsers for
+  record + replay, both stubs returning exit 2. vcrpy>=8.1
+  added to pyproject [project.optional-dependencies].dev and
+  installed into .venv at 8.1.1. Lazy-import dispatch pattern
+  matching S19 check sub-surface. Suite: 332/0/0.
+
+`6b9a025` WA0.W7.cassettes-driver. Real recorder.py (52 -> 209
+  LOC, +157 net) implementing all 6 cassette design-gate
+  decisions. 5 helpers (_domain_cassette_dir, _homepage_url,
+  _robots_url, _check_robots_allowed via urllib.robotparser,
+  _write_sidecar via extract_hard_exclusions). Smoke-validated
+  4 safe paths (replay-missing -> 2; record-disallow -> 1;
+  record-exists -> 2; sidecar write -> dict). All vcrpy/
+  requests/scraper.parser imports lazy. Suite: 332/0/0.
+
+`c8bc116` WA0.W7.cassettes-tests. New tests/synthetic_crawl/
+  package (542 LOC across 3 files). 33 new tests: 20 in
+  test_recorder.py (3 helpers + 5 robots gate + 3 sidecar +
+  3 validation + 4 integration + 2 constants) and 13 in
+  test_cli.py (3 help + 2 missing-subcommand + 4 missing-arg
+  + 4 dispatch). Q2.6 byte-identical determinism gate landed
+  via hand-rolled vcrpy YAML cassette technique (vcr.serialize.
+  serialize at the `{"requests": [...], "responses": [...]}`
+  shape — yamlserializer.serialize alone produces a different
+  on-disk format that the loader rejects with KeyError
+  'interactions'; design-verified via /tmp smoke before writing
+  tests). Suite: 365/0/0 (+33).
+
+`7f11879` WA0.W7.cassettes-corpus-capture. 20 vcrpy cassettes +
+  20 extract_hard_exclusions sidecars committed at
+  tests/fixtures/synthetic_crawls/<domain>/ (40 new files,
+  4.6 MB total; largest cloudflare.com at 1.5 MB). Pilot-then-
+  fanout: 3 pilots (example.com / iana.org / python.org)
+  validated cassette + sidecar shape, then 17 batched. All 20
+  recordings exit 0. FP-curation log: 6 cassettes with non-
+  empty exclusion_reason (3 example.* legitimate; 2 SaaS-shell
+  likely FPs per LESSONS S9 — archive.org + hashicorp.com;
+  stripe.com real Cloudflare WAF). Byte-identical replay
+  verified on python.org real cassette (SHA before/after both
+  6334c706…). Suite: 365/0/0 (artifact-only commit).
+
+Canary sub-surface (4 commits, 6763598 → ea37102):
+
+`6763598` WA0.W7.canary-skeleton. canary-run subparser added
+  to existing tools/baseline_v0/cli.py (+63/-4). New canary.py
+  stub (54 LOC) returning exit 2. CLI shape matches plan §4
+  W7 line 327: --domains, --output, --max-domains, --user-agent,
+  --log-level. Lazy dispatch. Suite: 365/0/0.
+
+`aa405e3` WA0.W7.canary-impl. Real canary_run() (+245/-25,
+  net +220; 54 -> 274 LOC). 6 helpers (_read_domains,
+  _utc_iso_now, _empty_exclusions_row, _build_exclusions_row,
+  _fetch_domain_row, _write_parquet, _make_dtypes). REUSES
+  _check_robots_allowed from tools.synthetic_crawl.recorder
+  (one robots-respecting code path shared across both
+  surfaces). Per-domain failures encoded in row, never raised
+  (so a single dead domain in the weekly cron doesn't fail the
+  run). Parquet schema = 14 columns (PARQUET_COLUMNS module-
+  level tuple, contractual for the future drift surface).
+  Smoke: 2-domain --max-domains=2 against the real canary
+  file -> 2 rows × 14 cols × correct dtypes. 3 exit-2 paths
+  verified. Suite: 365/0/0.
+
+`7236575` WA0.W7.canary-tests. New tests/baseline_v0/
+  test_canary.py (354 LOC, 17 tests) + 6 canary-dispatch tests
+  in test_cli.py (+103 LOC). Test coverage: 9 helpers + 3
+  validation + 5 integration (parquet shape; robots disallow;
+  fetch exception encoded in row; max-domains cap; timestamp
+  consistency across rows). Verify-before-asking ratchet
+  surfaced one test premise error mid-implementation: the
+  draft test_canary_run_user_agent_default_present asserted
+  the default UA string would appear in --help output, but
+  argparse doesn't show defaults unless explicitly formatted;
+  rewrote to parse args programmatically and inspect
+  args.user_agent. Suite: 388/0/0 (+23).
+
+`ea37102` WA0.W7.canary-launchd-kit. 5 new files under
+  scripts/launchd/ (318 LOC): plist template (54L), install
+  script (70L exec), uninstall script (26L exec), wrapper
+  (62L exec), README.md (106L). Plus .gitignore entry for
+  canary_runs/ runtime outputs. Schedule: Weekday=6 Hour=9
+  Minute=0 per operator-chosen Saturday 9am. Wrapper auto-
+  discovers PROJECT_ROOT from script location; PYTHON_BIN env
+  override. Validation: xmllint + plutil on rendered plist;
+  bash -n on all 3 shell scripts; wrapper error-path smoked
+  with bogus PYTHON_BIN -> exit 2. Important: files-only ship;
+  no launchctl bootstrap invoked by the commit (operator runs
+  installer when ready). Suite: 388/0/0 (no Python changes).
+
+──────── Phase 4 pre-push gate + eval_data WIP halt ──────────
+
+Gates 1-3 green on first run:
+- ruff check .                              -> All checks passed
+- ruff format --check .                     -> 341 files OK
+- git ls-files '*.py' | xargs vermin --target=3.10
+                                            -> Minimum required 3.10
+
+Gate 4 (eval_data validate_consistency) RED on first run: row
+377 (bigid.com) had duplicate "customer_logos" in
+rationale_keywords (3 committed -> 7 in operator WIP, with the
+duplicate). This was pre-existing operator-side WIP, NOT
+introduced by Session 20. HALT surfaced per protocol; operator
+deduped the row manually; re-run gate -> 0 errors / 0 warnings.
+Established pattern: pre-push gates run against working-tree
+state, so operator-WIP in locked-artifact territory can block
+session push without any session-introduced fault.
+
+──────── Phase 5 push + tag ───────────────────────────────
+
+Push to origin/main: 467647e..ea37102 (8 commits). Pre-push
+hook re-ran all gates green. Tag `workstream-0-week7-end`
+created with annotated message summarizing Sessions 19 + 20
+contributions across W A.0 W7 (check + cassettes + canary).
+Tag pushed to origin. 7 workstream tags now on origin: week1,
+week2, week3, week4, week4-1-5, week5, week7.
+
+──────── Forward-applicable patterns from Session 20 ─────────
+
+1. Mid-session prompt amendments: walk each item against on-
+   disk reality per Session 19 reviewer-feedback hygiene; route
+   to apply-now / skip-with-reason / carry-forward; SR-4 was
+   skipped because as-written it would HALT spuriously (the
+   smoke command's default --llm-mode=fake doesn't match the
+   manifest's llm_mode=real). Amendments are not commands;
+   they're proposals subject to source-verification.
+
+2. vcrpy cassette serialize API surface: the high-level
+   vcr.serialize.serialize(cassette_dict, yamlserializer) is
+   what reads back; vcr.serializers.yamlserializer.serialize
+   alone produces a different on-disk format that the loader
+   rejects with KeyError 'interactions'. When hand-rolling
+   cassettes for replay-determinism tests, verify the produced
+   YAML round-trips through vcr.cassette.Cassette.load before
+   building tests against the hand-rolled format.
+
+3. argparse default-value visibility in --help: argparse does
+   not surface argument defaults in --help output unless the
+   parser uses ArgumentDefaultsHelpFormatter or the help= text
+   includes the default literally. Don't assert "default X in
+   --help"; assert via parser.parse_args(...).<attr> instead.
+
+4. Pre-push gate against operator-WIP territory: validate_
+   consistency runs on working-tree state; operator WIP in
+   locked artifacts (eval_data/) can block session push with
+   no session-introduced fault. When this fires: surface the
+   row+detail to operator with the diff vs committed state,
+   propose operator-fix as the preferred path (preserves
+   locked-artifact ownership boundary), stash-and-restore as
+   the bypass option. Don't auto-fix locked-artifact content.
+
+5. Pilot-then-fanout for live HTTP corpus capture: when
+   recording 20-30 cassettes against live domains, do 2-3
+   pilots first to verify cassette + sidecar shape, then
+   batch the remainder. Catches CLI/argparse issues, robots-
+   gate behavior under real conditions, and disk-layout
+   conventions before committing to the full corpus.
+   Reinforces S18 staged-rollout pattern in a different
+   surface (HTTP recording vs cascade execution).
+
+6. Cross-package helper sharing without refactor: when a
+   second surface (canary-run) needs the same helper as the
+   first (synthetic_crawl recorder), import the private
+   _check_robots_allowed directly from the original module
+   rather than refactoring into shared common/. Underscore
+   prefix is a hint about cross-module use, not enforced.
+   Tracks the S19 from-generate-import-_apply_filters pattern
+   in check.py. Future formalization can land as its own
+   refactor scope if cross-package use proliferates.
+
+──────── Workspace changes landed this session ───────────────
+
+- SESSION_LOG.md: this entry (Session 20 append).
+- LESSONS.md: fold-in of S19 + S20 forward-applicable patterns
+  per SR-7 amendment disposition.
+- SESSION_TRANSITION_TEMPLATE.md: refilled for Session 21
+  (next concrete work: barcada-drift if AI/ML team decisions
+  land, OR W A robots.txt parser, OR per-tier cost-accounting
+  retrofit).
+
+Repo changes (8 commits, all pushed):
+- WA0.W7.cassettes-skeleton              abfe803
+- WA0.W7.cassettes-driver                6b9a025
+- WA0.W7.cassettes-tests                 c8bc116
+- WA0.W7.cassettes-corpus-capture        7f11879
+- WA0.W7.canary-skeleton                 6763598
+- WA0.W7.canary-impl                     aa405e3
+- WA0.W7.canary-tests                    7236575
+- WA0.W7.canary-launchd-kit              ea37102
+
+Tags placed this session:
+- workstream-0-week7-end @ ea37102 (annotated; pushed)
+
+Test counts at Session 20 close (verified):
+- Conformance: 210 passed / 0 failed / 0 skipped (unchanged)
+- Driver suite: 46 passed / 0 failed (unchanged)
+- baseline_v0 suite: 99 passed / 0 failed (was 76; +23 = 17
+  test_canary + 6 canary-dispatch in test_cli)
+- synthetic_crawl suite: 33 passed / 0 failed (new package)
+- Combined: 388 passed / 0 failed / 0 skipped (332 -> 388,
+  +56 across both sub-surfaces)
+
+Cassette corpus at Session 20 close:
+- 20 cassette.yaml + 20 extract_hard_exclusions.json under
+  tests/fixtures/synthetic_crawls/. 4.6 MB total. FP-curation
+  log committed in cassettes-corpus-capture commit message.
+
+Session 20 LLM spend: $0 (cassettes recorded network-only per
+Q2.2; canary smoke + tests all mocked or fake-mode).
+Cost incurred Sessions 1-20: $0.711 (unchanged).
+Cost budget remaining (cap $100): $99.29.
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
