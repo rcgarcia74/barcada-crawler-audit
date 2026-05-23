@@ -5108,6 +5108,32 @@ Test counts at Session 22 close (verified post-push at HEAD
   visible in the combined headline because S22 C3 touched the
   module).
 
+**Canonical S22-close baseline for S23 Phase 0 Step 0.5
+(VERIFIED post-push at HEAD `fdc8a7a`):**
+
+```
+.venv/bin/python -m pytest \
+    tests/scraper/test_fixture_conformance.py \
+    tests/runners/fixture_cascade/ \
+    tests/baseline_v0/ \
+    tests/synthetic_crawl/ \
+    tests/scraper/test_robots.py \
+    tests/scraper/test_robots_gate.py \
+    tests/scraper/test_robots_bypass_config.py -q
+# Expected: 480 passed / 0 failed / 0 skipped
+# Sub-totals:
+#   210 conformance + 46 driver + 99 baseline_v0 +
+#    33 synthetic_crawl + 32 robots + 30 robots_gate +
+#    30 robots_bypass_config = 480
+```
+
+Re-ran post-S22-close-out at HEAD `fdc8a7a`: 480 passed in
+49.00s (0 failed / 0 skipped). The 538 broader figure used in
+the "Combined-suite headline" bullet above includes classifier/
+pipeline ride-along (test_cost_journal{,_local,_adls}.py); use
+the 480 number for S23 Phase 0 Step 0.5 unless the S23 scope
+deliberately exercises the journal module.
+
 Session 22 LLM spend: $0 (no fixtures recorded; no live HTTP;
 all tests use synthetic data + injectable fetchers).
 Cost incurred Sessions 1-22: $0.711 (unchanged).

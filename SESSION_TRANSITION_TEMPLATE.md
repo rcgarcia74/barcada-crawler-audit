@@ -135,15 +135,19 @@ at S23 open.
 - Session 22 close-out workspace commits will be 1 (pushed):
   workspace SESSION_LOG.md append + LESSONS.md fold-in
   (5 new sections) + this template refilled.
-- **Last commit SHA at Session 22 CLOSE: `dbba7bd`** (close-out
-  commit) → expect 1 follow-up commit pinning this anchor (the
-  commit you are looking at via `git log` post-S22-close). S23
-  prompt's Phase 0 Step 0.1 MUST anchor workspace expectation to
-  the most recent of these, NOT chain forward from `190e75b`
-  (which would spuriously surface a multi-commit-delta HALT on
-  S23 open). Workspace HEAD delta tolerance (LESSONS) handles N
-  prompt-drafting commits between sessions, but the anchor itself
-  should always point at the most recent close-out commit.
+- **Last commit SHA at Session 22 CLOSE: `acf86c5`** (S22 close-
+  out follow-up; pins the workspace anchor SHA for S23). The
+  immediate parent `dbba7bd` is the original close-out commit
+  (SESSION_LOG append + LESSONS fold-in + this template's first-
+  pass refill); `acf86c5` is the post-audit follow-up commit
+  that pinned this SHA. **S23 prompt's Phase 0 Step 0.1 MUST
+  anchor workspace expectation to `acf86c5`**, NOT chain forward
+  from `190e75b` (S22 start; would spuriously surface a
+  3-commit-delta HALT on S23 open) and NOT from `dbba7bd` (would
+  surface a 1-commit-delta HALT). Workspace HEAD delta tolerance
+  (LESSONS) handles N prompt-drafting commits between sessions,
+  but the anchor itself should always point at the most recent
+  close-out commit.
 - Branch sync with `origin/main`: 0 ahead / 0 behind expected
   after Session 22 close push.
 
