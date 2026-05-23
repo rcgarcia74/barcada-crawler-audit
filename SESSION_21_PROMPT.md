@@ -200,6 +200,16 @@ find tests/fixtures/synthetic_crawls -name 'extract_hard_exclusions.json' | wc -
 The sub-paths add up to the headline: 210 conformance + 46 driver
 + 99 baseline_v0 + 33 synthetic_crawl = 388. Any drift = halt.
 
+If the headline count mismatches, re-run each sub-path
+independently to localize which sub-suite drifted:
+
+```
+.venv/bin/python -m pytest tests/scraper/test_fixture_conformance.py -q   # expect 210
+.venv/bin/python -m pytest tests/runners/fixture_cascade/ -q              # expect  46
+.venv/bin/python -m pytest tests/baseline_v0/ -q                          # expect  99
+.venv/bin/python -m pytest tests/synthetic_crawl/ -q                      # expect  33
+```
+
 ### Step 0.6 — Manifest + schema invariants
 
 ```
@@ -363,12 +373,10 @@ Estimated 100-200 LOC.
 ### Candidate C — W A.1 robots.txt parser (W A opens)
 
 Per plan §4 Week 8 Action #2 (Severity: CRITICAL, plan-anchored
-estimate **~300 LOC** for the parser proper). If the candidate
-also lands the test suite + integration in `barcada-scrape`'s
-fetcher seam this session, total scope expands to roughly
-**~300 parser + ~150 tests + ~150 integration = ~600 LOC**.
-Split into separate sub-scopes if Phase 2 design-gate decides
-to defer integration to a follow-on session.
+estimate **~300 LOC** for the parser proper). Sub-question 1.C-SCOPE
+(below) pins parser-only vs full-W8 scope at Phase 1 so Phase 6
+acceptance criteria are unambiguous before Phase 3 starts (mirrors
+the Sub-question 1.TAG pattern).
 
 **Prerequisites:**
 - Plan §4 W8 read at S21 Phase 1.
@@ -379,6 +387,26 @@ to defer integration to a follow-on session.
   `urllib.robotparser` (used by S20 cassette gate) vs more
   featureful third-party (e.g., `robotexclusionrulesparser`,
   `reppy`). Stdlib is the cheap baseline.
+
+#### Sub-question 1.C-SCOPE — Parser-only vs Full-W8 (pinned at Phase 1)
+
+Pinned here so acceptance criteria at Phase 6 are unambiguous and
+Phase 2 design-gate doesn't need to re-decide. Two options:
+
+- **Parser-only (Recommended for cost-first / context-window-first
+  sessions)**: ships the production robots parser + tests; integration
+  with `barcada-scrape`'s fetcher seam deferred to a follow-on
+  session. Total scope: ~300 parser + ~150 tests = **~450 LOC**.
+  Phase 6 acceptance: items 1, 2, 3 (parser + crawl-delay + test
+  corpus); item 4 (integration) is explicitly deferred and
+  documented in SESSION_LOG.md as a Session 22+ carry-forward.
+- **Full-W8**: ships parser + tests + integration this session.
+  Total scope: ~300 parser + ~150 tests + ~150 integration =
+  **~600 LOC**. Phase 6 acceptance: all 4 items (parser, crawl-
+  delay, test corpus, integration). Larger session; higher
+  context-window risk; matches plan §4 W8 in one shot.
+
+Phase 5 + Acceptance criteria read this pinned scope directly.
 
 ### Candidate D — Phase 4 PR-D operator-led labeling (mostly operator territory)
 
@@ -472,9 +500,10 @@ patching.
 - **Q-B.1 Scope of fields**: which stage{1,2,3}_*_usd journal
   fields get populated? (per-stage breakdown vs aggregate-only).
 - **Q-B.2 Backfill behavior**: re-run W6 baseline-v0 generation
-  to regenerate manifest with per-tier costs (~$0.21 spend) vs
-  document that the existing manifest is per-tier-cost-unaware
-  vs both.
+  to regenerate manifest with per-tier costs (~$0.21 spend;
+  within remaining budget $99.29 → $99.08; well below $100
+  ceiling) vs document that the existing manifest is per-tier-
+  cost-unaware vs both.
 - **Q-B.3 Test approach**: real-mode 1-fixture integration test
   vs fake-mode synthetic cost values.
 - **Q-B.4 W5.X-prefix commit shape**: single squash commit vs
@@ -721,10 +750,18 @@ closure).
 
 ### Candidate C (W A.1 robots.txt parser)
 
+Items 1-3 are unconditional. Item 4 is conditional on the
+Sub-question 1.C-SCOPE pinning at Phase 1.
+
 1. Production robots parser ships under chosen namespace.
-2. Integration with `barcada-scrape` per Q-C.3.
-3. Crawl-delay handling per Q-C.5.
-4. Test corpus per Q-C.6.
+2. Crawl-delay handling per Q-C.5.
+3. Test corpus per Q-C.6.
+4. **If Sub-question 1.C-SCOPE = Full-W8**: integration with
+   `barcada-scrape`'s fetcher seam per Q-C.3 ships this session.
+   **If 1.C-SCOPE = Parser-only**: integration deferral is
+   explicitly documented in the SESSION_LOG.md Session 21 entry
+   as a Session 22+ carry-forward; acceptance item 4 is
+   considered satisfied by the documented deferral.
 
 ### Candidate D (Phase 4 PR-D tooling)
 
