@@ -273,32 +273,37 @@ print('OK expected.schema.json v1.1 (18-col stage3 shape)')
 
 ```
 # If Candidate F is even possibly in scope, verify the parser
-# public API matches the S21-shipped surface BEFORE Phase 2
-# design-gate elicitation. A v1.1 parser landing between S21
-# close and S22 open would invalidate the Candidate F design.
+# PUBLIC integration contract matches the S21-shipped surface
+# BEFORE Phase 2 design-gate elicitation. A change to the
+# integration surface between S21 close and S22 open would
+# invalidate the Candidate F design.
+#
+# Scope: only what integration callers depend on per the Scope
+# section above:
+#   RobotsPolicy(user_agent=...).check(url) -> RobotsDecision(
+#     allowed, reason, crawl_delay)
+# Internals (DEFAULT_ROBOTS_TIMEOUT default value, RobotsFetchResult
+# field shape, RobotsFetcher type alias, timeout/fetcher optional
+# kwargs) are INTENTIONALLY NOT checked — those can legitimately
+# change in a v1.1 patch (e.g., bumping the default timeout) without
+# invalidating Candidate F. Over-asserting here risks spurious
+# HALTs of the SR-4 shape (gate fails for a reason unrelated to
+# the design contract).
 .venv/bin/python -c "
-from barcada_scraper.scraper.robots import (
-    DEFAULT_ROBOTS_TIMEOUT,
-    RobotsDecision,
-    RobotsFetchResult,
-    RobotsFetcher,
-    RobotsPolicy,
-)
+from barcada_scraper.scraper.robots import RobotsDecision, RobotsPolicy
 import inspect
-assert DEFAULT_ROBOTS_TIMEOUT == 10.0
-# RobotsDecision frozen dataclass with 3 fields
+# RobotsDecision public field set (caller reads .allowed, .reason, .crawl_delay)
 assert {f.name for f in RobotsDecision.__dataclass_fields__.values()} == \
     {'allowed', 'reason', 'crawl_delay'}, 'RobotsDecision fields drifted'
-# RobotsFetchResult frozen dataclass with 3 fields
-assert {f.name for f in RobotsFetchResult.__dataclass_fields__.values()} == \
-    {'status_code', 'text', 'error'}, 'RobotsFetchResult fields drifted'
-# RobotsPolicy constructor signature
-sig = inspect.signature(RobotsPolicy.__init__)
-params = set(sig.parameters)
-assert params >= {'self', 'user_agent', 'timeout', 'fetcher'}, params
-# .check returns RobotsDecision
-check_sig = inspect.signature(RobotsPolicy.check)
-print('OK parser API surface unchanged from S21 @ 34a59b6')
+# RobotsPolicy.check exposes a callable with a url positional arg
+check_params = set(inspect.signature(RobotsPolicy.check).parameters)
+assert {'self', 'url'} <= check_params, \
+    f'RobotsPolicy.check signature drifted: {check_params}'
+# RobotsPolicy can be constructed with user_agent (integration callers MUST)
+init_params = set(inspect.signature(RobotsPolicy.__init__).parameters)
+assert 'user_agent' in init_params, \
+    f'RobotsPolicy.__init__ missing user_agent: {init_params}'
+print('OK parser public integration contract unchanged from S21 @ 34a59b6')
 "
 ```
 
@@ -321,7 +326,10 @@ In this order:
    5 forward-applicable patterns at the end.
 
 3. **`~/crawler-audit/LESSONS.md`** — 5 new sections folded at S21
-   close (lines 1274 onward). Especially:
+   close, at end of file. Locate via
+   `grep -n '^## .*(S21 folding)\|^## .*(S21 follow-up)' LESSONS.md`
+   (line numbers shift with any pre-pend; rely on the grep, not a
+   pinned line ref). Especially:
    - "Library-quirk patterns" / "Test-driven discovery of stdlib
      quirks" — directly applicable if Candidate F integrates
      `RobotsPolicy` (same parser; same quirks).
@@ -497,10 +505,15 @@ a design-gate sub-question before patching.
   Phase 0) vs a new shim module `src/barcada_scraper/scraper/
   robots_gate.py` that wraps `RobotsPolicy` for the fetcher seam
   vs both.
-- **Q-F.2 Bypass-config mechanism**: env var (cheap, hard to
-  scope) vs config file entry (structured, requires config-
-  schema edits) vs CLI flag (per-invocation, no persistence) vs
-  per-domain JSON sidecar (auditable, requires new file format).
+- **Q-F.2 Bypass-config mechanism**: per-domain JSON sidecar
+  (auditable; requires new file format; **Recommended** — plan
+  §4 W8 Action #2 bullet 4 reads "an explicit per-domain
+  configurable", which favors structured per-domain shapes) vs
+  config file entry (structured; requires config-schema edits;
+  also satisfies "per-domain" if keyed on domain) vs env var
+  (cheap, but does NOT support per-domain scoping cleanly) vs
+  CLI flag (per-invocation, no persistence; also does NOT
+  support per-domain scoping cleanly).
 - **Q-F.3 Cost-journal coupling** (Q-C.4 deferred-from-S21):
   where does the bypass authorization-marker land in the cost
   journal? Options: new field on `stage3_decision` /
@@ -727,10 +740,16 @@ W4.3, W5, W6, W7 + the per-tier cost-accounting closure).
   tolerance"); do not omit.
 - Update `~/crawler-audit/LESSONS.md` with any new forward-
   applicable patterns surfaced this session.
-- If Candidate F shipped: draft `SESSION_23_PROMPT.md` modeled on
-  this prompt with state updated to S22 close.
 - Single workspace commit at session close. Push workspace after
   operator confirms.
+
+Note: drafting the next-session prompt (`SESSION_23_PROMPT.md`)
+is NOT a built-in Phase 6 step. Per S20→S21 and S21→S22
+precedent, prompt-drafting is an operator-commissioned activity
+between sessions — not always-on close-out work. If the operator
+asks for it explicitly at S22 close, draft it as a separate
+follow-up; otherwise leave for the next session to either
+operator-commission or scope out at S23 open.
 
 ---
 
