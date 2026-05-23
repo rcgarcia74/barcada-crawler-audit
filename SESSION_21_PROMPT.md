@@ -448,10 +448,9 @@ Phase 5 has an unambiguous tag decision. Options per scope:
 - **Candidate B** (per-tier cost-accounting): if per-tier
   accounting fully closes Workstream 0, place `workstream-0-end`.
   Otherwise defer.
-- **Candidate C** (W A.1 robots parser): if the full plan §4 W8
-  Action #2 scope ships (parser + tests + integration), place
-  `workstream-a-week1-end`. If only the parser ships (deferred
-  integration), defer the tag.
+- **Candidate C** (W A.1 robots parser): per Sub-question
+  1.C-SCOPE — if Full-W8, place `workstream-a-week1-end`; if
+  Parser-only, defer the tag.
 - **Candidate D** (Phase 4 PR-D tooling): defer (tooling is a
   carry-forward enabler, not a workstream boundary).
 - **Candidate E** (cassette corpus expansion): defer (corpus
@@ -750,18 +749,17 @@ closure).
 
 ### Candidate C (W A.1 robots.txt parser)
 
-Items 1-3 are unconditional. Item 4 is conditional on the
-Sub-question 1.C-SCOPE pinning at Phase 1.
+Items 1-3 are unconditional. Item 4 applies only when Sub-question
+1.C-SCOPE = Full-W8; when 1.C-SCOPE = Parser-only, item 4 is N/A
+(the integration is logged as a Session 22+ carry-forward in the
+SESSION_LOG.md Session 21 entry rather than ticked off as
+satisfied — deferred work is tracked, not closed).
 
 1. Production robots parser ships under chosen namespace.
 2. Crawl-delay handling per Q-C.5.
 3. Test corpus per Q-C.6.
-4. **If Sub-question 1.C-SCOPE = Full-W8**: integration with
-   `barcada-scrape`'s fetcher seam per Q-C.3 ships this session.
-   **If 1.C-SCOPE = Parser-only**: integration deferral is
-   explicitly documented in the SESSION_LOG.md Session 21 entry
-   as a Session 22+ carry-forward; acceptance item 4 is
-   considered satisfied by the documented deferral.
+4. *(Full-W8 only)* Integration with `barcada-scrape`'s fetcher
+   seam per Q-C.3 ships this session.
 
 ### Candidate D (Phase 4 PR-D tooling)
 
