@@ -11,12 +11,17 @@ Pair this with the latest entry in `SESSION_LOG.md`, with
 `BARCADA_CRAWLER_REMEDIATION_PLAN.md` to start a session cold and
 be productive within ~10 minutes.
 
-**Session 22 invocation prompt:** to be drafted at S22 open OR by
-mirror of the S21 prompt template once S22 scope is chosen. The
-S21 prompt (`~/crawler-audit/SESSION_21_PROMPT.md`) remains a good
-structural template for any of the remaining S21 candidates
-(A/B/D/E) plus a new Full-W8 integration candidate that opened
-this session.
+**Session 22 invocation prompt:** `~/crawler-audit/SESSION_22_PROMPT.md`
+(drafted at Session 21 close; mirrored at
+`~/Downloads/session-22-prompt.md` for operator-invocation
+convenience). The prompt is scope-agnostic at Phases 0/1 and elicits
+scope-specific design gates at Phase 2 per chosen candidate. The
+S21 carry-forward corrections (workspace Phase 0 anchor pinned to
+`332f390`; parser-API stability HALT-condition baked into Step 0.9;
+Candidate F prereqs include Q-C.4 deferred-from-S21 framing) are
+folded directly. Re-read it on session open. Candidate F (W A.1
+integration) is the natural follow-on; A/B/D/E carry forward
+unchanged from S21 prompt.
 
 ---
 
@@ -134,9 +139,16 @@ Session 22 starts cold by:
 4. Reading the relevant section of BARCADA_CRAWLER_
    REMEDIATION_PLAN.md for the chosen Session 22 scope (see
    "Notes for Session 22" below).
-5. Running Phase 0 cold-start verification per the chosen S22
-   prompt's protocol (the S21 prompt remains a sound structural
-   template).
+5. Reading `~/crawler-audit/SESSION_22_PROMPT.md` end-to-end
+   (drafted at S21 close; ~1027 lines). It encodes the strict
+   7-phase ordering with halt-on-mismatch, the 9-step Phase 0
+   verification (incl. Step 0.9 parser API surface stability
+   check for Candidate F), the per-candidate Phase 2 design-gate
+   templates (F new + A/B/D/E carry-forward), and the full
+   regression-protection checklist locking S19/S20/S21
+   deliverables.
+6. Running Phase 0 cold-start verification per that prompt's
+   protocol.
 
 ---
 
