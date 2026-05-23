@@ -11,12 +11,17 @@ Pair this with the latest entry in `SESSION_LOG.md`, with
 `BARCADA_CRAWLER_REMEDIATION_PLAN.md` to start a session cold and
 be productive within ~10 minutes.
 
-**Session 23 invocation prompt:** to be drafted at operator request
-between sessions per S20→S21 and S21→S22 precedent. Drafting the
-next-session prompt is operator-commissioned, NOT a built-in Phase 6
-step. If the operator does not commission a draft, Session 23 can
-either operator-commission at S23 open or scope out a fresh prompt
-at S23 open.
+**Session 23 invocation prompt:** `~/crawler-audit/SESSION_23_PROMPT.md`
+(drafted at S22 close per explicit operator commission;
+~1322 lines). The prompt is scope-agnostic at Phases 0/1 and
+elicits scope-specific design gates at Phase 2 per chosen
+candidate. The S22 close-out corrections are folded directly:
+workspace Phase 0 anchor pinned to `8e6a7de`; Step 0.5 baseline
+pinned at 480; Step 0.9 parser-API stability check expanded to
+cover all 4 S22-shipped modules; Out-of-scope explicitly locks
+S21+S22 deliverables at their landed SHAs. Operator may invoke
+it directly or mirror to `~/Downloads/session-23-prompt.md`.
+Re-read it on session open.
 
 ---
 
