@@ -11,14 +11,24 @@ Pair this with the latest entry in `SESSION_LOG.md`, with
 `BARCADA_CRAWLER_REMEDIATION_PLAN.md` to start a session cold and
 be productive within ~10 minutes.
 
-**Session 26 invocation prompt:** not yet drafted at S25 close.
-Per S20→S21, S21→S22, …, S24→S25 precedent, the next-session prompt
-is operator-commissioned between sessions; if not commissioned in
-advance, scope it at S26 open using this template + the S25
-SESSION_LOG entry. Anchors that S26 Phase 0 must verify:
-- Workspace HEAD: this follow-up commit (S25 close-out follow-up
-  pinning the S26 Phase 0 workspace anchor SHA on this line).
+**Session 26 invocation prompt:** drafted at S25 close as
+`SESSION_26_PROMPT.md` (1488 lines; mirrors the S20-S25 7-phase
+structure). Anchors:
+- Workspace HEAD: `8e6d836` (S25 close-out follow-up pinning the
+  S26 Phase 0 workspace anchor SHA — this commit).
 - Repo HEAD: `aed7873` (S25 Commit 2 final).
+- Canonical baseline: 964 tests (16-path invocation).
+- Primary recommended scope: none — Candidate J closed at S25;
+  S26 picks from carry-forwards A/B/D/E/H or optional new K
+  (ADLSCostJournal live Azure smoke).
+- Carry-forward candidates: A, B, D, E, H (unchanged from S24
+  handoff). NEW optional Candidate K added (S25-shipped backend
+  has never been exercised against real Azure).
+
+S26 prompt's Phase 0 Step 0.9 was self-verified at S25 close
+against repo HEAD `aed7873` — all S24+S25 helper signatures
+intact, all S22-S25 public APIs unchanged, abfss:// dispatch
+routes to ADLSCostJournal (the seam Candidate J shipped).
 - Canonical baseline: 964 tests (16-path invocation).
 - Carry-forward candidates: A, B, D, E, H (unchanged from S22-S24
   handoffs). Candidate J CLOSED at S25.
