@@ -5396,6 +5396,18 @@ as the canonical headline. Narrower baselines (480 / 538) remain
 valid for S24 candidates that don't exercise the orchestrator
 sub-surface.
 
+**Net-new tests across S23: 60** (= 35 robots_integration +
+7 vmss_worker + 8 job_runner + 6 worker_loop + 4 integration).
+Distinct from the gate-trajectory deltas (35 + 74 + 129 + 152
++ 4 = 394) which conflate net-new with newly-in-invocation
+pre-existing — commits 2/3/4 added pre-existing test files
+to the gate-invocation (67 + 121 + 146 = 334 pre-existing
+tests joined the gate during S23). The net-new figure is the
+load-bearing one for the per-commit cumulative-gate audit
+discipline (S23-folded LESSONS "Cumulative test-count gate
+with new-file invocation expansion"). Future sessions should
+use 60 — not 394 — when characterizing S23's test growth.
+
 Session 23 LLM spend: $0 (no fixtures recorded; no live HTTP;
 all tests use synthetic data + injectable fetchers + tmp_path).
 Cost incurred Sessions 1-23: $0.711 (unchanged).

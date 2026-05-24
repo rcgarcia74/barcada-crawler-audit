@@ -116,9 +116,12 @@ Empirical baseline: at S19 review 3 of 5 "must-fix" items collapsed
 under cold-start verification; at S20 review 1 of 12 amendments was
 skipped because it would HALT spuriously (SR-4); at S21+S22 post-
 close audit 2 of 3 operator-feedback items required workspace-doc
-corrections; at S23 post-close audit no reviewer feedback was
-solicited (5-commit shape verified cleanly). Do not pattern-apply;
-verify each.
+corrections; at S23 post-close audit no operator-side flagged
+amendments arose (5-commit shape verified cleanly), but the v1→v2
+prompt-review cycle had already resolved 6 findings cleanly before
+invocation. Review remains the convergence mechanism; "no
+amendments at post-close audit" is not the same as "review was
+unnecessary." Do not pattern-apply; verify each.
 
 ---
 
@@ -467,14 +470,40 @@ print('OK all S23-shipped public APIs unchanged from S23 close')
 # Verify the cloud-init template still has the S23-added placeholder
 # + the -e BARCADA_ROBOTS_BYPASS_CONFIG line. Any drift here breaks
 # the operator-CLI → worker-env propagation chain.
-grep -q '${BARCADA_ROBOTS_BYPASS_CONFIG}' scripts/vmss/cloud_init.template.yaml \
-    && echo 'OK cloud_init.template.yaml placeholder present' \
-    || (echo 'FAIL placeholder missing'; exit 1)
+#
+# IMPORTANT: use `grep -qF` (fixed-string) to avoid two failure modes:
+#   1. BRE metachar surprises (the `$` in `${...}` is literal in BRE
+#      only when not at end-of-pattern; better to sidestep BRE entirely).
+#   2. Markdown-NBSP-in-shell-command injection (when Claude reads
+#      this prompt and types the grep into Bash, NBSP between tokens
+#      can replace ASCII spaces and break the pattern match). The
+#      `-F` form is shorter and more NBSP-tolerant — fixed-string
+#      matching has no regex parsing to trip on.
 
-grep -q '\-e BARCADA_ROBOTS_BYPASS_CONFIG=\${BARCADA_ROBOTS_BYPASS_CONFIG}' \
+grep -qF '${BARCADA_ROBOTS_BYPASS_CONFIG}' \
+    scripts/vmss/cloud_init.template.yaml \
+    && echo 'OK cloud_init.template.yaml placeholder present' \
+    || { echo 'FAIL placeholder missing'; exit 1; }
+
+grep -qF '-e BARCADA_ROBOTS_BYPASS_CONFIG=${BARCADA_ROBOTS_BYPASS_CONFIG}' \
     scripts/vmss/cloud_init.template.yaml \
     && echo 'OK cloud_init.template.yaml -e line present' \
-    || (echo 'FAIL -e line missing'; exit 1)
+    || { echo 'FAIL -e line missing'; exit 1; }
+
+# Verify the S22-shipped ADLSCostJournal Phase-5 skeleton is unchanged.
+# Q-I.1's "file://-only" option presupposes this is still a skeleton;
+# if someone completed the skeleton between S23 close and S24 open
+# (skeleton-marker NotImplementedError gone), Q-I.1's option (a)
+# loses rationale and the Phase 2 elicitation must be re-shaped.
+.venv/bin/python -c "
+from barcada_scraper.classifier.pipeline.cost_journal_adls import ADLSCostJournal
+try:
+    ADLSCostJournal(journal_dir='/tmp/_s24_phase0_check', run_id='x')
+    raise AssertionError('ADLSCostJournal no longer raises — skeleton was completed; Q-I.1 needs re-shaping')
+except NotImplementedError as exc:
+    assert 'Phase 5 deliverable' in str(exc), str(exc)
+    print('OK ADLSCostJournal Phase-5 skeleton marker present')
+"
 ```
 
 If any of 0.1-0.9 fail, HALT before doing any work.
@@ -609,8 +638,15 @@ Scope:
   `journal.read().state.robots_bypass_log` carries the audit entry
   after a BYPASS_ALLOW fires.
 
-Estimated 50-100 LOC (URL→handle parser + boot init logic + writer
-replacement + tests).
+Estimated ~50-100 LOC of src/ changes + ~150-300 LOC of test code
+(integration test alone was 331 LOC at S23 commit 5; persistence-
+focused parallel will be similar shape). Total ~200-400 LOC.
+Per S22 LESSONS "Phase-2 estimate-vs-actual disclosure": if actual
+ships more than ~2x the estimate (high or low), disclose the
+variance in the commit body with a brief reason. S23's
+Candidate G estimated 200-300 src LOC and actually shipped ~1796
+LOC counting tests — a 6x divergence — disclosed in the close
+report; same discipline applies here.
 
 **Prerequisites:**
 - **All S23 public APIs stable** (Phase 0 Step 0.9 verifies). HALT
@@ -763,25 +799,55 @@ per Candidate B's auth) OR to any S19/S20/S21/S22/S23 deliverable
   semantics; cleaner separation but adds operational dependency);
   (c) Worker writes a sentinel state and trusts orchestrator to
   reconcile (most complex; not recommended).
-- **Q-I.3 Per-shard outcome / bypass-log conflict**: source-verify
-  at Phase 2 whether the existing `make_blob_journal_writer`
-  append-only writer in worker_loop.py:2814 writes to the same
-  JournalState surface as the CostJournal handle would. Two
-  outcomes:
-  (a) They write to SEPARATE journal blobs (the per-shard writer
-      writes a `.jsonl` ledger; the CostJournal writes the
-      `run_<run_id>.json` state file). Design: independent writes,
-      no conflict. (Likely the actual shape — source-verify.)
-  (b) They write to the SAME JournalState (the per-shard outcome
-      lands in `JournalState.shards` via the CostJournal). Design:
-      every BYPASS_ALLOW write must coordinate with the per-shard
-      outcome write via `update_with_retry`'s mutator chain.
+- **Q-I.3 Per-shard outcome / bypass-log target verification
+  (Phase 2 source-verify, NOT an operator design gate)**: BEFORE
+  the Phase 2 AskUserQuestion batch, Claude Code MUST source-verify
+  at session-current HEAD whether `make_blob_journal_writer` and
+  the CostJournal handle write to the same target. This is a
+  determinable code fact, not an operator decision.
+  Source-verified at S23 close (HEAD `6e6e4ca`):
+  - `make_blob_journal_writer` at worker_loop.py:~2919 uses
+    `fs.open(journal_url, "at")` + `outcome.to_journal_line() + "\n"`
+    (JSONL append; mode="at"). Writes per-shard outcomes to the
+    raw `journal_url` blob.
+  - `LocalFSCostJournal` at cost_journal_local.py + the
+    `update_with_retry` protocol target `<journal_dir>/run_<run_id>.json`
+    (single state-file overwrite with ETag). Built via
+    `open_journal(journal_dir=..., run_id=...)`.
+  → Different files. Independent writes. NO conflict.
+  At S24 Phase 2, re-verify this is still true (the two source
+  sites are stable per Out-of-scope but the Phase 2 cold-start
+  source-verify discipline applies per S22+S23 LESSONS pattern):
+  ```
+  grep -n 'def make_blob_journal_writer' src/barcada_scraper/orchestrator/worker_loop.py
+  grep -nE 'fs\.open\(journal_url' src/barcada_scraper/orchestrator/worker_loop.py
+  grep -n 'def try_update\|def write_initial' src/barcada_scraper/classifier/pipeline/cost_journal_local.py
+  ```
+  If `make_blob_journal_writer` now routes through CostJournal
+  (or vice versa), HALT — the Candidate I design proceeds on the
+  "independent writes" premise; a change to that premise requires
+  a re-shaped Phase 2 elicitation.
+  Once verified, the Phase 2 elicitation simplifies to a CONFIRMATION:
+  "Given source-verification shows independent writes (JSONL-append
+  `journal_url` vs state-file `run_<run_id>.json`), confirm
+  Candidate I builds its CostJournal handle as a SEPARATE write
+  surface from `make_blob_journal_writer`'s existing append-log."
+  This is a yes/no confirmation, not a 2-option design pick. The
+  "shared JournalState" path is only re-opened if source-verify
+  surfaces drift.
 - **Q-I.4 Writer construction site**: (a) Build the writer inside
   `scrape_stage2_pages_invoker` (Recommended — matches the S23
-  log-only pattern; minimal change); (b) Hoist to module level as
-  a factory function returning a writer closure; (c) Add a NEW
+  log-only pattern; minimal change; stays within the S23-authorized
+  worker_loop.py touch envelope); (b) Hoist to module level as
+  a factory function returning a writer closure (still within
+  worker_loop.py; no new src/-auth required); (c) Add a NEW
   helper in `orchestrator/robots_integration.py` (e.g.,
-  `make_durable_bypass_writer(journal: CostJournal)`).
+  `make_durable_bypass_writer(journal: CostJournal)`) — **REQUIRES
+  src/-auth expansion at Phase 2: additive growth of the S23-locked
+  robots_integration.py public surface (@ `279bb77`). Mirror the
+  S23 Q-G.1-option-(i) pattern: surface this as an explicit
+  AskUserQuestion before patching; cite the S22+S23 "Implicit-
+  authorization HALT for src/-locks" LESSONS provenance.**
 - **Q-I.5 Boot-time CostJournal handle scope**: (a) Open once per
   invoker invocation (per-shard); close at shard end (Recommended
   — matches existing invoker pattern); (b) Open once per worker
@@ -976,6 +1042,32 @@ After commit 2                 : >= 932 + N_commit_1_tests + N_commit_2_tests
 **Rule**: the count NEVER decreases between checkpoints. A decrease
 means a previously-passing test went red — regression. HALT.
 
+**Read `N_commit_X_tests` carefully** — per the S23-folded
+"Cumulative test-count gate with new-file invocation expansion"
+LESSONS pattern, `N_commit_X_tests` may have TWO components:
+
+  - **net-new tests** added in commit X (truly added this commit's
+    diff), and
+  - **newly-in-invocation pre-existing tests** (a pre-existing
+    test file that joined the gate-invocation this commit because
+    commit X is the first to touch it).
+
+The gate's "never decreases" invariant holds against the COMBINED
+delta, but commit bodies MUST distinguish the two components for
+audit clarity. Example from S23 commit 2 (`5eeaac7`): the gate
+went 573 → 647 (Δ +74), of which only +7 were S23-net-new tests
+(the `BARCADA_ROBOTS_BYPASS_CONFIG` field tests) and +67 were
+pre-existing `test_vmss_worker.py` tests that joined the
+invocation because commit 2 was the first to touch that file.
+S23 close report aggregated **net-new across the 5 commits = 60**
+(35 + 7 + 8 + 6 + 4), distinct from the +394 gate-trajectory
+delta which conflated new tests with file-additions.
+
+For Candidate I (single sub-surface; likely no new test files
+beyond extending the existing integration test): the distinction
+may not apply per commit. For Candidates B/E (which may add new
+test files): apply the distinction in every commit body.
+
 Baseline pre-resolved at Phase 1 per Phase 0 Step 0.5: 932 is the
 canonical S24 baseline for any candidate that touches the
 orchestrator sub-surface (Candidate I definitely; Candidates B/E
@@ -1076,7 +1168,14 @@ either operator-commission or scope out at S25 open.
 ### Candidate I (durable bypass-audit persistence)
 
 1. abfss:// scope resolved per Q-I.1; if file://-only chosen,
-   abfss:// HALT path implemented + tested.
+   passing an `abfss://` URL through the new worker-boot
+   CostJournal-construction path raises `NotImplementedError`
+   (via ADLSCostJournal's existing Phase-5 skeleton in
+   `cost_journal_adls.py`) at boot time — tested with an
+   `abfss://` URL fixture asserting (i) the error type is
+   `NotImplementedError` and (ii) `"Phase 5 deliverable"` appears
+   in `str(exc)`. The error must fire at boot, not lazily on first
+   bypass; matches the S23 Q-G.7 "fail loud at startup" precedent.
 2. Journal-init coordination per Q-I.2 implemented; if
    worker-self-bootstrapping chosen, `write_initial` invoked when
    `j.exists()` returns False.
