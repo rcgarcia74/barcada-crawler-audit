@@ -5148,3 +5148,274 @@ Cost incurred Sessions 1-22: $0.711 (unchanged).
 Cost budget remaining (cap $100): $99.29.
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+
+## Session 23 — W A.2 worker_loop / fetcher_core integration (2026-05-23)
+
+Scope: Engineering session. Candidate G (W A.2 integration) chosen
+at Phase 1 from the 6 S22-handoff candidates (G new + A/B/D/E/H
+carry-forward). 5 per-module commits (Q-SHARED.1) shipping the
+robots-integration helpers, vmss_worker env-var leg, job_runner CLI
+flag + cloud-init template plumbing, worker_loop 3-site gate wiring,
+and the in-process tmp_path end-to-end integration test. No new tag
+this session (1.TAG = defer; W A.2 is not a workstream-end
+milestone on its own). LLM spend: $0.
+
+──────── Cold-start verification at session open ──────────────
+
+Phase 0 ran the 9-step verification. Step 0.1 surfaced two deltas
+worth recording:
+
+- Workspace HEAD at `577a70b` (not the prompt's expected `8e6a7de`),
+  3 commits ahead. All 3 were S22 close-out prompt-finalization +
+  labeling-audit utility work, matching the S20/S21/S22 precedent
+  for prompt-drafting between sessions:
+    300320a  Session 23 prompt drafted (scope-agnostic 7-phase template)
+    aedb17b  S23 prompt v2 (6 reviewer findings folded; journal-count
+             regressions fixed)
+    577a70b  utility scripts for labeling audit
+- Repo HEAD at `2fc4d8e` (not the prompt's expected `fdc8a7a`),
+  1 commit ahead. The delta is `2fc4d8e labeling work` — operator-
+  side `eval_data/{stage1_labels, README, TAXONOMY_GAP_LOG}`
+  modifications committed (not staying unstaged as the prompt's
+  Sessions 8-22 precedent assumed). Out-of-scope territory either
+  way; surfaced to operator before continuing.
+
+All other Phase 0 checks clean: 10 tags incl. `workstream-a-week1-end`;
+driver lock invariant at `dd64963` with the 8d0fc0e exception;
+fixtures 222/202/222/1213/20/20; combined suite 480/0/0; manifest
+`baseline-v0/0.1.0` with `driver_sha` prefix `521e363`; schema
+v1.1 18-col stage3; both sub-surface CLIs report expected
+subcommand counts; regression-protection counts (30 check + 23
+canary + 33 cassette + 32 robots + 30 robots_gate + 30
+robots_bypass_config + 43+13+2 journal) all green. Step 0.9 NEW:
+all 4 S22-shipped public API surfaces (RobotsGate / BypassEntry /
+BypassAuthorization / GateDecision / BypassAuditEntry / loader /
+JournalState.with_robots_bypass_appended) confirmed unchanged
+from S22 close.
+
+──────── Phase 1 + Phase 2 design-gate ────────────────────────
+
+Phase 1 decisions:
+- S23 scope = Candidate G (W A.2 worker_loop / fetcher_core
+  integration).
+- Sub-question 1.TAG = "defer" (W A.2 alone doesn't close a
+  workstream-week milestone; no tag this session).
+- Baseline pre-resolved per Phase 0 Step 0.5 dual-baseline rule:
+  Candidate G touches the cost_journal module → 538 broader
+  baseline (480 headline + 58 journal-suite) bound for ALL
+  Phase 3 commit checkpoints in S23.
+
+Phase 2 design-gate (Candidate G) — 9 design questions across 3
+AskUserQuestion batches, plus 1 mid-Phase-2 src/-authorization batch
+and 1 follow-up cloud-init-template authorization:
+
+- Q-G.1 sync/async path: option (ii-a) per-domain gate + prewarm via
+  asyncio.to_thread; sync gate-evaluate from async after warming.
+  No cross-call cache. Per-_acquire_one_domain_t1 lifetime.
+- Q-G.2 gate sites: all three (L2381 _attempt_url + L2300
+  _get_homepage_html + L2672 link-discovery sub-fetch).
+- Q-G.3 plumbing: BOTH env var (BARCADA_ROBOTS_BYPASS_CONFIG) AND
+  CLI flag (--robots-bypass-config), CLI overrides env.
+- Q-G.4 journal write: update_with_retry with mutator lambda calling
+  with_robots_bypass_appended (Q-G.4 protocol per S22 LESSONS).
+- Q-G.5 SKIP-side: emit row with error_kind="ROBOTS_DISALLOW" +
+  error_message=decision.reason[:1024].
+- Q-G.6 crawl-delay: forward S22 default honor_crawl_delay=False
+  (no behavior change at integration).
+- Q-G.7 missing config: unset → empty bypass dict; set+missing →
+  hard FileNotFoundError at orchestrator startup.
+- Q-G.8 test corpus: in-process tmp_path synthetic (commit 5).
+- Q-SHARED.1 commit shape: per-module (5 commits expected).
+
+src/-authorization (explicit per S22 "Implicit-authorization HALT for
+src/-locks" LESSONS): worker_loop.py + vmss_worker.py + job_runner.py +
+NEW orchestrator/robots_integration.py authorized in one batch.
+A follow-up cloud-init template authorization landed when the strict-
+mode unsubstituted-placeholder check in `render_cloud_init` made the
+template + substitutions-dict edit an atomic pair.
+
+Source-verification (Phase 2 + start of commit 4) used Explore
+subagent twice on worker_loop.py (2884 LOC) — once to map the
+3 pre-fetch sites + the 2 render_cloud_init call sites, once to
+re-verify line numbers at HEAD `872527e` before drafting commit 4
+edits. Findings:
+- L2381 _attempt_url confirmed (primary T1/T2 path variants)
+- L2300 _get_homepage_html confirmed (Pass-2 locale fallback / SPA-
+  shell detection)
+- L2672 link-discovery confirmed (Pass-3 subpage aggregation)
+- _acquire_one_domain_t1 body-start at L2202 confirmed
+- update_with_retry signature confirmed (sync, mutator pattern,
+  ETag-conditional, exponential backoff 50/100/200/400/800ms)
+
+──────── Phase 3 — 5 per-module commits ────────────────────────
+
+Per the Q-SHARED.1 per-module shape:
+
+  279bb77  WA2.W8.robots-integration-helpers
+           orchestrator/robots_integration.py + tests
+           244 src LOC + 512 test LOC; 35 new tests
+           538 → 573
+  5eeaac7  WA2.W8.vmss-worker-bypass-env
+           orchestrator/vmss_worker.py + test_vmss_worker.py
+           17 src LOC + 65 test LOC; 7 new tests
+           573 → 647 (incl. test_vmss_worker.py joining the invocation:
+                       67 pre-existing + 7 new)
+  872527e  WA2.W8.job-runner-bypass-cli
+           orchestrator/job_runner.py + scripts/vmss/
+           cloud_init.template.yaml + test_job_runner.py
+           29 src LOC + 10 yaml LOC + 131 test LOC; 8 new tests
+           647 → 776
+  4ec7b0a  WA2.W8.worker-loop-gate-wiring
+           orchestrator/worker_loop.py + test_worker_loop.py
+           109 src LOC (+109/-2) + 348 test LOC; 6 new tests
+           776 → 928
+  6e6e4ca  WA2.W8.robots-gate-integration-test
+           test_robots_gate_integration.py (NEW file)
+           331 test LOC; 4 new tests
+           928 → 932
+
+Total: ~409 src LOC + ~1387 test LOC = ~1796 LOC across 5 commits.
+60 net-new tests (35 + 7 + 8 + 6 + 4). Combined-suite gate
+trajectory: 538 → 573 → 647 → 776 → 928 → 932 (never decreased).
+
+Bisectability adjustment during Phase 3 commit-2 review: the Phase 1
+plan named "vmss_worker.py + scripts/vmss/cloud_init.template.yaml"
+as a single commit-2 unit, but implementation surfaced that
+`render_cloud_init`'s strict-mode unsubstituted-placeholder check
+(job_runner.py:743) requires the template placeholder and the
+substitutions-dict entry to land together (or the cumulative test-
+count gate fires mid-sequence). Operator confirmed deferral: the
+cloud-init template touch moved to commit 3 with job_runner.py.
+
+Production-vs-test journal asymmetry surfaced at start of commit 4:
+worker_loop.py uses an append-only `journal_writer` callback pattern,
+NOT a `CostJournal` (read-modify-write) handle. The S22
+`with_robots_bypass_appended` lives on `JournalState`, which requires
+a CostJournal to read-modify-write. Resolution: commit 4 wires a
+log-only production `bypass_audit_writer` closure (visible to
+operator via worker logs); commit 5's tmp_path integration test
+wires a real `LocalFSCostJournal`-backed writer via
+`record_bypass_audit` to pin the Q-G.4 contract end-to-end. Durable
+production persistence (opening a CostJournal from
+config.cost_journal_url at worker boot) remains an explicit deferred
+follow-up disclosed in commit 4's body.
+
+──────── Phase 4 — whole-tree pre-push gate ────────────────────
+
+All four gates green at HEAD `6e6e4ca`:
+- ruff check .                  All checks passed!
+- ruff format --check .         350 files already formatted
+- vermin --target=3.10          Minimum required versions: 3.10
+- validate_consistency.py       0 errors / 0 warnings; PASS
+
+eval_data WIP halt protocol not triggered (rows remained
+schema-valid throughout the session despite operator-WIP edits
+landing during S23).
+
+──────── Phase 5 — push ────────────────────────────────────────
+
+Pushed 5 commits `279bb77..6e6e4ca` to `origin/main`. Pre-push
+hook (validate_consistency) also re-ran green at push time. No tag
+placed (1.TAG = defer). Tag list unchanged at 10 entries.
+
+──────── Phase 6 — close-out ───────────────────────────────────
+
+5 forward-applicable LESSONS folded in at this session close:
+
+1. Bisectability vs. Phase-1-named commit shape — when an
+   architectural constraint (e.g., strict-mode template-and-
+   substitutions lockstep) forces atomic file-pairs that span the
+   Phase-1-named commit boundary, surface for operator authorization
+   to deviate; do NOT pattern-apply Phase 1 wording mid-sequence.
+
+2. Production-vs-test journal asymmetry — when production code uses
+   one journal API (append-only writer callback) and tests need
+   another (CostJournal + update_with_retry), explicitly defer
+   durable-persistence wiring to a follow-up commit and disclose
+   the deferral in the touching commit's body. The integration test
+   pins the deferred contract via the test API.
+
+3. Source-verify line numbers per Phase 3 commit, not just at
+   Phase 2 — line numbers shift as commits land in the same file.
+   Explore-subagent re-verification at the start of any commit
+   touching a > 1000-LOC file paid off here (worker_loop.py
+   commit 4 ran against verified-fresh L2381/L2300/L2672 numbers).
+
+4. Cumulative test-count gate with new-file invocation expansion —
+   when each per-module commit adds a new tests/foo/test_X.py path
+   to the suite invocation, the gate's "never decreases" rule must
+   be read as "the same path-set's count never decreases", not
+   "absolute count never decreases" (since the path-set grows
+   each commit). Per-commit-message bookkeeping should distinguish
+   net-new tests (added this commit) from newly-in-invocation
+   pre-existing tests (file joined the gate this commit).
+
+5. False-premise verification questions during Phase 2 — operator
+   may probe with questions like "what did I answer for Q-G.1.1?"
+   that reference decisions NOT actually on file. Never confabulate;
+   correct the premise explicitly and surface the related real
+   decision instead. The honest "I didn't ask that" + "here's what
+   we did pin" pattern caught a missing cache-lifetime
+   sub-decision before Phase 3 started.
+
+**Canonical S23-close baseline for S24 Phase 0 Step 0.5
+(VERIFIED post-push at HEAD `6e6e4ca`):**
+
+```
+.venv/bin/python -m pytest \
+    tests/scraper/test_fixture_conformance.py \
+    tests/runners/fixture_cascade/ \
+    tests/baseline_v0/ \
+    tests/synthetic_crawl/ \
+    tests/scraper/test_robots.py \
+    tests/scraper/test_robots_gate.py \
+    tests/scraper/test_robots_bypass_config.py \
+    tests/classifier/pipeline/test_cost_journal.py \
+    tests/classifier/pipeline/test_cost_journal_local.py \
+    tests/classifier/pipeline/test_cost_journal_adls.py \
+    tests/orchestrator/test_robots_integration.py \
+    tests/orchestrator/test_vmss_worker.py \
+    tests/orchestrator/test_job_runner.py \
+    tests/orchestrator/test_worker_loop.py \
+    tests/orchestrator/test_robots_gate_integration.py -q
+# Expected: 932 passed / 0 failed / 0 skipped
+# Sub-totals (15 paths):
+#   210 conformance + 46 driver + 99 baseline_v0 +
+#    33 synthetic_crawl + 32 robots + 30 robots_gate +
+#    30 robots_bypass_config + 43 cost_journal +
+#    13 cost_journal_local + 2 cost_journal_adls +
+#    35 robots_integration + 74 vmss_worker (67 pre-S23 + 7 new) +
+#   129 job_runner (121 pre-S23 + 8 new) +
+#   152 worker_loop (146 pre-S23 + 6 new) +
+#     4 robots_gate_integration = 932
+```
+
+Re-ran post-S23-close-out at HEAD `6e6e4ca`: 932 passed in
+~48s (0 failed / 0 skipped). For S24 Phase 0 Step 0.5, use 932
+as the canonical headline. Narrower baselines (480 / 538) remain
+valid for S24 candidates that don't exercise the orchestrator
+sub-surface.
+
+Session 23 LLM spend: $0 (no fixtures recorded; no live HTTP;
+all tests use synthetic data + injectable fetchers + tmp_path).
+Cost incurred Sessions 1-23: $0.711 (unchanged).
+Cost budget remaining (cap $100): $99.29.
+
+W A.2 integration disposition: shipped end-to-end (5 commits).
+Production durable bypass-audit persistence to JournalState.
+robots_bypass_log via worker_loop is the lone explicit deferral —
+documented in commit 4ec7b0a's body and commit 6e6e4ca's body;
+the integration test pins the Q-G.4 contract.
+
+Outstanding carry-forwards entering Session 24:
+- Candidate A (barcada-drift) — still blocked on 2+ parquet files
+  (earliest natural date 2026-06-06).
+- Candidate B (per-tier cost-accounting retrofit) — unchanged.
+- Candidate D (Phase 4 PR-D tooling) — unchanged.
+- Candidate E (cassette corpus expansion) — unchanged.
+- Candidate H (CRAWLING_POLICY.md tightening) — unchanged.
+- **NEW**: Durable bypass-audit persistence in worker_loop
+  (open CostJournal from config.cost_journal_url at worker boot;
+  wire to bypass_audit_writer closure). ~50-100 LOC.
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.

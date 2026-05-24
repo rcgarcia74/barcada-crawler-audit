@@ -1510,3 +1510,156 @@ Forward-applicable: any Phase 2 option whose label or description
 includes a size or LOC estimate. If the actual ships more than
 ~2x the estimate (high or low), disclose in the commit body with
 the reason. Saves a reviewer round-trip.
+
+## Bisectability vs Phase-1-named commit shape (S23 folding)
+
+Phase 1's commit-shape decision (Q-SHARED.1 per-module) is a plan,
+not a hard contract. When implementation surfaces an architectural
+constraint that forces atomic file-pairs across the Phase-1-named
+boundary, surface for operator authorization to deviate — do NOT
+pattern-apply the original Phase 1 wording.
+
+S23 case: Phase 1 named commit 2 as "vmss_worker.py +
+scripts/vmss/cloud_init.template.yaml". Implementation surfaced
+that `render_cloud_init`'s strict-mode unsubstituted-placeholder
+check (job_runner.py:743 — `if leftover: raise ValueError(...)`)
+requires the template placeholder and the substitutions-dict entry
+to land in the SAME commit. Splitting them would break
+test_job_runner.py mid-sequence and fire the cumulative test-count
+gate. Resolution: cloud-init template touch moved to commit 3 with
+job_runner.py; operator authorized the deviation in a focused
+AskUserQuestion presenting the three options (defer / bundle /
+accept-temp-breakage).
+
+Forward-applicable: any time the smallest atomic bisectable unit
+straddles a Phase-1-named commit boundary, surface the trade-off
+explicitly. Common triggers: strict-mode validators (template +
+substitutions dict, schema + serializer, parser + grammar),
+mutual-import-order constraints, lockstep config/code edits.
+Indicator: a per-commit checkpoint that would fail mid-sequence
+even though the end-of-sequence state is correct.
+
+## Production-vs-test journal asymmetry (S23 folding)
+
+When production code uses one journal API (e.g., append-only
+writer callback) and tests need another (e.g., CostJournal with
+read-modify-write semantics), explicitly defer durable-persistence
+wiring to a follow-up commit AND disclose the deferral in the
+touching commit's body. The integration test pins the deferred
+contract via the test API, proving the end-to-end pipeline works
+even though production still goes through a simpler intermediate.
+
+S23 case: worker_loop.py uses an append-only `journal_writer`
+callback (per-shard ShardOutcome lines). The S22 W A.2 work added
+`with_robots_bypass_appended` to `JournalState`, which lives on
+the read-modify-write `CostJournal` API — a different surface.
+Wiring worker_loop to open a CostJournal handle from
+config.cost_journal_url at worker boot is its own scope (~50-100
+LOC of URL-parsing + run_id derivation + initial-state handling).
+Resolution: commit 4 (worker_loop wiring) shipped a log-only
+`bypass_audit_writer` closure in `scrape_stage2_pages_invoker`
+that emits LOG.warning per bypass. Commit 5's tmp_path integration
+test wired a real `LocalFSCostJournal`-backed writer via
+`record_bypass_audit`, pinning the Q-G.4 contract end-to-end. The
+production-durable-write follow-up was named in the carry-forward
+list in SESSION_TRANSITION_TEMPLATE.md.
+
+Forward-applicable: any time production code's existing journal/
+persistence API doesn't match the durable contract a new feature
+needs, AND opening the new API is its own scope, defer the
+production-side wiring + pin the contract via the integration
+test. Disclose the deferral explicitly so a future reviewer knows
+the production path is a known intermediate, not an oversight.
+
+## Source-verify line numbers per Phase 3 commit, not just at
+   Phase 2 (S23 folding)
+
+Line numbers in a > 1000 LOC file shift as commits land in the
+same file. Phase 2 source-verification establishes initial
+ground truth but doesn't guarantee freshness across subsequent
+commits in the same session.
+
+S23 case: Phase 2 source-survey via Explore subagent located the
+3 pre-fetch sites in worker_loop.py at L2381 / L2300 / L2672 at
+HEAD `4ec7b0a-1` (pre-commit-4). Before drafting commit 4's
+edits, a re-survey ran at HEAD `872527e` (post-commit-3). The
+numbers were unchanged THIS time (no commit between 1-3 touched
+worker_loop.py), but the re-survey paid off by re-verifying the
+import-block range + the `_acquire_one_domain_t1` body-start
+position + the actual `await fetch(...)` syntax at each site,
+all of which my edits referenced directly.
+
+Forward-applicable: when a Phase 3 commit will touch a file
+> 1000 LOC AND prior commits in the same session touched the
+same file (or any file in the chain via imports), re-run the
+Explore-subagent source-survey at session-current HEAD before
+drafting edits. Cost: ~30 seconds of subagent time. Benefit:
+catches stale line numbers + stale function names + stale call-
+site shapes that would otherwise cause Edit-tool exact-match
+failures or — worse — successful edits at the wrong location.
+
+## Cumulative test-count gate with new-file invocation expansion (S23 folding)
+
+When each per-module commit adds a NEW tests/foo/test_X.py path
+to the suite invocation, the gate's "never decreases" rule must
+be read as "the same path-set's count never decreases", not
+"absolute count never decreases". The path-set grows each
+commit; the absolute count jumps because pre-existing tests in
+the newly-included file now appear in the gate.
+
+S23 case: at commit 2 (vmss_worker), the invocation expanded
+from 11 paths to 12 by adding tests/orchestrator/test_vmss_worker.py.
+The combined count went 573 → 647 (+74). Of those +74, only +7
+were S23-new tests (the new tests for the robots-bypass-config-
+path field). The remaining +67 were pre-existing test_vmss_worker
+tests that just joined the invocation. The gate's "never
+decreases" invariant was preserved (573 ≤ 647), but a naive read
+of "+74 tests this commit" would be wrong.
+
+Forward-applicable: in commit messages, distinguish:
+- "Net-new tests at commit N: X" (truly added this commit)
+- "Pre-existing tests in newly-included path: Y"
+- "Combined-suite invocation count: previous + X + Y"
+
+This bookkeeping discipline preserves the test-count gate's
+auditability across the per-module commit-chain growth pattern.
+S23 used this format in every commit body; it scaled to 5
+commits without confusion.
+
+## False-premise verification questions during Phase 2 (S23 folding)
+
+Operator may probe during Phase 2 (or any phase) with questions
+referencing decisions that were NOT actually pinned on the
+record. The right response is honest correction, not
+confabulation — never invent an answer that "sounds plausible"
+for a question whose premise is wrong.
+
+S23 case: after Phase 2 batch 1 closed, operator asked: "What
+did I answer for Q-G.1.1 cache invalidation policy? Also, for
+1.TAG, was it defer vs workstream-a-week2-end?" Q-G.1.1 had
+NEVER been asked (only Q-G.1 was on file). 1.TAG had been
+answered "defer" with `workstream-a-week2-end` mentioned only as
+an example inside one option's description, not as a separate
+option. Both probes had false premises.
+
+The right response is to:
+1. State plainly that Q-G.1.1 was never asked — no answer on
+   record.
+2. Surface the related real gap (cache lifetime was not
+   explicitly pinned at Q-G.1; only the per-acquisition-call
+   ii-a lifetime was implicit).
+3. Propose a default for the unpinned gap; ask if operator
+   wants to confirm or override.
+4. Correctly recall 1.TAG = "defer" and clarify the option-shape
+   (workstream-a-week2-end was illustrative, not selected).
+
+After honest correction, operator pinned the cache-lifetime
+default explicitly ("per-_acquire_one_domain_t1 invocation, no
+cross-call cache") and authorized Phase 3.
+
+Forward-applicable: never confabulate answers for verification
+questions whose premise doesn't match what was actually pinned.
+Operators may test this deliberately. The honest "I didn't ask
+that; here's what we did pin" pattern catches design-gate gaps
+that would otherwise become implicit decisions at Phase 3 commit
+time. False-premise questions are a feature, not an attack.
