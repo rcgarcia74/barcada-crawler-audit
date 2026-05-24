@@ -11,12 +11,21 @@ Pair this with the latest entry in `SESSION_LOG.md`, with
 `BARCADA_CRAWLER_REMEDIATION_PLAN.md` to start a session cold and
 be productive within ~10 minutes.
 
-**Session 25 invocation prompt:** not drafted at S24 close. Per the
-S20→S21, S21→S22, S22→S23, S23→S24 precedent, prompt-drafting is
-operator-commissioned between sessions, not always-on close-out
-work. If operator wants a fresh prompt for S25, commission it as a
-separate follow-up; otherwise scope S25 cold at session open using
-this template + SESSION_LOG.md + LESSONS.md.
+**Session 25 invocation prompt:** drafted at S24 close as
+`SESSION_25_PROMPT.md` (1606 lines; mirrors the S20-S24 7-phase
+structure). Anchors:
+- Workspace HEAD: `763fd1a` (this follow-up commit).
+- Repo HEAD: `aa23712` (S24 final commit).
+- Canonical baseline: 947 tests (16-path invocation).
+- Primary recommended scope: Candidate J (abfss:// CostJournal
+  Phase 5 promotion).
+- Carry-forward candidates: A, B, D, E, H (unchanged from S24
+  handoff).
+
+S25 prompt's Phase 0 Step 0.9 was self-verified at S24 close
+against repo HEAD aa23712 — all S24 helper signatures intact, all
+S22-S23 public APIs unchanged, abfss:// guard still in place
+(the seam Candidate J removes).
 
 ---
 
