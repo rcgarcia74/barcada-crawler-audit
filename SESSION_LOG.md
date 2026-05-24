@@ -5431,3 +5431,287 @@ Outstanding carry-forwards entering Session 24:
   wire to bypass_audit_writer closure). ~50-100 LOC.
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+
+
+## Session 24 — W A.2 durable bypass-audit persistence (closes S23 deferral) (2026-05-24)
+
+Scope: Engineering session. Candidate I (durable bypass-audit
+persistence in worker_loop) chosen at Phase 1 from the 6 S23-handoff
+candidates (I new + A/B/D/E/H carry-forward). 3 per-module commits
+(Q-SHARED.1) shipping the durable writer + the Q-I.7 "Both" test
+corpus shape (focused unit tests + S23-integration extension). No
+new tag (1.TAG = defer; Candidate I does not close a workstream-week
+milestone on its own). LLM spend: $0.
+
+──────── Cold-start verification at session open ──────────────
+
+Phase 0 ran the 9-step verification. Step 0.1 surfaced two deltas
+within S20-S23 tolerance:
+
+- Workspace HEAD at `b80e31e` (not the prompt's expected `8f8e51f`),
+  2 commits ahead. Both were S24 prompt-finalization commits, matching
+  the S20-S23 precedent for prompt-drafting between sessions:
+    64844b2  Session 24 prompt drafted (scope-agnostic 7-phase template)
+    b80e31e  S24 prompt v2 (8 reviewer findings folded; S23 net-new
+             count pinned)
+- Repo HEAD at `4bed9b9` (not the prompt's expected `6e6e4ca`),
+  1 commit ahead. `4bed9b9 step 3 labeling audit, cleanup` is
+  strictly eval_data-only (`eval_data/audits/step2_software_product_queue.jsonl`,
+  `eval_data/audits/step3_professional_credentials_queue.jsonl`,
+  `eval_data/stage1_labels.jsonl`) — within the "Workspace HEAD
+  delta tolerance" LESSONS pattern.
+
+All other Phase 0 checks clean: 10 tags incl. `workstream-a-week1-end`;
+driver lock invariant at `dd64963` with the 8d0fc0e exception;
+fixtures 222/202/222/1213/20/20; combined suite 932/0/0 in 52s;
+manifest `baseline-v0/0.1.0` with `driver_sha` prefix `521e363`;
+schema v1.1 18-col stage3; both sub-surface CLIs report expected
+subcommand counts; regression-protection counts (30 check + 23
+canary + 33 cassette + 32 robots + 30 robots_gate + 30
+robots_bypass_config + 43+13+2 journal + 35 robots_integration +
+74 vmss_worker + 129 job_runner + 152 worker_loop + 4 integration)
+all green. Step 0.9 EXPANDED: all S23-shipped public APIs (incl.
+the cloud-init template placeholder + `-e` line; the ADLSCostJournal
+Phase-5 skeleton marker) confirmed unchanged from S23 close.
+
+──────── Phase 1 + Phase 2 design-gate ────────────────────────
+
+Phase 1 decisions:
+- S24 scope = Candidate I (durable bypass-audit persistence).
+- Sub-question 1.TAG = "defer" (Candidate I does not close a
+  workstream-week milestone; no tag this session).
+- Baseline pre-resolved per Phase 0 Step 0.5: 932 is the canonical
+  S24 baseline (Candidate I touches the orchestrator sub-surface).
+  No baseline switch mid-session.
+
+Phase 2 design-gate (Candidate I) — 6 operator decisions (Q-I.3 is
+source-verification, NOT an AskUserQuestion) across 2 AskUserQuestion
+batches plus Q-SHARED.1. All Recommended options selected:
+
+- Q-I.1 abfss:// scope: file:// only (abfss:// raises NotImplementedError
+  at construction; other remote schemes also rejected with the same
+  Phase-5-deliverable marker). Recommended.
+- Q-I.2 Journal-init coordination: self-bootstrap. Worker calls
+  write_initial(JournalState.fresh(run_id=crawl_date, ceiling_usd=0.0))
+  if `journal.exists()` is False; catches JournalAlreadyExistsError on
+  the concurrent-worker race. Recommended.
+- Q-I.3 Per-shard outcome / bypass-log target verification (Phase 2
+  source-verify): CONFIRMED independent writes. `make_blob_journal_writer`
+  at worker_loop.py:2919 uses `fs.open(journal_url, "at")` (JSONL
+  append); `LocalFSCostJournal` writes a state file at
+  `<journal_dir>/run_<run_id>.json` (state-file overwrite with ETag).
+  Different files; no conflict. Premise from S23 LESSONS held.
+- Q-I.4 Writer construction site: inline in scrape_stage2_pages_invoker
+  via 3 small module-level private helpers. Stays within S23-authorized
+  worker_loop.py touch envelope; no new src/-auth needed. Recommended.
+- Q-I.5 CostJournal handle scope: per-invoker invocation. Matches
+  existing invoker pattern. Recommended.
+- Q-I.6 Failure semantics: log + continue on persistence failure.
+  `except Exception` inside the closure with LOG.exception; never
+  raises. Scrape availability > audit completeness for the small
+  per-day bypass volumes the project targets. Recommended.
+- Q-I.7 Test corpus shape: "Both" — new focused unit-test file
+  (test_worker_loop_persistence.py) AND extension to the S23
+  integration test (test_robots_gate_integration.py with new
+  end-to-end tests through scrape_stage2_pages_invoker). Belt-and-
+  suspenders coverage.
+- Q-SHARED.1 commit shape: per-module (3 commits expected; couples
+  src + test-fixture in commit 1 to preserve bisectability per S23
+  LESSONS "Bisectability vs Phase-1-named commit shape").
+
+──────── Phase 3 — 3 per-module commits ────────────────────────
+
+Per the Q-SHARED.1 per-module shape + bundled-coupled exception in
+commit 1:
+
+  48c324a  WA2.W8.bypass-persistence-worker-loop
+           src/orchestrator/worker_loop.py +
+           tests/orchestrator/test_worker_loop.py
+           +115 src LOC / -21 src LOC (3 new module-level helpers
+           + closure replacement); +21 test LOC / -5 test LOC
+           (5 PRE-EXISTING test_stage2_pages_invoker_* fixtures
+           retargeted from abfss:// to file://{tmp_path}/cost.jsonl)
+           Net-new tests: 0. 932 baseline preserved.
+  00d5b38  WA2.W8.bypass-persistence-unit-tests
+           tests/orchestrator/test_worker_loop_persistence.py (NEW file)
+           325 LOC; 12 new tests organized by helper:
+           5 for _open_cost_journal_for_worker + 3 for
+           _ensure_journal_initialized + 4 for
+           _build_durable_bypass_writer.
+           932 → 944 (Δ +12 net-new; file joined invocation this commit).
+  aa23712  WA2.W8.bypass-persistence-integration-extension
+           tests/orchestrator/test_robots_gate_integration.py (EXTENDED)
+           +170 LOC / -1 LOC; 3 new end-to-end tests driving
+           scrape_stage2_pages_invoker:
+           - test_invoker_persists_bypass_audit_through_production_wiring
+           - test_invoker_abfss_cost_journal_url_raises_not_implemented
+           - test_invoker_helpers_export_intact
+           944 → 947 (Δ +3 net-new). 4 S23 tests in the file remain
+           untouched at their landed shape per Out-of-scope lock.
+
+Total: ~115 src LOC + ~520 test LOC = ~635 LOC across 3 commits.
+15 net-new tests (0 + 12 + 3). Combined-suite gate trajectory:
+932 → 932 → 944 → 947 (never decreased).
+
+Mid-commit-1 regression: the original src patch broke 5 PRE-EXISTING
+test_stage2_pages_invoker_* tests that hard-coded abfss:// for
+cost_journal_url; the new Q-I.1 file://-only contract correctly
+rejected those URLs. Resolution: 5 test fixtures retargeted to
+file://{tmp_path}/cost.jsonl in the same commit, preserving the
+bisectability of commit 1 as a single green-passing unit (S23
+LESSONS "Bisectability vs Phase-1-named commit shape" — bundle when
+coupling forces it, document why).
+
+──────── Phase 4 — whole-tree pre-push gate ────────────────────
+
+All four gates green at HEAD `aa23712`:
+- ruff check .                  All checks passed!
+- ruff format --check .         351 files already formatted
+- vermin --target=3.10          Minimum required versions: 3.10
+- validate_consistency.py       0 errors / 0 warnings; PASS
+
+eval_data WIP halt protocol not triggered (rows stayed schema-valid
+throughout the session; operator eval_data commit `4bed9b9` already
+landed pre-session and was acknowledged at Phase 0).
+
+──────── Phase 5 — push ────────────────────────────────────────
+
+Pushed 3 commits `48c324a..aa23712` to `origin/main`. Pre-push hook
+(validate_consistency) also re-ran green at push time. No tag placed
+(1.TAG = defer). Tag list unchanged at 10 entries.
+
+──────── Phase 6 — close-out ───────────────────────────────────
+
+Forward-applicable patterns surfaced this session (folded into
+LESSONS.md):
+
+1. **Tightened-precondition test-fixture retargeting** — when a src
+   change introduces a stricter precondition (Q-I.1 cost_journal_url
+   must be file:// or local), pre-existing tests that supplied
+   "harmless placeholder" values (abfss:// strings the old code
+   never opened) become regressions. The fix is fixture retargeting
+   in the same commit as the src change — never split src + fixture
+   across commits, because the intermediate state is RED and
+   bisectability suffers. Commit 1 of S24 (48c324a) is the canonical
+   example: 5 PRE-S23 tests retargeted from abfss:// to file://
+   tmp_path; documented in the commit body's "Test changes" section.
+
+2. **Test against public API surface only** — drafted the unit tests
+   using `journal.journal_dir` and `journal.run_id` (private attrs
+   stored as `_journal_dir` / `_run_id`); pytest immediately
+   AttributeError'd. Resolution: re-targeted tests against the
+   public `.path` property and the canonical
+   `run_<run_id>.json` filename derived via `journal_path_for`.
+   Pattern: when probing a journal's identity in tests, prefer
+   `journal.path.parent` + `journal.path.name` over the private
+   construction args.
+
+3. **Q-I.7 "Both" test corpus shape works for small candidates** —
+   Candidate I's 50-100 LOC src/ change landed cleanly with a
+   325-LOC focused unit-test file (12 tests, helper-by-helper) +
+   a 170-LOC extension to the S23 integration test (3 tests,
+   end-to-end through scrape_stage2_pages_invoker). The two test
+   surfaces have non-overlapping coverage: unit tests probe each
+   helper in isolation with monkeypatched dependencies; the
+   integration extension probes the production wiring with real
+   fsspec + httpx (stubbed fetch_one + stub gate). For future
+   small-candidate work (~50-200 LOC src), Q-I.7-style "Both"
+   shape is preferable to single-file extension because the unit
+   file provides a stable abstraction layer that survives integration-
+   site refactors.
+
+4. **Q-I.6 "log + continue" closure-failure pattern** — captured the
+   try/except-with-LOG.exception pattern that lets a compliance-
+   audit write outage NOT block scrape progress. The test
+   (`test_writer_logs_and_continues_on_persistence_failure`)
+   monkeypatches `worker_loop.record_bypass_audit` to raise
+   RuntimeError and verifies (a) the closure does NOT propagate
+   the exception, (b) `caplog` captures the LOG.exception with
+   host + url, (c) the journal stayed clean (no partial state).
+   General pattern: when a write surface is on the latency-critical
+   path AND the write is compliance-only, log + continue is
+   reasonable. When it's load-bearing for downstream correctness,
+   re-raise.
+
+5. **Workspace HEAD delta tolerance — eval_data-only path** — S23
+   close had operator-side eval_data commits that landed within
+   the tolerance via Step 0.1's per-commit stat verification. S24
+   confirms the same pattern works for the single new commit
+   `4bed9b9` (eval_data/audits/* + eval_data/stage1_labels.jsonl
+   only). The tolerance check is `git show --stat <sha>` per
+   commit; surface to operator only if any non-eval_data path
+   appears in the stat. No HALT fired at S24 Phase 0.
+
+**Canonical S24-close baseline for S25 Phase 0 Step 0.5
+(VERIFIED post-push at HEAD `aa23712`):**
+
+```
+.venv/bin/python -m pytest \
+    tests/scraper/test_fixture_conformance.py \
+    tests/runners/fixture_cascade/ \
+    tests/baseline_v0/ \
+    tests/synthetic_crawl/ \
+    tests/scraper/test_robots.py \
+    tests/scraper/test_robots_gate.py \
+    tests/scraper/test_robots_bypass_config.py \
+    tests/classifier/pipeline/test_cost_journal.py \
+    tests/classifier/pipeline/test_cost_journal_local.py \
+    tests/classifier/pipeline/test_cost_journal_adls.py \
+    tests/orchestrator/test_robots_integration.py \
+    tests/orchestrator/test_vmss_worker.py \
+    tests/orchestrator/test_job_runner.py \
+    tests/orchestrator/test_worker_loop.py \
+    tests/orchestrator/test_robots_gate_integration.py \
+    tests/orchestrator/test_worker_loop_persistence.py -q
+# Expected: 947 passed / 0 failed / 0 skipped
+# Sub-totals (16 paths):
+#   210 conformance + 46 driver + 99 baseline_v0 +
+#    33 synthetic_crawl + 32 robots + 30 robots_gate +
+#    30 robots_bypass_config + 43 cost_journal +
+#    13 cost_journal_local + 2 cost_journal_adls +
+#    35 robots_integration + 74 vmss_worker +
+#   129 job_runner + 152 worker_loop +
+#     7 robots_gate_integration (4 pre-S24 + 3 new) +
+#    12 worker_loop_persistence (all new) = 947
+```
+
+Re-ran post-S24-close at HEAD `aa23712`: 947 passed in ~48s.
+For S25 Phase 0 Step 0.5, use 947 as the canonical headline.
+Narrower baselines (480 / 538 / 932) remain valid for S25 candidates
+that don't exercise the new test paths.
+
+**Net-new tests across S24: 15** (= 0 commit-1 + 12 commit-2 +
+3 commit-3). Distinct from the gate-trajectory delta (932 → 947 =
++15) — for S24 the two values coincide because no pre-existing test
+files joined the gate-invocation this session (test_worker_loop.py,
+test_robots_gate_integration.py were already in the S23 baseline).
+The net-new=15 figure is what future sessions should cite when
+characterizing S24's test growth.
+
+Session 24 LLM spend: $0 (no fixtures recorded; no live HTTP;
+all tests use synthetic data + injectable fetchers + tmp_path).
+Cost incurred Sessions 1-24: $0.711 (unchanged).
+Cost budget remaining (cap $100): $99.29.
+
+Candidate I disposition: shipped end-to-end. The S23 explicit
+deferral (durable bypass-audit persistence in production
+worker_loop) is now closed. The integration test pins the contract
+both at the `_acquire_one_domain_t1` level (S23) and at the
+`scrape_stage2_pages_invoker` level (S24 extension).
+
+Outstanding carry-forwards entering Session 25:
+- Candidate A (barcada-drift) — still blocked on 2+ parquet files
+  (earliest natural date 2026-06-06).
+- Candidate B (per-tier cost-accounting retrofit) — unchanged.
+- Candidate D (Phase 4 PR-D tooling) — unchanged.
+- Candidate E (cassette corpus expansion) — unchanged.
+- Candidate H (CRAWLING_POLICY.md tightening) — unchanged.
+- **NEW**: abfss:// CostJournal Phase 5 promotion. Currently the
+  S24 _open_cost_journal_for_worker raises NotImplementedError on
+  abfss:// URLs (Q-I.1 file://-only). The ADLSCostJournal Phase 5
+  skeleton in `cost_journal_adls.py` is the natural follow-up.
+  Scope: ~150-250 LOC to complete the skeleton + remove the abfss
+  guard in worker_loop's helper. Operator decides if/when to
+  promote to a session-scope candidate.
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.

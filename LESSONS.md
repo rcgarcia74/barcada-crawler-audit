@@ -1663,3 +1663,193 @@ Operators may test this deliberately. The honest "I didn't ask
 that; here's what we did pin" pattern catches design-gate gaps
 that would otherwise become implicit decisions at Phase 3 commit
 time. False-premise questions are a feature, not an attack.
+
+---
+
+## Tightened-precondition test-fixture retargeting (S24 folding)
+
+When a src/ change introduces a stricter precondition that
+PRE-EXISTING tests fail under (because the old tests supplied
+"harmless placeholder" values the old code never USED), the fix
+is fixture retargeting in the SAME commit as the src change.
+Never split src + fixture across commits, because the intermediate
+state is RED and bisectability suffers.
+
+S24 Candidate I example: the new `_open_cost_journal_for_worker`
+helper enforces a Q-I.1 file://-only precondition on
+`config.cost_journal_url`. The PRE-S23 test_stage2_pages_invoker_*
+tests in `tests/orchestrator/test_worker_loop.py` (5 of them) hard-
+coded `cost_journal_url="abfss://j@x.dfs.core.windows.net/c.jsonl"`
+as a placeholder — the old code never opened that URL, so the
+abfss:// string was harmless. With the new precondition, those 5
+tests immediately regress at the helper's NotImplementedError
+guard.
+
+Resolution: commit 1 of S24 (`48c324a`) updated those 5 fixture
+sites in the SAME commit as the src/ change. Each call to
+`_config(...)` gained a `cost_journal_url=f"file://{tmp_path}/cost.jsonl"`
+override. No test logic or assertions changed; only the
+placeholder value. The commit body documents the change under a
+"Test changes" section that names each of the 5 affected tests.
+
+Forward-applicable: any time a src/ change tightens a previously
+loose precondition, run the FULL pre-existing test suite first;
+treat any new regressions as fixture-update territory (NOT
+src-change-rollback territory) AS LONG AS the test SEMANTIC INTENT
+is preserved. Bundle the fixture updates with the src change to
+preserve bisectability. Document in the commit body. Surface to
+operator only if the fixture update would change a test assertion
+(not just an input placeholder) — that's a different conversation.
+
+---
+
+## Test against public API surface only (S24 folding)
+
+When unit-testing helpers that consume a third-party class (here:
+`LocalFSCostJournal`), probe IDENTITY via the public API, not
+private construction args. Drafting tests against `journal.journal_dir`
+and `journal.run_id` immediately AttributeError'd because those
+fields are stored as `_journal_dir` / `_run_id` (private; no public
+property exposes them under those names).
+
+S24 Candidate I example: the unit tests for
+`_open_cost_journal_for_worker` initially asserted on
+`journal.journal_dir == tmp_path` and `journal.run_id == crawl_date`.
+Both attribute accesses failed. The public surface that DOES
+expose the relevant info is `.path` (a `Path` property returning
+`<journal_dir>/run_<run_id>.json`). Re-targeting:
+
+  assert journal.path.parent == tmp_path     # confirms journal_dir
+  assert journal.path.name == "run_2026-05-23.json"  # confirms run_id
+
+This test-API is also more durable: it survives any refactor that
+renames the private fields (which is the kind of refactor LESSONS
+encourages — private fields can change without breaking external
+callers).
+
+Forward-applicable: when writing tests for a helper that returns
+or consumes a third-party class, prefer probing PUBLIC API
+(properties, `__repr__` output, behavior under known inputs) over
+the third-party's construction args or private attrs. The test
+suite becomes invariant under internal refactors of the
+third-party class.
+
+---
+
+## Q-I.7 "Both" test corpus shape works for small candidates (S24 folding)
+
+For a 50-200 LOC src/ candidate, the "both" test corpus shape —
+focused unit tests in a NEW file + appended end-to-end tests in
+the existing integration file — gives strictly better coverage than
+either alone. The unit file provides a stable abstraction layer
+that survives integration-site refactors; the integration extension
+verifies the production wiring against the same helpers.
+
+S24 Candidate I shipped:
+- `tests/orchestrator/test_worker_loop_persistence.py` (NEW; 325
+  LOC; 12 unit tests organized by helper).
+- 3 new end-to-end tests appended after the 4 S23 tests in
+  `tests/orchestrator/test_robots_gate_integration.py` (drives
+  `scrape_stage2_pages_invoker` with real fsspec + httpx [stubbed
+  fetch_one + stub gate factory]).
+
+The two surfaces have non-overlapping coverage:
+- Unit tests monkeypatch single dependencies (e.g., monkeypatch
+  `record_bypass_audit` to raise to test failure semantics) and
+  assert on each helper's behavior in isolation. Run in <1s.
+- Integration tests do NOT monkeypatch the helpers themselves;
+  they monkeypatch the upstream sources (build_robots_gate,
+  fetch_one) and observe the helpers' output against the on-disk
+  journal state. Run in <3s.
+
+Forward-applicable: for small-medium src/ candidates, default to
+Q-I.7-style "Both" rather than single-file extension. Estimated
+cost: ~30% more test LOC but ~10x faster mean-time-to-diagnose
+when a regression lands (unit tests localize the broken helper;
+integration tests confirm wiring intent).
+
+---
+
+## Q-I.6 "log + continue" closure-failure pattern (S24 folding)
+
+When a write surface is BOTH on the latency-critical path AND
+write-failure is compliance-only (not load-bearing for downstream
+correctness), the canonical pattern is:
+
+  def _writer(decision):
+      if decision.bypass is None:
+          return
+      try:
+          record_bypass_audit(journal=journal, decision=decision)
+      except Exception:  # noqa: BLE001 — Q-I.6 log + continue
+          LOG.exception(
+              "robots_bypass audit persistence failed host=%s url=%s",
+              decision.bypass.host,
+              decision.bypass.url,
+          )
+
+The closure-failure pattern has three invariants:
+1. Catches `Exception` (NOT bare `except:`) — silences crashes but
+   not KeyboardInterrupt / SystemExit.
+2. LOG.exception(...) captures the full traceback for post-hoc
+   audit. Operators reading worker logs can still see what was
+   dropped.
+3. The closure returns normally on failure — the calling code
+   (here: gate `evaluate` chain) cannot tell the audit write
+   failed; the BYPASS_ALLOW fetch still proceeds.
+
+The corresponding test pattern:
+
+  monkeypatch.setattr(
+      "barcada_scraper.orchestrator.worker_loop.record_bypass_audit",
+      lambda **_: (_ for _ in ()).throw(RuntimeError("simulated outage")),
+  )
+  writer = _build_durable_bypass_writer(journal)
+  with caplog.at_level(logging.ERROR, logger="vmss_worker.loop"):
+      writer(decision)  # Must NOT raise
+  assert any("authorized.test" in r.getMessage() for r in caplog.records)
+  assert journal.read().state.robots_bypass_log == ()  # No partial state
+
+Forward-applicable: when a write is on the latency-critical path
+AND compliance-only, use log-and-continue. When it's load-bearing
+for downstream correctness, RE-RAISE. The wrong choice in EITHER
+direction is a bug: log-and-continue when load-bearing leaks
+silent data loss; re-raise when compliance-only inverts the
+availability priority. Decide at Phase 2 design-gate; test the
+chosen semantics explicitly.
+
+---
+
+## Workspace HEAD delta tolerance — eval_data-only path (S24 folding)
+
+The S22+S23 "Workspace HEAD delta tolerance" LESSONS pattern is
+load-bearing across every session-open. S24 added a refinement:
+operator-side commits between session-close and session-open are
+tolerated ONLY when every affected path stays strictly within
+`eval_data/`.
+
+S24 Phase 0 confirmed the pattern: repo HEAD at S24 open was
+`4bed9b9` (not the prompt's expected `6e6e4ca`), 1 commit ahead.
+`git show --stat 4bed9b9` showed:
+
+  eval_data/audits/step2_software_product_queue.jsonl  | 64 ----
+  eval_data/audits/step3_professional_credentials_queue.jsonl | 21 +++++
+  eval_data/stage1_labels.jsonl                        |  8 +--
+
+All three paths are strictly under `eval_data/`. No src/, no
+tests/, no scripts/, no docs/. The tolerance check passed cleanly;
+S24 proceeded without HALT.
+
+The procedural rule:
+1. At Phase 0 Step 0.1, check `git log --oneline <expected>..HEAD`.
+2. For each unexpected commit, run `git show --stat <sha>`.
+3. If EVERY changed path is under `eval_data/` → tolerate, proceed.
+4. If ANY path is outside `eval_data/` → HALT, surface to operator
+   before continuing. This is a hidden src/ touch that may invalidate
+   the session's assumptions.
+
+Forward-applicable: this rule is mechanical — verify with `git show
+--stat`, NEVER assume tolerance from commit subject lines alone
+(commit subjects can be misleading; a "labeling cleanup" subject
+could conceal a src/ touch). The path-stat is the authoritative
+signal.
