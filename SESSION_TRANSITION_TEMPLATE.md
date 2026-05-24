@@ -16,8 +16,8 @@ Per S20→S21, S21→S22, …, S24→S25 precedent, the next-session prompt
 is operator-commissioned between sessions; if not commissioned in
 advance, scope it at S26 open using this template + the S25
 SESSION_LOG entry. Anchors that S26 Phase 0 must verify:
-- Workspace HEAD: `<S25 close-out follow-up SHA>` (pinned by the
-  follow-up commit on this template; see "Workspace state" below).
+- Workspace HEAD: this follow-up commit (S25 close-out follow-up
+  pinning the S26 Phase 0 workspace anchor SHA on this line).
 - Repo HEAD: `aed7873` (S25 Commit 2 final).
 - Canonical baseline: 964 tests (16-path invocation).
 - Carry-forward candidates: A, B, D, E, H (unchanged from S22-S24
