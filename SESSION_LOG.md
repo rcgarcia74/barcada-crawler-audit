@@ -5715,3 +5715,202 @@ Outstanding carry-forwards entering Session 25:
   promote to a session-scope candidate.
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+
+---
+
+## Session 25 — W A.2 abfss:// CostJournal Phase 5 promotion (Candidate J) (2026-05-24)
+
+Scope: complete the ADLSCostJournal skeleton in
+`src/barcada_scraper/classifier/pipeline/cost_journal_adls.py` with a
+full ETag-conditional ADLS Gen2 backend wrapping `azure-storage-blob`;
+remove the abfss:// fail-loud guard in worker_loop.py's
+`_open_cost_journal_for_worker` helper so abfss:// URLs dispatch
+through `open_journal` → ADLSCostJournal; replace 3 S22+S24-landed
+tests that pinned the now-obsolete skeleton-rejection contract.
+
+Phase 0 (cold-start verify): all 9 checks PASSED.
+- Workspace HEAD `0d24d2d` (2 expected prompt-drafting commits ahead
+  of S24-close-pinned `763fd1a`: `a002ba4` prompt v1 + `0d24d2d`
+  prompt v2 reviewer findings). Per LESSONS "Workspace HEAD delta
+  tolerance" — tolerated (both are SESSION_25_PROMPT.md edits only).
+- Repo HEAD `aa23712` (S24 final). Tags 10/10 unchanged.
+- Combined suite 947/0/0 in 52.92s.
+- S24 public APIs stable + abfss guard intact + ADLSCostJournal
+  skeleton intact.
+
+Phase 1: Candidate J chosen; 1.TAG = Defer.
+
+Phase 2 (source-verify + design gates): 8 Q-J questions resolved in
+2 AskUserQuestion batches.
+- Critical source-verification finding: `Path("abfss://...").parent`
+  collapses `//` → `/`, which would silently break
+  `open_journal`'s `str(journal_dir).startswith("abfss://")` prefix
+  check. Drove Q-J.4's option-set design (worker MUST use string
+  rsplit, not pathlib).
+- Q-J.6 source-verified: Azure PutBlob `If-None-Match: "*"` returns
+  412 Precondition Failed when blob exists (Azure docs) → maps
+  cleanly to `JournalAlreadyExistsError`. ADLS Gen2 is strongly
+  consistent on blob writes per Azure docs.
+- Resolutions: Q-J.1 azure-storage-blob direct; Q-J.2 Azure native
+  ETag; Q-J.3 DummyADLS in-memory; Q-J.4 worker helper string
+  rsplit; Q-J.5 optional credential kwarg (lazy
+  DefaultAzureCredential); Q-J.7 Both (unit + integration); Q-J.8
+  1↔1 replacement; Q-SHARED.1 per-module.
+
+Phase 3 (impl): 2 per-module commits + 1 mid-Phase-3 HALT.
+
+**Commit 1** (`835a531`): WA2.W8.adls-promotion-backend
+- `cost_journal_adls.py`: 50 LOC skeleton → 295 LOC full backend.
+  Adds `BlobNotFoundError`, `ConditionNotMetError`, `_BlobBackend`
+  Protocol, `_abfss_to_https` URL helper, `_AzureBlobBackend` (Azure
+  SDK wrapper with `If-None-Match` / `If-Match` precondition
+  mapping), full `ADLSCostJournal` (read / write_initial /
+  try_update / exists + path property).
+- `test_cost_journal_adls.py`: 29 LOC → 339 LOC; 2 → 19 tests. Adds
+  `DummyBlobBackend` in-memory simulator + full coverage of all 4
+  abstract methods (happy / failure / race) + update_with_retry
+  chain + bypass-log round-trip + 4 URL-conversion tests.
+- `test_cost_journal.py` (Q-J.8 extension authorized at HALT):
+  `test_open_journal_abfss_raises_phase5_skeleton` →
+  `test_open_journal_abfss_routes_to_adls_journal` (1↔1; net-zero
+  for this file).
+- Combined suite: 947 → 964 (+17 net).
+
+**Mid-Phase-3 HALT and resolution**: After Commit 1's first
+combined-suite checkpoint at 963 passed (1 failed), surfaced that a
+3rd S22-landed test (`test_open_journal_abfss_raises_phase5_skeleton`
+at test_cost_journal.py:382) pinned the same now-obsolete skeleton-
+rejection contract but was NOT in Q-J.8's explicit replacement
+allowlist (which named only test_cost_journal_adls.py + the 2 S24
+files). Operator authorized the Q-J.8 extension to this 3rd file
+(Recommended option in the HALT AskUserQuestion); replacement
+happened in the SAME commit as Commit 1 to preserve atomic landing
+of the regression-and-fix.
+
+**Commit 2** (`aed7873`): WA2.W8.adls-promotion-worker-loop
+- `worker_loop.py`: abfss:// guard removed from
+  `_open_cost_journal_for_worker`; abfss:// dispatch uses string
+  `rsplit('/', 1)` to extract journal_dir (NOT pathlib;
+  source-verified at Phase 2). Helper signature preserved. One
+  adjacent invoker-site comment updated to note Phase 5 promotion
+  shipped. +48 / 0 LOC delta in worker_loop.py.
+- `test_worker_loop_persistence.py` (Q-J.8 1↔1):
+  `test_open_cost_journal_abfss_raises_not_implemented_with_phase5_marker`
+  → `test_open_cost_journal_abfss_constructs_adls_journal`.
+  ADLSCostJournal import added. 12 tests preserved.
+- `test_robots_gate_integration.py` (Q-J.8 1↔1):
+  `test_invoker_abfss_cost_journal_url_raises_not_implemented` →
+  `test_invoker_abfss_cost_journal_url_constructs_adls_journal`
+  (spies the helper + stubs _ensure_journal_initialized /
+  _build_durable_bypass_writer / fetch_one / write_pages so the
+  invoker reaches dispatch without real Azure / network / fsspec).
+  7 tests preserved.
+- Combined suite: 964 preserved (net-zero per Q-J.8).
+
+Phase 4 pre-push gate: all 4 checks GREEN.
+- `ruff check .` → All checks passed!
+- `ruff format --check .` → 351 files already formatted.
+- vermin → Minimum required 3.10.
+- validate_consistency.py → 0 errors / 0 warnings; PASS.
+
+Phase 5: pushed `aa23712..aed7873  main -> main`. 1.TAG = Defer
+(Candidate J alone is not a workstream-end milestone — S22's
+`workstream-a-week1-end` already marks the W A.1 close; the W A.2
+sub-workstream continues across S23 + S24 + S25).
+
+Phase 6 close-out: this entry + LESSONS S25 fold + transition
+template refill for S26.
+
+Net new tests across S25: 17 (= +17 from Commit 1's
+test_cost_journal_adls.py expansion; Commit 2 is net-zero per Q-J.8).
+Distinct from test-count gate delta (947 → 964 = +17) — for S25 the
+two values coincide because no pre-existing test files joined the
+gate-invocation this session (all 16 paths were already in the
+S24-close baseline).
+
+Session 25 LLM spend: $0 (no fixtures recorded; no live HTTP; no
+real Azure traffic — all ADLS tests use DummyBlobBackend; all
+integration tests use injectable stubs + tmp_path).
+Cost incurred Sessions 1-25: $0.711 (unchanged).
+Cost budget remaining (cap $100): $99.29.
+
+Candidate J disposition: shipped end-to-end. The S24 Q-I.1
+file://-only deferral is now closed; abfss:// CostJournal URLs
+are first-class via ADLSCostJournal. The S22+S24 fail-loud
+skeleton-rejection contract is replaced with passing-through
+dispatch coverage in 3 test files.
+
+Outstanding carry-forwards entering Session 26:
+- Candidate A (barcada-drift) — still blocked on 2+ parquet files
+  (launchd installer status unchanged; earliest natural date
+  2026-06-06).
+- Candidate B (per-tier cost-accounting retrofit) — unchanged;
+  warrants `workstream-0-end` tag when shipped.
+- Candidate D (Phase 4 PR-D tooling) — unchanged.
+- Candidate E (cassette corpus expansion) — unchanged.
+- Candidate H (CRAWLING_POLICY.md tightening) — unchanged.
+- (NEW would-have-been Candidate J) — CLOSED at S25.
+
+S25-folded LESSONS (3 new sections at end of LESSONS.md):
+1. "Phase 2 source-verify drives option-set design, not just gates"
+   — Q-J.4 pathlib `//`-collapse and Q-J.6 Azure 412 semantics were
+   verified BEFORE the AskUserQuestion batches, informing the
+   option wording itself (not surfacing mid-implementation).
+2. "Q-J.8 explicit allowlist may be incomplete; HALT-and-extend
+   pattern" — the prompt named 2 test files for replacement; the
+   3rd S22-landed test in test_cost_journal.py only surfaced at
+   the Commit 1 combined-suite checkpoint. The HALT-and-extend
+   protocol resolved it with operator authorization in one
+   AskUserQuestion turn; the replacement landed in the SAME commit
+   that introduced the regression (atomic landing of regression+fix).
+3. "Local imports defeat module-attribute monkeypatch" — the
+   `test_invoker_abfss_cost_journal_url_constructs_adls_journal`
+   replacement test initially failed because `write_pages` is
+   imported INSIDE the invoker function (deferred import), so
+   `monkeypatch.setattr("barcada_scraper.orchestrator.worker_loop.write_pages",
+   ...)` failed with AttributeError. Fix: patch at the source
+   module (`barcada_scraper.classifier.page_acquisition.page_storage.write_pages`).
+   Forward-applicable rule: when monkeypatching a name a target
+   function imports, identify the import site (top-of-module vs
+   deferred-inside-function) and patch the source if it's deferred.
+
+**Canonical S25-close baseline for S26 Phase 0 Step 0.5 (VERIFIED
+post-push at HEAD `aed7873`):**
+
+```
+.venv/bin/python -m pytest \
+    tests/scraper/test_fixture_conformance.py \
+    tests/runners/fixture_cascade/ \
+    tests/baseline_v0/ \
+    tests/synthetic_crawl/ \
+    tests/scraper/test_robots.py \
+    tests/scraper/test_robots_gate.py \
+    tests/scraper/test_robots_bypass_config.py \
+    tests/classifier/pipeline/test_cost_journal.py \
+    tests/classifier/pipeline/test_cost_journal_local.py \
+    tests/classifier/pipeline/test_cost_journal_adls.py \
+    tests/orchestrator/test_robots_integration.py \
+    tests/orchestrator/test_vmss_worker.py \
+    tests/orchestrator/test_job_runner.py \
+    tests/orchestrator/test_worker_loop.py \
+    tests/orchestrator/test_robots_gate_integration.py \
+    tests/orchestrator/test_worker_loop_persistence.py -q
+# Expected: 964 passed / 0 failed / 0 skipped
+# Sub-totals (16 paths):
+#   210 conformance + 46 driver + 99 baseline_v0 +
+#    33 synthetic_crawl + 32 robots + 30 robots_gate +
+#    30 robots_bypass_config + 43 cost_journal +
+#    13 cost_journal_local + 19 cost_journal_adls +
+#    35 robots_integration + 74 vmss_worker +
+#   129 job_runner + 152 worker_loop +
+#     7 robots_gate_integration (4 S23 + 2 S24-unchanged + 1 S25-replaced) +
+#    12 worker_loop_persistence (11 S24-unchanged + 1 S25-replaced) = 964
+```
+
+Re-verified post-S25-close at HEAD `aed7873`: 964 passed in ~55s
+(Commit 2 close measurement). For S26 Phase 0 Step 0.5, use 964 as
+the canonical headline. Narrower baselines (480 / 538) remain
+unchanged; the S23 932-baseline is no longer a meaningful narrower
+floor (test_cost_journal_adls.py grew significantly).
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.

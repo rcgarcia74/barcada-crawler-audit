@@ -1853,3 +1853,165 @@ Forward-applicable: this rule is mechanical — verify with `git show
 (commit subjects can be misleading; a "labeling cleanup" subject
 could conceal a src/ touch). The path-stat is the authoritative
 signal.
+
+## Phase 2 source-verify drives option-set design, not just gates (S25 folding)
+
+S25 Candidate J's Phase 2 had two source-verifications that ran
+BEFORE the AskUserQuestion batches (not after) and ended up shaping
+the option *wording itself*, not just the eventual gate selection.
+
+**Case 1 — Q-J.4 (URL parsing site):** ran
+`Path("abfss://j@x.dfs.core.windows.net/c.jsonl")` in a Python
+one-liner before drafting options. Result: pathlib collapses `//`
+→ `/`. This meant the seemingly-symmetric option set
+"(a) pathlib in worker / (b) pathlib in factory" was actually a
+trap — pathlib doesn't work for abfss URLs at all. The real
+option set became "(a) string rsplit in worker / (b) raw URL
+string passed to factory which does its own parsing". The Q-J.4
+question wording reflected that constraint instead of pretending
+both pathlib paths were viable.
+
+**Case 2 — Q-J.6 (Azure 412 semantics):** verified via Azure docs
++ azure-storage-blob SDK signature that `If-None-Match: "*"`
+returns 412 Precondition Failed when the blob already exists, and
+that ADLS Gen2 is strongly consistent on blob writes. Result:
+Q-J.6 became a "source-verify, NOT an operator design gate" item —
+the mapping `412 → JournalAlreadyExistsError` was a fact-check,
+not a choice. The decision was already made by Azure's contract;
+the prompt just had to confirm it.
+
+**The general rule:** before drafting AskUserQuestion options for
+a design gate, verify the underlying facts that the options
+implicitly assume. If a fact-check would invalidate one or more
+options, the prompt's question structure is misleading the
+operator. Re-shape the option set first, then ask.
+
+Forward-applicable: at Phase 2 for any candidate that touches a
+new SDK / external system / language feature, list the *assumed
+facts* behind each option in your prompt-draft thinking, then
+verify each before the AskUserQuestion call. The verification
+itself often costs 30 seconds (a Python one-liner or a doc grep);
+catching a wrong-premise option saves a HALT mid-Phase-3.
+
+S22-S24 LESSONS already had "Plan-vs-reality at Phase 2 source-
+verify" as a sibling pattern; this is the *generalized* form:
+verify not just whether the plan describes reality, but whether
+the prompt's options describe what's actually possible.
+
+---
+
+## Q-J.8 explicit allowlist may be incomplete; HALT-and-extend pattern (S25 folding)
+
+S25 Candidate J's Q-J.8 explicit allowlist named 2 tests for
+replacement: `test_open_cost_journal_abfss_raises_not_implemented_with_phase5_marker`
+(in test_worker_loop_persistence.py) and
+`test_invoker_abfss_cost_journal_url_raises_not_implemented`
+(in test_robots_gate_integration.py). Plus the 2 skeleton-marker
+tests in test_cost_journal_adls.py (the natural target file for
+Q-J.7's REPLACEMENT pattern).
+
+A 3rd same-shape test existed in test_cost_journal.py
+(`test_open_journal_abfss_raises_phase5_skeleton` at line 382) —
+an S22-landed test pinning the same now-obsolete contract. It was
+NOT in the prompt's explicit allowlist. The prompt authors likely
+grep'd for "abfss" in test files added by S23+S24 and missed the
+S22-landed one.
+
+When Commit 1 ran the combined-suite checkpoint, this test failed
+(963/964; 1 fail). Per the strict halt protocol (S22-S24
+"Implicit-authorization HALT for src/-locks" pattern), Claude
+HALTED before patching and surfaced an AskUserQuestion offering:
+(a) extend Q-J.8 to this 3rd file with 1↔1 replacement;
+(b) leave the test failing for this commit;
+(c) revert ADLSCostJournal entirely.
+
+Operator chose (a). The replacement landed in the SAME commit as
+the regression (Commit 1) — preserving the atomic landing rule:
+each commit either holds the suite green or explicitly documents
+why it doesn't. A regression+fix bundled together is bisectable;
+a regression-in-commit-N-with-fix-in-commit-N+1 is not.
+
+**Forward-applicable rules:**
+
+1. The prompt's Out-of-scope + Q-J.8-style explicit allowlists are
+   defenses against silent scope expansion, not exhaustive
+   inventories of every same-shape test in the repo. Verify by
+   grep at Phase 0 (`grep -rn "raise.*Phase 5" tests/` would have
+   surfaced the S22 test) and surface any missed tests before
+   Phase 3 starts.
+
+2. When a same-shape test outside the allowlist surfaces mid-
+   Phase-3, use HALT-and-extend (not silent extend). The operator's
+   single-AskUserQuestion turn is the authorization mechanism; the
+   commit body cites both the original Q-J.8 wording AND the
+   extension authorization to make the deviation auditable.
+
+3. Atomic landing of regression+fix: when the regression and its
+   1↔1 replacement live in the same commit's scope (same `git diff
+   --stat` topology), prefer bundling over splitting. Splitting
+   creates a commit window where the suite is RED — bisectability
+   suffers.
+
+This is a sibling pattern to S24-folded "Tightened-precondition
+test-fixture retargeting" — both are cases where a src/-side
+behavior change requires updating test fixtures that the prompt
+didn't fully enumerate.
+
+---
+
+## Local imports defeat module-attribute monkeypatch (S25 folding)
+
+S25 Commit 2's Q-J.8 replacement test
+`test_invoker_abfss_cost_journal_url_constructs_adls_journal`
+initially failed with:
+
+```
+AttributeError: 'module' object at
+barcada_scraper.orchestrator.worker_loop has no attribute 'write_pages'
+```
+
+Cause: `worker_loop.py` imports `write_pages` INSIDE
+`scrape_stage2_pages_invoker` (deferred import for module-load
+cost reasons), not at the top of the module. The test's
+`monkeypatch.setattr("barcada_scraper.orchestrator.worker_loop.write_pages", ...)`
+fails because the name doesn't exist as a module attribute — it
+only exists in the function's local scope at call time.
+
+Fix: patch at the SOURCE module instead:
+```python
+monkeypatch.setattr(
+    "barcada_scraper.classifier.page_acquisition.page_storage.write_pages",
+    MagicMock(),
+)
+```
+
+This works because `from ... import write_pages` inside the
+invoker function resolves to the source module's binding at the
+moment the function is called — and monkeypatch's `setattr` at
+the source module rebinds the name there.
+
+**Forward-applicable rule:** before monkeypatching a name that a
+target function calls, identify the import site:
+- **Top-of-module** (`from X import Y` at module level): patch
+  the consuming module's attribute (e.g.,
+  `consuming_module.Y = mock`). This is the textbook pattern.
+- **Deferred inside function** (`from X import Y` inside def):
+  patch the SOURCE module (`X.Y = mock`). The consuming module's
+  attribute table doesn't have `Y` at module-load time.
+
+Detection: `grep -n "^from .* import" worker_loop.py | grep
+write_pages` returns nothing — confirming the import is deferred.
+A `grep -n "import write_pages\|from .*import.*write_pages" file`
+will find the import line; if it's indented, it's deferred.
+
+This pattern appears in this codebase because several modules use
+deferred imports to reduce module-load cost (S24+ worker_loop has
+multiple `import fsspec` and `from ... import write_pages` lines
+inside async-function bodies — the imports were intentionally
+deferred per per-module optimization patterns).
+
+Forward-applicable: when writing tests against orchestrator code,
+spot-check whether the dependency name is module-attribute or
+deferred-import BEFORE assuming the textbook monkeypatch pattern
+works. The error is loud (AttributeError on setattr) but the fix
+is a one-line URL change, not a test redesign.
