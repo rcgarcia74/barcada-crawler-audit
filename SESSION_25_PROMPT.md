@@ -471,6 +471,9 @@ config = WorkerConfig(
     cost_journal_url='abfss://j@x.dfs.core.windows.net/c.jsonl',
     stop_flag_url='file:///tmp/stop.json',
     worker_id='test',
+    # Sentinel GUID; no Azure call is made because the abfss:// guard
+    # fires before credential resolution. Phase 0 Step 0.9 is a pure
+    # in-process guard-presence check, not a live Azure smoke test.
     azure_client_id='00000000-0000-0000-0000-000000000000',
     crawl_date='2026-05-23',
     worker_concurrency=1,
@@ -542,11 +545,14 @@ In this order:
    + ETag semantics + lock semantics).
 
 9. **`src/barcada_scraper/orchestrator/worker_loop.py`** lines
-   2008-2120 — only if Candidate J is chosen. The 3 S24 helpers
-   (`_open_cost_journal_for_worker`, `_ensure_journal_initialized`,
-   `_build_durable_bypass_writer`). Candidate J modifies the
-   abfss:// guard inside `_open_cost_journal_for_worker` but
-   preserves its signature.
+   2008-2113 — only if Candidate J is chosen. The 3-helper block
+   (section header comment at 2008;
+   `_open_cost_journal_for_worker` at lines 2014-2055;
+   `_ensure_journal_initialized` at lines 2056-2081;
+   `_build_durable_bypass_writer` at lines 2082-2113).
+   `scrape_stage2_pages_invoker` starts immediately after at
+   line 2114. Candidate J modifies the abfss:// guard inside
+   `_open_cost_journal_for_worker` but preserves its signature.
 
 10. **`tests/orchestrator/test_worker_loop_persistence.py`** at
     `00d5b38` — only if Candidate J is chosen. The 12 unit tests
@@ -814,13 +820,31 @@ as a design-gate sub-question before patching.
   injected by the worker's run() function (requires plumbing
   through `open_journal`). Recommended (a) — keeps the API
   ergonomic for tests + production.
-- **Q-J.6 Concurrent-write semantics**: how should
-  ADLSCostJournal handle the case where two workers race on
-  `write_initial`? Same as LocalFSCostJournal — first wins,
-  second gets `JournalAlreadyExistsError`. Use Azure's
-  `If-None-Match: "*"` precondition on PutBlob, catch 412
-  Precondition Failed, raise the exception. Confirmation
-  question, not a design pick.
+- **Q-J.6 Concurrent-write semantics (Phase 2 source-verify, NOT
+  an operator design gate)**: BEFORE the Q-J.* AskUserQuestion
+  batch, Claude Code MUST source-verify that Azure's
+  `If-None-Match: "*"` precondition on `PutBlob` returns 412
+  Precondition Failed when the blob already exists — and that
+  this maps cleanly to LocalFSCostJournal's race-loser
+  `JournalAlreadyExistsError` semantics. The expected mapping:
+    - Azure 412 Precondition Failed → catch in ADLSCostJournal →
+      raise `JournalAlreadyExistsError` with the blob path.
+    - Race winner: 2xx response; first `write_initial` succeeds.
+    - Race loser: 412; `JournalAlreadyExistsError` propagates.
+  Mirrors S24 Q-I.3's source-verify pattern (not an
+  AskUserQuestion option pick; a fact-vs-design boundary item).
+  If source-verification confirms the mapping holds, design
+  proceeds. If Azure has eventual-consistency or different status
+  semantics that break the precondition (unlikely for ADLS Gen2
+  which is strongly consistent on blob writes per Azure docs),
+  HALT and surface for a re-shaped Phase 2 elicitation that
+  preserves the race-loser-raises-JournalAlreadyExistsError
+  contract via a different mechanism.
+
+  Verify via the azure-storage-blob SDK docs or a small Azurite
+  smoke (if Q-J.3 elects Azurite posture). Cite the exact API
+  call signature in Phase 2 documentation before proceeding to
+  the AskUserQuestion batch.
 - **Q-J.7 Test corpus shape**: (a) Extend
   `test_cost_journal_adls.py` from 2 skeleton tests to a full
   suite (~15-30 tests) covering each method's happy path +
@@ -831,18 +855,25 @@ as a design-gate sub-question before patching.
   cost_journal_url AND verifying the journal lands in Azurite.
   Recommended (a) + (b) "Both" style per Q-I.7 precedent —
   unit tests + integration tests together.
-- **Q-J.8 Existing-test updates**: how should
-  `test_open_cost_journal_abfss_raises_not_implemented_with_phase5_marker`
-  (test_worker_loop_persistence.py, S24-landed) and
+- **Q-J.8 Existing-test updates**: confirm that the 2 S24-landed
+  abfss:// rejection tests
+  (`test_open_cost_journal_abfss_raises_not_implemented_with_phase5_marker`
+  in test_worker_loop_persistence.py;
   `test_invoker_abfss_cost_journal_url_raises_not_implemented`
-  (test_robots_gate_integration.py, S24-landed) be handled?
-  (a) Replace each with a passing-through test that constructs
-  an ADLSCostJournal; (b) Delete; (c) Keep with a new conditional
-  marker (e.g., `@pytest.mark.skipif(not has_azurite())`) so
-  they re-activate when ADLS is unconfigured.
-  Recommended (a) — preserves test scaffolding; minor edit per
-  test. The S24 LOCK on those tests is RELAXED by explicit
-  Phase 2 authorization here.
+  in test_robots_gate_integration.py) are REPLACED in place with
+  passing-through tests that construct an ADLSCostJournal (and
+  assert the type / dispatch path). The S24 LOCK on those 2
+  tests is RELAXED here by explicit Phase 2 authorization, but
+  ONLY for replacement — deletion and skipif-markers are NOT
+  authorized:
+    - Deletion would lose abfss:// dispatch coverage entirely
+      from the regression suite.
+    - skipif-markers risk silent test-skips in CI when Azurite
+      isn't configured (failure mode: regression slips through
+      because the only coverage test was conditionally skipped).
+  Replacement is a net-zero test-count operation (1↔1 per file).
+  Yes/no confirmation that the operator authorizes the
+  replacement; no option-pick.
 
 ### If Candidate A (barcada-drift)
 
@@ -1035,16 +1066,30 @@ After commit 2                 : >= 947 + N_commit_1_tests + N_commit_2_tests
 decrease means a previously-passing test went red — regression.
 HALT.
 
-For Candidate J's commit 1: the 2 existing
-`test_cost_journal_adls.py` skeleton-marker tests will be
-REPLACED, so the count will go from 947 → 947 - 2 + N where N is
-the new ADLS test count. That's a NET DECREASE if N < 2 (unlikely
-for a full backend). To distinguish "intentional replacement" from
-"regression", document the replacement in the commit body
-(per the S24-folded LESSONS "Tightened-precondition test-fixture
-retargeting" pattern); the gate's "never decreases" rule is
-interpretable as "the same path-set's count + new-file additions
-delta never decreases SEMANTICALLY".
+**The Q-J.7 commit-1 test-count exception is the ONLY decrease
+authorized in S25. Any other count decrease HALTs.** Candidate J's
+commit 1 replaces the 2 existing `test_cost_journal_adls.py`
+skeleton-marker tests with N net-new ADLS-coverage tests; the
+gate goes 947 → 947 − 2 + N. To distinguish this *one
+intentional replacement* from a regression, commit 1's body MUST
+include:
+  (a) the 2 named replaced tests (the existing skeleton markers);
+  (b) the value of N and the names of the N new tests;
+  (c) explicit citation of the S24-folded LESSONS
+      "Tightened-precondition test-fixture retargeting" pattern —
+      same shape (precondition tightening from skeleton-rejection
+      to real-backend-passes-through), different precondition than
+      S24's abfss://-rejection-to-file://-only.
+
+Do not generalize this carve-out. Future readers MUST NOT
+interpret "intentional replacement" as a blanket exception; the
+only path-set whose tests may shrink in S25 is
+`tests/classifier/pipeline/test_cost_journal_adls.py` in commit 1,
+and only by the exact 2-test delta named above. Q-J.8's
+replacement of 2 abfss://-rejection tests in
+test_worker_loop_persistence.py + test_robots_gate_integration.py
+is a NET-ZERO operation (1 replaced ↔ 1 replaced per file; count
+unchanged) — not an exception to this rule.
 
 Baseline pre-resolved at Phase 1 per Phase 0 Step 0.5: 947 is the
 canonical S25 baseline for any candidate that touches the
@@ -1157,9 +1202,12 @@ to either operator-commission or scope out at S26 open.
    coverage; Q-J.7 (b) "Both" adds end-to-end Azurite/mock
    integration tests.
 7. The 2 S24 tests that pinned the abfss:// rejection contract
-   updated per Q-J.8 — replaced with passing-through tests OR
-   deleted (explicit Phase 2 authorization required to modify
-   landed S24 tests; document in commit body).
+   are REPLACED in place per Q-J.8 with passing-through tests
+   that construct an ADLSCostJournal (1↔1 per file; net-zero
+   test-count change). Deletion and skipif-markers are NOT
+   authorized (would lose abfss:// dispatch coverage). Explicit
+   Phase 2 authorization for the replacement is documented in
+   the commit body citing Q-J.8.
 8. All S23 + S24 deliverables stay at their landed SHAs (their
    public APIs unchanged; the 3 S24 helpers'  signatures
    preserved; only the abfss:// guard body changes).
@@ -1319,21 +1367,23 @@ lock-list):**
   `tests/orchestrator/test_worker_loop.py` at `48c324a`. Locked
   — do NOT revert to abfss://.
 - `tests/orchestrator/test_worker_loop_persistence.py` at
-  `00d5b38` (12 tests). Candidate J UPDATES exactly 1 test per
-  Q-J.8 option (a):
+  `00d5b38` (12 tests). Candidate J REPLACES exactly 1 test per
+  Q-J.8:
   `test_open_cost_journal_abfss_raises_not_implemented_with_phase5_marker`
   → replace with `test_open_cost_journal_abfss_constructs_adls_journal`
-  (or similar). All 11 other tests MUST stay unchanged. The
-  Phase 2 authorization required to modify this S24-landed test
-  is explicit in Q-J.8.
+  (or similar) — 1↔1; net-zero test-count change for this file.
+  Deletion is NOT authorized. All 11 other tests MUST stay
+  unchanged. The Phase 2 authorization required to modify this
+  S24-landed test is explicit in Q-J.8.
 - The 3 S24-added tests in
   `tests/orchestrator/test_robots_gate_integration.py` at
-  `aa23712`. Candidate J UPDATES exactly 1 test per Q-J.8 option
-  (a): `test_invoker_abfss_cost_journal_url_raises_not_implemented`
-  → replace with a passing-through test asserting an ADLSCostJournal
-  is constructed (or remove the test entirely if the cleaner
-  contract is preserved elsewhere). The 2 other S24 tests in this
-  file (`test_invoker_persists_bypass_audit_through_production_wiring`,
+  `aa23712`. Candidate J REPLACES exactly 1 test per Q-J.8:
+  `test_invoker_abfss_cost_journal_url_raises_not_implemented`
+  → replace with a passing-through test asserting an
+  ADLSCostJournal is constructed (1↔1; net-zero test-count
+  change for this file). Deletion is NOT authorized. The 2
+  other S24 tests in this file
+  (`test_invoker_persists_bypass_audit_through_production_wiring`,
   `test_invoker_helpers_export_intact`) MUST stay unchanged.
 
 **W4.1.5 driver orchestration (locked since W4.1.5 close):**
@@ -1468,19 +1518,29 @@ takes Candidate J:
 - **Source-verify line numbers per Phase 3 commit** (S23
   LESSONS): worker_loop.py is now ~2989 LOC post-S24 (~2884
   pre-S23 + ~109 S23 additions + ~115 S24 additions); the
-  `_open_cost_journal_for_worker` helper is at lines 2011-2050.
+  `_open_cost_journal_for_worker` helper alone occupies
+  lines 2014-2055 (its `if url.startswith("abfss://"):` guard
+  block is at ~2033-2038 — the seam Candidate J removes).
   Re-Explore at session-current HEAD before drafting commit
-  edits.
+  edits; line numbers shift as commits land.
 
 - **Q-I.6 "log + continue" closure-failure pattern** (S24
-  LESSONS): NOT applicable to ADLSCostJournal. The journal write
-  IS load-bearing for downstream correctness (the bypass-audit
-  log is the only durable record of compliance decisions; losing
-  it silently is a real harm). ADLSCostJournal should RE-RAISE on
-  persistence failure, letting `update_with_retry`'s budget run
-  and surfacing the failure up to the closure (which itself logs
-  + continues per Q-I.6 — but at the closure layer, not the
-  journal layer).
+  LESSONS): applies at the CLOSURE layer unchanged — the durable
+  writer closure built by `_build_durable_bypass_writer` still
+  swallows + LOG.exception's on persistence failure. What's new
+  at Candidate J's ADLS-backend layer is the INVERSE rule:
+  ADLSCostJournal MUST RE-RAISE on persistence failure
+  (transient 5xx, auth failure, ETag exhaustion) so
+  `update_with_retry`'s budget can do its job. The closure
+  consumes whatever escapes that retry budget and applies Q-I.6
+  there. Two layers, two opposite policies — both correct:
+    - Backend (ADLSCostJournal): re-raise → enables retry +
+      load-bearing failure surfacing.
+    - Retry helper (update_with_retry): re-raise after budget
+      exhaustion → enables closure to decide policy.
+    - Closure (_build_durable_bypass_writer's _writer): swallow
+      + LOG.exception → Q-I.6 unchanged, scrape availability
+      preserved.
 
 ---
 
