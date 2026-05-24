@@ -142,15 +142,20 @@ template + SESSION_LOG.md + LESSONS.md.
   `8e6a7de` due to S22 close-out follow-up + S23 prompt drafting +
   prompt v2 audit + labeling utilities — matched the S20/S21/S22
   precedent for prompt-drafting between sessions).
-- Session 23 close-out workspace commits will be 1 (primary close-
-  out) + 1 follow-up pinning the S24 anchor SHA.
-- **Last commit SHA at Session 23 CLOSE: <pinned by follow-up
-  commit>**. S24 prompt's Phase 0 Step 0.1 MUST anchor workspace
-  expectation to that SHA (NOT to the primary close-out commit's
-  SHA, which the follow-up succeeds). Per S21+S22 LESSONS pattern
-  "Workspace HEAD delta tolerance": tolerate N additional prompt-
-  drafting / audit-correction commits between sessions; verify
-  each is consistent with that pattern before continuing.
+- Session 23 close-out workspace commits: 2.
+    1. `8d99c98` Session 23 close-out (primary): SESSION_LOG.md
+       append + SESSION_TRANSITION_TEMPLATE.md full refill +
+       LESSONS.md 5-section fold.
+    2. `<this follow-up commit>` pins the S24 Phase 0 workspace
+       anchor SHA + any audit-surfaced corrections.
+- **Last commit SHA at Session 23 CLOSE: this commit (the follow-up
+  pinning the anchor)**. S24 prompt's Phase 0 Step 0.1 MUST anchor
+  workspace expectation to THIS follow-up's SHA, NOT to the primary
+  close-out `8d99c98` (which this follow-up succeeds). Per S21+S22
+  LESSONS pattern "Workspace HEAD delta tolerance": tolerate N
+  additional prompt-drafting / audit-correction commits between
+  sessions; verify each is consistent with that pattern before
+  continuing.
 - Branch sync with `origin/main`: 0 ahead / 0 behind expected
   after Session 23 close push.
 
