@@ -16,8 +16,9 @@ Per the S20→S21..S25→S26 precedent, prompt-drafting is operator-
 commissioned between sessions. If commissioned, draft as
 `SESSION_27_PROMPT.md` mirroring the S20-S26 7-phase structure.
 Anchors:
-- Workspace HEAD: <S26 close-out follow-up SHA — to be pinned by
-  the follow-up commit that lands immediately after this primary>
+- Workspace HEAD: this follow-up commit's SHA (primary close-out
+  is `6eff137`; the follow-up pinning this anchor IS this commit
+  per S21-S25 self-reference precedent).
 - Repo HEAD: `2314f5e` (S26 Commit 1 final).
 - Canonical baseline: 964 tests (16-path invocation, unchanged
   from S25 close since S26 was doc-only).
