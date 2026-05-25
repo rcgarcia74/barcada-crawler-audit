@@ -5914,3 +5914,186 @@ unchanged; the S23 932-baseline is no longer a meaningful narrower
 floor (test_cost_journal_adls.py grew significantly).
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+
+---
+
+## Session 26 — W A.1 W8 CRAWLING_POLICY.md tightening (Candidate H) (2026-05-25)
+
+Scope: trim the W A.1 robots.txt-compliance doc from 8.1 KB to
+near Q-F.6's original "~1-2 KB" estimate while preserving the
+essential robots contract for both ops + compliance audiences.
+Per S26 Phase 1 Candidate H + Q-H.1/H.2/H.3 + Q-H.2-EXT.
+
+Phase 0 (cold-start verify): all 9 checks PASSED.
+- Workspace HEAD `2262eea` (2 expected prompt-drafting commits ahead
+  of S25-close-pinned `8e6d836`: `3a3178c` S26 prompt drafted +
+  `2262eea` S26 prompt v2 M-1 arithmetic fix). Per LESSONS
+  "Workspace HEAD delta tolerance" — tolerated (both are
+  SESSION_26_PROMPT.md/SESSION_TRANSITION_TEMPLATE.md edits only).
+- Repo HEAD `aed7873` (S25 Commit 2). Tags 10/10 unchanged. No
+  operator-side eval_data commits between S25 close and S26 open.
+- Combined 16-path canonical suite: 964/0/0 in 52.64s.
+- Manifest + schema invariants verified.
+- 3 baseline_v0 + 2 synthetic_crawl CLI subcommands enumerated.
+- S25-shipped public APIs (ADLSCostJournal full surface,
+  `_abfss_to_https`, `_open_cost_journal_for_worker` signature,
+  abfss:// dispatch routing to ADLSCostJournal) all stable.
+
+Phase 1: Candidate H chosen; 1.TAG = Defer.
+- Narrower 938-baseline bound for Phase 3 (14-path invocation
+  excluding test_cost_journal_adls.py + test_robots_gate_
+  integration.py per Step 0.5's mechanical exclusion rule;
+  Candidate H is doc-only and doesn't exercise those paths).
+
+Phase 2 (source-verify + design gates): 4 Q-H questions resolved
+across 2 AskUserQuestion batches.
+- Source-verify finding: `wc -l docs/CRAWLING_POLICY.md` = 202;
+  `wc -c` = 8102. 7 section headers (Crawler identity, robots.txt
+  compliance, Bypass-config policy with 2 subsections,
+  Operational defaults, Out of scope, References). Matches the
+  prompt's claim of 8.1 KB.
+- Resolutions: Q-H.1 = "~2 KB tight (operational reference)";
+  Q-H.2 = trim all 4 of the 4 sections offered (Crawler identity,
+  robots compliance, Bypass-config, Out-of-scope); Q-H.3 = both
+  ops + compliance.
+- Mid-Phase-3 HALT-and-extend (Q-H.2-EXT): the AskUserQuestion
+  4-option-multiSelect limit silently narrowed Q-H.2 from the
+  prompt's 6-option enumeration (Op-defaults + References were
+  not surfaced). The trimmed draft landed at 2.71 KB even after
+  max trim of all 4 authorized sections — Q-H.1's ~2 KB target
+  could not be reached without trimming the 2 unauthorized
+  sections. Operator authorized Q-H.2-EXT in one AskUserQuestion
+  turn: op-defaults Notes column trim + References collapse.
+- Q-SHARED.1 = per-module (1 commit for 1 doc file; trivially
+  applicable).
+
+Phase 3 (impl): 1 commit per Q-SHARED.1.
+
+**Commit 1** (`2314f5e`): WA1.W8.crawling-policy-tighten
+- `docs/CRAWLING_POLICY.md`: 202 -> 77 lines, 8102 -> 2519 bytes
+  (69% reduction). -174 / +49 LOC.
+- Crawler identity section folded into intro paragraph (preserved
+  the 2 essential sentences: UA convention + stdlib substring
+  match note).
+- robots.txt compliance: 55 -> 21 lines. Preserved 3-decision
+  tree (Allow / Bypass-allow / Skip) with payload JSON,
+  first-match-wins ordering note, permissive-on-failure default.
+  Dropped Crawl-delay precedence paragraph + verbose stdlib quirk
+  explanations.
+- Bypass-config policy + 2 subsections: 70 -> 21 lines. Preserved
+  exceptional/audited/time-boxed principle, sidecar schema
+  inline-description, field rules (required non-empty, ISO-8601
+  naive=UTC or null, unknown-field rejection),
+  BypassAuthorization audit record fields, ETag-conditional
+  persistence note. Dropped multi-host JSON example block and
+  the bypass-grounds bullet list (folded into one parenthetical).
+- Operational defaults table: 13 -> 9 lines. Notes column
+  dropped per Q-H.2-EXT (content was either redundant with prose
+  or inferrable from setting names). All 6 setting/default rows
+  retained.
+- Out-of-scope: 22 -> 4 lines. Collapsed all 5 deferral concerns
+  into one sentence + 1-line guidance.
+- References: 9 -> 4 lines. Collapsed to inline semicolon-
+  separated module references per Q-H.2-EXT.
+- Combined narrower 938-baseline suite: 938 passed / 0 failed in
+  47.00s pre-commit; 54.64s post-commit (net-zero per doc-only
+  scope).
+
+Q-H.1 size variance: final 2.52 KB vs target ~2 KB (cap 2.2 KB
+at ±10%). 14% over cap. Surfaced honestly in the commit body's
+"Q-H.1 size variance disclosure" section. Cause: Q-H.3's
+"both audiences" requirement imposes a practical ~2.5 KB floor
+due to compliance-essential content (sidecar schema + audit
+record + ETag persistence note) costing ~700 bytes.
+
+Phase 4 pre-push gate: all 4 checks GREEN.
+- `ruff check .` -> All checks passed!
+- `ruff format --check .` -> 351 files already formatted.
+- vermin (`git ls-files '*.py' | xargs vermin --target=3.10`) ->
+  Minimum required 3.10.
+- validate_consistency.py -> 0 errors / 0 warnings; PASS
+  (partner_type_anchors.jsonl 460 rows OK; split distribution OK).
+
+Phase 5: pushed `aed7873..2314f5e  main -> main`. 1.TAG = Defer
+per Phase 1 (Candidate H is doc-only; no workstream-end milestone).
+
+Phase 6 close-out: this entry + LESSONS S26 fold + transition
+template refill for S27.
+
+Net new tests across S26: 0 (doc-only candidate).
+Combined-suite count: unchanged from S25 close.
+- 964 (canonical 16-path baseline) — invariant, not re-run at
+  Phase 3 since Candidate H exercises narrower 14-path.
+- 938 (narrower 14-path baseline for Candidate H) — preserved
+  net-zero.
+
+Session 26 LLM spend: $0 (no fixtures recorded; no live HTTP;
+no real Azure traffic; doc-only edit).
+Cost incurred Sessions 1-26: $0.711 (unchanged).
+Cost budget remaining (cap $100): $99.29.
+
+Candidate H disposition: shipped. CRAWLING_POLICY.md tightened
+from 8.1 KB to 2.52 KB while retaining the load-bearing robots
+contract for both ops and compliance audiences. The 14% over
+Q-H.1's 2.2 KB cap is documented in the commit body and the
+Q-H.1/Q-H.3 collision pattern is folded into LESSONS for S27+.
+
+Outstanding carry-forwards entering Session 27:
+- Candidate A (barcada-drift) — still blocked on 2+ parquet files
+  (launchd installer status unchanged; earliest natural date
+  2026-06-06).
+- Candidate B (per-tier cost-accounting retrofit) — unchanged;
+  warrants `workstream-0-end` tag when shipped.
+- Candidate D (Phase 4 PR-D tooling) — unchanged.
+- Candidate E (cassette corpus expansion) — unchanged.
+- Candidate K (ADLSCostJournal live Azure smoke) — unchanged;
+  optional operator-driven smoke against real Azure / Azurite to
+  close mock-vs-prod divergence risk.
+- (Candidate H) — CLOSED at S26.
+
+S26-folded LESSONS (2 new sections at end of LESSONS.md):
+1. "AskUserQuestion 4-option limit can silently truncate a Q-*
+   option set" — Q-H.2's 6-option enumeration in the prompt was
+   narrowed to 4 in the AskUserQuestion call; the missing 2
+   surfaced as a Phase 3 HALT-and-extend. Forward-applicable:
+   detect option-count >4 at Phase 2 drafting, tier or split the
+   question, do not silently narrow.
+2. "Size-target gates can collide with audience-coverage gates"
+   — Q-H.1's ~2 KB target and Q-H.3's "both audiences"
+   requirement turned out jointly infeasible; the 14% variance
+   was surfaced honestly in the commit body. Forward-applicable:
+   cross-check Q-* gates for joint-feasibility at Phase 2
+   (quantitative vs qualitative); surface tension as a pre-flight
+   sub-question rather than discovering it mid-Phase-3.
+
+**Canonical S26-close baseline for S27 Phase 0 Step 0.5 (VERIFIED
+post-push at HEAD `2314f5e`):**
+
+```
+.venv/bin/python -m pytest \
+    tests/scraper/test_fixture_conformance.py \
+    tests/runners/fixture_cascade/ \
+    tests/baseline_v0/ \
+    tests/synthetic_crawl/ \
+    tests/scraper/test_robots.py \
+    tests/scraper/test_robots_gate.py \
+    tests/scraper/test_robots_bypass_config.py \
+    tests/classifier/pipeline/test_cost_journal.py \
+    tests/classifier/pipeline/test_cost_journal_local.py \
+    tests/classifier/pipeline/test_cost_journal_adls.py \
+    tests/orchestrator/test_robots_integration.py \
+    tests/orchestrator/test_vmss_worker.py \
+    tests/orchestrator/test_job_runner.py \
+    tests/orchestrator/test_worker_loop.py \
+    tests/orchestrator/test_robots_gate_integration.py \
+    tests/orchestrator/test_worker_loop_persistence.py -q
+# Expected: 964 passed / 0 failed / 0 skipped
+# Sub-totals identical to S25 close (S26 is doc-only; no test
+# count delta).
+```
+
+S26 narrower 14-path baseline (used at Phase 3 for Candidate H):
+938 passed / 0 failed / 0 skipped. Both numbers carry forward to
+S27 unchanged.
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.

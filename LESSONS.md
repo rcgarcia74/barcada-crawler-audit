@@ -2015,3 +2015,108 @@ spot-check whether the dependency name is module-attribute or
 deferred-import BEFORE assuming the textbook monkeypatch pattern
 works. The error is loud (AttributeError on setattr) but the fix
 is a one-line URL change, not a test redesign.
+
+---
+
+## AskUserQuestion 4-option limit can silently truncate a Q-* option set (S26 folding)
+
+S26 Candidate H's Phase 2 surfaced a tool-vs-prompt impedance: the
+SESSION_26_PROMPT.md `Q-H.2` listed SIX candidate sections to
+trim or remove (Crawler identity, robots.txt compliance,
+Bypass-config policy, Operational defaults table, Out-of-scope
+deferrals, References) — but the `AskUserQuestion` tool maxes
+out at 4 options per question (single-select or multiSelect).
+During Phase 2 drafting, the option list was narrowed to 4 (the
+"first 4 mentioned in the prompt"), silently dropping
+Operational defaults + References from the trim-authorization.
+
+This forced a mid-Phase-3 HALT when the trimmed draft landed at
+2.71 KB vs the Q-H.1 ~2 KB target — the missing 2 trim
+authorizations were exactly what made the cap unreachable. A
+follow-up `Q-H.2-EXT` AskUserQuestion resolved it in one turn
+(operator authorized op-defaults Notes column trim + References
+collapse), but the round-trip added latency vs surfacing the
+4-option limit during Phase 2 drafting.
+
+**Forward-applicable rule:** before drafting an `AskUserQuestion`
+batch, count the prompt's option set. If any single Q-* enumerates
+>4 mutually-exclusive options:
+
+1. **Tier the question** — split into a single-select "broad
+   category" Q-X.A (≤4 options) followed by a multi-select
+   "details" Q-X.B (≤4 options) once the category narrows.
+2. **OR split horizontally** — issue two separate AskUserQuestion
+   calls for the >4-option Q-*. Each is a discrete operator
+   decision point; the second can reference answers from the
+   first.
+3. **OR enumerate explicitly in chat first** — list the full N
+   options as text, ask the operator to pre-narrow to ≤4 before
+   the AskUserQuestion call.
+
+Detection at Phase 2: read the prompt's Q-* options literally;
+when option-count > 4, pick one of the 3 strategies above
+*before* writing the AskUserQuestion tool call. Do NOT silently
+narrow — silent narrowing surfaces as a Phase 3 HALT-and-extend
+cycle (per the S25-folded Q-J.8 pattern), and the operator has
+to relive Phase 2 in the middle of implementation.
+
+This is a sibling to S25-folded "Q-J.8 explicit allowlist may
+be incomplete" — both are cases where Phase 2 authorization
+turns out narrower than the implementation actually needs, with
+the gap surfacing at the first combined-suite or size-check.
+
+---
+
+## Size-target gates can collide with audience-coverage gates (S26 folding)
+
+S26 Candidate H had two Phase 2 design-gate decisions that
+appeared independent but were jointly constrained:
+
+- **Q-H.1** asked for a target doc size (~2 KB tight or ~3 KB mid).
+- **Q-H.3** asked for the reviewer audience (ops on-call,
+  compliance, or both).
+
+The operator picked **~2 KB tight** + **both audiences**. These
+turned out to be incompatible: the load-bearing compliance content
+(sidecar schema + audit-record fields + ETag-conditional
+persistence note) costs ~700 bytes, and dropping any of it loses
+the compliance audience. After exhausting Q-H.2 + Q-H.2-EXT
+authorized trim opportunities, the doc landed at 2.52 KB — 14%
+over Q-H.1's `±10%` 2.2 KB cap.
+
+The variance was surfaced honestly in the commit body's "Q-H.1
+size variance disclosure" section rather than silently shipped.
+The acceptance-criteria gate (Q-H.1 ±10%) is a soft constraint
+when an unbendable audience-coverage requirement (Q-H.3) imposes
+a higher practical floor.
+
+**Forward-applicable rules:**
+
+1. **Cross-check Q-* gates for joint-feasibility at Phase 2**:
+   when a candidate has BOTH a quantitative target (size,
+   latency, LOC budget) AND a qualitative coverage requirement
+   (audience, feature set, persona), sanity-check whether the
+   coverage requirement's natural floor is below the quantitative
+   target. If not, surface the tension as an extra Phase 2
+   sub-question BEFORE Phase 3 starts (e.g., "Q-H.3-PRE:
+   compliance-essential content costs ~N bytes; Q-H.1 cap is
+   ~M bytes. If N > M, which gate wins?").
+
+2. **Quantitative gate variance disclosure in the commit body**:
+   when a target is missed due to a higher-priority constraint,
+   the commit body MUST quantify the variance + name the
+   constraint that imposed the floor. Avoids the operator
+   re-deriving the same reasoning at audit time.
+
+3. **±10% acceptance bands need explicit floor checking**: the
+   "±10%" wording in acceptance criteria implies the target is
+   achievable within tolerance. If a sibling Q-* gate imposes a
+   floor outside that tolerance, the band is meaningless. Treat
+   ±10% as a planning estimate, not a hard pre-commit gate, when
+   coverage requirements dominate.
+
+This is the *quantitative-vs-qualitative* sibling pattern to
+S25's "Phase 2 source-verify drives option-set design, not just
+gates" — that lesson was about *which* options to present; this
+one is about whether *combinations of accepted options* are
+jointly satisfiable.
