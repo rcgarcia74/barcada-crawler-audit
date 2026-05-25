@@ -320,9 +320,33 @@ localize which sub-suite drifted:
 exercise the new ADLS test paths — H is the clearest example):
 - 480 (S22 headline suite; no orchestrator/, no journal)
 - 538 (S22 headline + journal-suite)
-- 949 (S25-equivalent narrower; 16-path minus the 19 cost_journal_adls
-  + the 7 robots_gate_integration — for Candidate H/D-style work
-  that doesn't touch orchestrator/ADLS surfaces)
+- 938 (S25-equivalent narrower; 16-path minus the 19
+  cost_journal_adls + the 7 robots_gate_integration — for Candidate
+  H/D-style work that doesn't touch orchestrator/ADLS surfaces).
+  Canonical invocation (14 paths; mechanical exclusion rule,
+  matching the 480/538 whole-file shape so the operator doesn't
+  reverse-engineer which paths to drop):
+
+  ```
+  .venv/bin/python -m pytest \
+      tests/scraper/test_fixture_conformance.py \
+      tests/runners/fixture_cascade/ \
+      tests/baseline_v0/ \
+      tests/synthetic_crawl/ \
+      tests/scraper/test_robots.py \
+      tests/scraper/test_robots_gate.py \
+      tests/scraper/test_robots_bypass_config.py \
+      tests/classifier/pipeline/test_cost_journal.py \
+      tests/classifier/pipeline/test_cost_journal_local.py \
+      tests/orchestrator/test_robots_integration.py \
+      tests/orchestrator/test_vmss_worker.py \
+      tests/orchestrator/test_job_runner.py \
+      tests/orchestrator/test_worker_loop.py \
+      tests/orchestrator/test_worker_loop_persistence.py -q
+  # Expect: 938 passed / 0 failed / 0 skipped
+  # Sub-totals (14 paths; 210 + 46 + 99 + 33 + 32 + 30 + 30 + 43 +
+  #   13 + 35 + 74 + 129 + 152 + 12 = 938).
+  ```
 
 Whichever baseline is bound at Phase 1, hold it consistent across
 ALL Phase 3 commits in S26 — do not switch mid-session.
@@ -1438,7 +1462,7 @@ S13-25 pattern:
 
 1. Commit SHA(s) of each S26 sub-surface.
 2. Sub-surface(s) landed (per candidate).
-3. Test count delta: 964 (or 480/538/949) baseline → S26 close.
+3. Test count delta: 964 (or 480/538/938) baseline → S26 close.
 4. Driver suite count at S26 close (46/46 expected unless
    Candidate B W5.X-prefix realigned).
 5. Files touched per sub-surface.

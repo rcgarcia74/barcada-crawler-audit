@@ -180,7 +180,14 @@ routes to ADLSCostJournal (the seam Candidate J shipped).
     - 538 passed for the broader S22 headline + journal-suite.
     - The S23 932-baseline is no longer a useful narrower floor
       (test_cost_journal_adls.py grew from 2 → 19; the natural
-      narrower S25-equivalent baseline would now be 949).
+      narrower S25-equivalent baseline using the canonical
+      whole-file exclusion shape — drop test_cost_journal_adls.py
+      (19) AND test_robots_gate_integration.py (7) — is 938 =
+      964 − 19 − 7. Prior versions of this template cited 949,
+      which was internally consistent (932 + 17 net-new) but
+      didn't match the prose's "16-path minus the 19 + the 7"
+      exclusion rule; corrected at S26 prompt v2 per M-1
+      reviewer finding).
 
 ---
 
@@ -520,9 +527,11 @@ Narrower baselines (still valid for S26 candidates that don't
 exercise the new ADLS test paths):
 - 480 (S22 headline suite; no orchestrator/, no journal)
 - 538 (S22 headline + journal-suite)
-- 949 (S25-equivalent narrower; 16-path minus
+- 938 (S25-equivalent narrower; 16-path minus
   test_cost_journal_adls.py's 19 + test_robots_gate_integration.py's
-  7 — for Candidate-H-style doc-only candidates)
+  7 — for Candidate-H-style doc-only candidates). Canonical
+  14-path invocation enumerated in SESSION_26_PROMPT.md
+  Step 0.5's "Narrower baselines" block.
 
 Choose at Phase 0 Step 0.5 per Candidate selection.
 
