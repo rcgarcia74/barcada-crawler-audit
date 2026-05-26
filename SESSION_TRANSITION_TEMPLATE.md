@@ -11,20 +11,39 @@ Pair this with the latest entry in `SESSION_LOG.md`, with
 `BARCADA_CRAWLER_REMEDIATION_PLAN.md` to start a session cold and
 be productive within ~10 minutes.
 
-**Session 30 invocation prompt:** not yet drafted. Per S20→S21..
-S28→S29 precedent, prompt-drafting is operator-commissioned
-between sessions — not always-on close-out work. Either commission
-an S30 prompt between sessions or scope one at S30 open. The
-S29 prompt's Phase 6 note explicitly authorizes either option.
+**Session 30 invocation prompt:** drafted post-S29-close at
+`~/crawler-audit/SESSION_30_PROMPT.md` (2023 lines; mirrors the
+S20-S29 7-phase structure). Operator-commissioned at S29 close
+per the "create the handoff docs and ensure completeness"
+request. Folds:
+(1) S29 deliverable lock for `scripts/smoke_test_adls_cost_journal.py`
+at SHA `75a3937` into the Out-of-scope list AND a new Phase 0
+Step 0.9 invariant smoke (existence + import-load + public-
+surface check);
+(2) Both S29-folded LESSONS sections into Phase 2 "CRITICAL
+hygiene" notes (LOC budgeting at ~3× multiplier; public-API-only
+cleanup pattern extension);
+(3) New Candidate K-b-exec entry under Phase 1 (NEW S29
+carry-forward bound to operator availability of Azure sandbox);
+(4) Reframing of Candidate K (S29 K-b SHIP closed; K-a and
+K-b-exec remain available);
+(5) Empirical Phase 1 prerequisite check pattern for Candidate A
+(audit canary_runs parquets / launchd plist / AI/ML responses
+BEFORE re-issuing scope question).
+Apply reviewer-feedback hygiene per the prompt's "Reviewer-
+feedback hygiene" section if any pre-S30-open reviewer findings
+surface.
 
 Anchors for Session 30 cold start:
-- Workspace HEAD: THIS commit (the anchor-pinning follow-up,
-  succeeding S29 primary close-out `0708a53`). S30 Phase 0
-  Step 0.1 MUST anchor workspace expectation to THIS follow-up's
-  SHA. Per S21-S28 LESSONS pattern "Workspace HEAD delta
-  tolerance": tolerate N additional prompt-drafting / audit-
-  correction commits between sessions; verify each is consistent
-  with that pattern before continuing.
+- Workspace HEAD: the prompt-drafting commit (succeeds the S29
+  anchor-pin follow-up `e736eee`, which itself succeeds the S29
+  primary close-out `0708a53`). S30 Phase 0 Step 0.1 MUST anchor
+  workspace expectation to the prompt-drafting commit's SHA. Per
+  S21-S29 LESSONS pattern "Workspace HEAD delta tolerance":
+  tolerate N additional audit-correction commits between
+  sessions; verify each is consistent with that pattern before
+  continuing. (The S29→S30 prompt-drafting commit is the
+  expected delta; mirrors S28→S29 prompt-drafting precedent.)
 - Repo HEAD: `75a3937` (S29 K-b commit;
   WA2.W8.adls-live-smoke). Tolerated delta: operator-side
   eval_data labeling commits between S29 close and S30 open
