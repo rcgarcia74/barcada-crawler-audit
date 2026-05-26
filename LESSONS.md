@@ -2477,4 +2477,105 @@ defeats the decoupling that the wrapper exists to provide.
 This pairs with S24's "Test against public API surface only"
 LESSONS pattern: the same principle, broader scope.
 
+## Operator-smoke posture (K-b) can close mock-vs-prod divergence risk in one execution; permanent CI test (K-a) is then optional rather than required (S30 folding)
+
+**Context**: Session 25 shipped `ADLSCostJournal` with 19 unit
+tests against an in-memory `DummyBlobBackend`. Between S25 and
+S28 the wrapper saw production-shape usage (S28 ShardResult
+split + cascade Stage 1 wiring) but no live-Azure validation.
+The S25 → S28 risk register cited a "mock-vs-prod divergence
+risk": the wrapper could pass all 19 unit tests yet still
+behave differently against real Azure Blob storage (412
+mappings, ETag format, race semantics).
+
+**Two candidate dispositions surfaced at S29 Phase 1:**
+
+- **K-a** — Azurite-backed integration test: permanent CI
+  safety net. Docker dependency; adds a 17th path to the
+  canonical invocation; ~150-300 LOC delivered + container
+  lifecycle. Continuous protection but heavier ongoing cost.
+- **K-b** — operator-driven smoke script: one-off validation,
+  ~220 LOC delivered; no CI integration; bound to operator
+  availability of an Azure sandbox.
+
+S29 chose **K-b**. S30 executed it.
+
+**S30 first-run outcome**: trace clean end-to-end —
+
+- `[1/5] write_initial OK`
+- `[2/5] write_initial twice → JournalAlreadyExistsError (412 mapped)`
+- `[3/5] read OK (etag='"0x8DEBB77053BF9C0"')`
+- `[4/5] try_update with fresh etag → True`
+- `[5/5] try_update with stale etag → False (412 mapped to bool)`
+- `All 5 steps OK. ADLSCostJournal behavior matches DummyBlobBackend.`
+
+The most-feared divergence shapes anticipated in the S30 prompt
+(wrong exception type at step 2; stale ETag returning True at
+step 5) all came back matching `DummyBlobBackend` behavior.
+
+**The pattern**: when a wrapper class is verified against
+in-memory doubles in a unit-test suite, a **single first-run
+live-SDK smoke** can close the mock-vs-prod divergence risk
+empirically. Permanent CI infrastructure (Docker, Azurite,
+service simulators) becomes a defense-in-depth *choice*, not a
+prerequisite for confidence.
+
+**Forward-applicable rule**: for new wrapper-class + external-
+service surfaces in this codebase (Azure Queues, Azure Tables,
+ADLS Gen2 file-system APIs, etc.), default to the K-b posture:
+
+1. Land the wrapper + unit tests against an in-memory double.
+2. Ship a one-off operator-driven smoke script next to it
+   (mirror `scripts/smoke_test_adls_*.py` conventions:
+   Copyright header, argparse, env-var-driven auth, public-API-
+   only consumption, parallel-SDK-client cleanup).
+3. Run the smoke once against a real sandbox; capture the
+   trace.
+4. **Only escalate to a K-a-style permanent CI test if the
+   smoke surfaces a divergence** that the in-memory double
+   didn't catch, OR if the surface gets heavy enough write/
+   read traffic in production that ongoing regression
+   protection is genuinely needed.
+
+**Why this is a cost-conscious posture**:
+
+- The CLAUDE.md "Cost Management" rule applies as much to CI
+  engineering as to runtime code. Permanent Azurite containers,
+  Docker dependencies, and 17-path invocations all carry ongoing
+  cost: image pulls, container startup time, CI minutes, mental
+  overhead, and the risk of skipping the test silently when
+  Docker isn't available.
+- A first-run operator smoke is ~1 minute of operator time
+  against a sandbox container that already exists, costing <$0.01
+  in blob operations.
+- The empirical confidence-per-cost ratio is much higher for
+  the smoke than for the permanent CI test, *unless* the smoke
+  surfaces a real divergence.
+
+**When this rule does NOT apply** (when K-a should be the
+default instead):
+
+- Wrapper-class behavior depends on **concurrent** access
+  patterns the in-memory double cannot model (e.g., real
+  contention on the same blob from multiple workers). Then the
+  divergence risk is not closed by a single sequential trace.
+- Production usage will hit a feature of the real service
+  (server-side encryption, custom domain, network ACLs) that
+  the smoke can't easily exercise in a single run.
+- The wrapper class is on a critical path for a
+  customer-visible feature where any regression must be caught
+  *before* the smoke could be re-run.
+
+In all three exception cases, document the carve-out at the
+Phase 2 design gate so the K-b vs K-a tradeoff is explicit.
+
+**Empirical anchor**: S30 trace at 2026-05-26 22:34:53 UTC;
+real-Azure ETags arrived in the `"0x8DEBB77053BF9C0"` quoted-
+hex format (matches the script's regex / string handling
+without modification); 412 maps in both directions
+(re-`write_initial` → exception; stale-ETag `try_update` →
+False); `_abfss_to_https` translation correct; parallel
+`BlobClient` cleanup successful.
+
+
 

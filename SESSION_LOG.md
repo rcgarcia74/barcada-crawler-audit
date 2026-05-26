@@ -7026,3 +7026,250 @@ robots_gate_integration; verified post-S29-push, unchanged from
 S27/S28 close).
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+
+## Session 30 — 2026-05-26 — ADLSCostJournal live Azure smoke EXECUTION (Candidate K-b-exec)
+
+──────── Scope shipped ───────────────────────────────────────────
+
+Candidate K-b-exec (operator-driven execution of the S29 K-b
+smoke script against a live Azure container) per S29 carry-
+forward. **Zero code commits this session** — the script shipped
+at S29 SHA `75a3937`; S30's scope was pure execution +
+trace interpretation. Closes the K-b-exec carry-forward on its
+first run against real Azure: ADLSCostJournal behavior matches
+the `DummyBlobBackend` used in S25's 19-test unit suite.
+
+Repo HEAD: `75a3937` (S29 close) → `af6f1d4` at S30 open (1
+tolerated operator-side eval_data commit; verified eval_data-only
+via `git show --stat`) → unchanged at S30 close (no S30 code
+commits).
+
+──────── Phase 0 cold-start verification ─────────────────────────
+
+All 9 steps green at S30 open:
+- 0.1 ✓ Workspace HEAD `5421cb2` (3 prompt-finalization commits
+  ahead of `e736eee`: `589c6af` S30 prompt drafted +
+  `09f9dd8` S30 prompt review fixes + `5421cb2` S30 Step 0.1
+  anchor-pin update; each verified consistent with the
+  prompt-finalization tolerance pattern). Repo HEAD `af6f1d4`
+  (1 eval_data-only commit ahead of `75a3937`; verified
+  eval_data-only via `git show --stat`).
+- 0.2 ⚠ 13 tags observed (vs 11 expected); 2 new
+  **operator-side eval_data tags** surfaced:
+  `workstream-stage1-prestaged-flags-end` → `af6f1d4` (eval_data
+  audit) and `workstream-stage1-step3-end` → `d4f06b8` (Step 3
+  audit). Both point at eval_data-only commits → in-class with
+  the eval_data commit tolerance; operator confirmed at Phase 1
+  to proceed. `workstream-0-end` unchanged at `a1c5636`.
+- 0.3 ✓ Driver-lock diff empty outside the 3 W5.X-authorized
+  files.
+- 0.4 ✓ Fixture counts via the Python rglob() pattern (per S28
+  post-close LESSONS): html=222, expected=202, meta=222,
+  baseline=1213, cassettes=20, exclusions=20.
+- 0.5 ✓ Canonical 970/0/0 in 78.65s.
+- 0.6 ✓ manifest.json (baseline-v0/0.1.0; 202 fixtures;
+  driver_sha prefix `521e363`); expected.schema.json v1.1.
+- 0.7 ✓ baseline_v0 CLI (3 subcommands: generate / check /
+  canary-run) + synthetic_crawl CLI (2 subcommands: record /
+  replay).
+- 0.8 ✓ Wiring 6 + stage1 run 16 + stage1 cost_tracker 16 = 38
+  passed.
+- 0.9 ✓ All S24/S25/S26/S27/S28/S29 public APIs unchanged;
+  CRAWLING_POLICY.md 77 lines / 2519 bytes; per-tier wiring
+  invariant smoke passes (all 8 slots populate); ShardResult 14
+  fields with llm/embedding split; cascade.py Stage 1 invoker
+  AST structure intact; S29 K-b script import-loads cleanly
+  with all 3 public surface markers present (`main`,
+  `_build_credential`, `_delete_blob`).
+
+──────── Phase 1 scope resolution + Phase 2 design-gate ──────────
+
+Phase 1 empirical prereq audit for Candidate A (per S29 LESSONS
+"Empirical Phase 1 prerequisite check before scope-narrow"):
+- 0 parquets on disk (across `$HOME` and project tree).
+- 0 barcada/canary plists in `~/Library/LaunchAgents/`.
+- No AI/ML responses or placeholder authorizations in workspace.
+Candidate A remains blocked — same state as S29 close.
+
+Operator chose **Candidate K-b-exec** at Phase 1. 1.TAG resolved
+to defer (per the K-b-exec line in Phase 1 Sub-question 1.TAG;
+no code ships, no milestone implicated).
+
+Phase 2: no design gates apply for K-b-exec — the script is
+already shipped (locked at S29 SHA `75a3937`). Claude Code's role
+is to interpret the trace; the operator's role is to execute
+the script against a live Azure sandbox container.
+
+──────── Phase 3 execution (operator-driven; trace interpreted) ──
+
+Operator ran the K-b script against a sandboxed Azure container
+(account + container REDACTED in this log per operator request;
+visible in operator's local terminal session).
+
+Captured trace:
+
+```
+Journal URL: abfss://<REDACTED>/run_20260526T223453Z.json
+            (https://<REDACTED>/run_20260526T223453Z.json)
+[1/5] write_initial OK (run_id=20260526T223453Z, ceiling=$10.00)
+[2/5] write_initial twice → JournalAlreadyExistsError (412 mapped)
+[3/5] read OK (etag='"0x8DEBB77053BF9C0"')
+[4/5] try_update with fresh etag → True (new etag='"0x8DEBB77057C13C1"')
+[5/5] try_update with stale etag → False (412 mapped to bool)
+All 5 steps OK. ADLSCostJournal behavior matches DummyBlobBackend.
+Deleted abfss://<REDACTED>/run_20260526T223453Z.json
+```
+
+Interpretation:
+
+| Step | Verifies                                                                 | Outcome |
+| ---- | ------------------------------------------------------------------------ | ------- |
+| 1/5  | `write_initial` succeeds; returns ETag                                   | ✓       |
+| 2/5  | 412 → `JournalAlreadyExistsError` (most-feared divergence: wrong type)   | ✓       |
+| 3/5  | `read()` returns state + real-Azure ETag format `"0x8..."`               | ✓       |
+| 4/5  | Happy-path `try_update` returns True with new ETag                       | ✓       |
+| 5/5  | Stale-ETag `try_update` returns **False** (CRITICAL bug scenario: safe)  | ✓       |
+| Cleanup | Parallel `BlobClient` deletes; public-API-only pattern works           | ✓       |
+
+No divergence from `DummyBlobBackend` behavior. The S25-shipped
+ADLSCostJournal backend is empirically validated against real
+Azure Blob storage. The S29 K-b posture (operator smoke vs
+permanent CI Azurite test) was sufficient to close the mock-vs-
+prod divergence risk on first run.
+
+──────── Phase 4 pre-push gate (skipped) ─────────────────────────
+
+No S30 code commits → no pre-push gate ran. The S29 close gates
+state is preserved (ruff check / ruff format check 353 files /
+vermin 3.10 / validate_consistency 0/0 errors).
+
+──────── Phase 5 push (no push) ──────────────────────────────────
+
+No S30 code commits → no push. No tag placed per Phase 1
+Sub-question 1.TAG = Defer for K-b-exec. Tag count remains
+13 (11 canonical + 2 new operator-side eval_data tags from
+between S29 close and S30 open).
+
+──────── Decisions of record (operator-locked) ───────────────────
+
+1. Candidate selection: K-b-exec (operator-driven execution of
+   the S29 K-b script). 1.TAG = Defer.
+2. Tag variance disposition: 2 new operator-side eval_data tags
+   accepted in-class with the eval_data commit tolerance.
+3. Trace privacy: account/container REDACTED in SESSION_LOG.md;
+   verbatim trace retained in operator's local terminal.
+4. LESSONS fold: yes — posture-validation note (see below).
+
+──────── Patterns reinforced this session ─────────────────────
+
+- **Empirical Phase 1 prerequisite check before scope-narrow**
+  (S29 LESSONS): Candidate A's 3 external-state prereqs
+  re-audited at S30 open; unchanged from S29 close (still
+  blocked). Gives operator a concrete go/no-go.
+- **Verify-before-asking discipline** (S19-S29 LESSONS):
+  verification table built before workspace commit; 10 claims ×
+  ✓ (repo HEAD, workspace HEAD, tag SHAs, eval_data-only deltas,
+  canonical baseline, K-b script LOC).
+- **Public-API-only cleanup pattern** (S24/S29 LESSONS):
+  empirically validated end-to-end against real Azure — the
+  parallel `BlobClient` in `_delete_blob` works without
+  touching `ADLSCostJournal._backend._client`.
+
+──────── New LESSONS folded ───────────────────────────────────────
+
+1 new section folded at LESSONS.md end ("S30 folding" suffix):
+
+1. **"Operator-smoke posture (K-b) can close mock-vs-prod
+   divergence risk in one execution; permanent CI test (K-a)
+   is then optional rather than required"** — when a wrapper
+   class is verified against `DummyBlobBackend`-style in-memory
+   doubles in a unit-test suite, a single first-run live-SDK
+   smoke can close the mock-vs-prod divergence risk
+   empirically. Permanent CI infrastructure (Docker/Azurite/
+   simulator) becomes a defense-in-depth choice, not a
+   prerequisite for confidence. Forward-applicable to similar
+   wrapper-class + external-service surfaces (Azure Queues,
+   Azure Tables, etc.) — start with operator-smoke + revisit
+   permanent CI only if a divergence shows up in production
+   that operator-smoke missed.
+
+──────── Workspace changes landed this session ────────────────
+
+- `SESSION_LOG.md`: this Session 30 entry append.
+- `SESSION_TRANSITION_TEMPLATE.md`: refilled for Session 31 with
+  workspace anchor SHA to be pinned in the follow-up commit.
+- `LESSONS.md`: 1 new section appended at file end ("S30
+  folding" suffix).
+
+Repo changes: NONE (0 commits). No tag placed.
+
+──────── Spend ───────────────────────────────────────────────────
+
+- LLM: $0 (no model invocations during the K-b script run).
+- Infrastructure: ~$0 trivial Azure Blob storage put/delete
+  against operator's sandbox container (5 blob operations +
+  1 delete on a single small JSON blob; ETag conflict matrix
+  is read-modify-write at sub-cent cost).
+- Cassette capture: nil.
+
+──────── Outstanding for Session 31 ──────────────────────────────
+
+1. **Candidate A barcada-drift** (carry-forward) — still blocked
+   on AI/ML decisions + ≥2 canary_runs parquets. As of S30
+   close: 0 parquets on disk; launchd installer not yet run;
+   no AI/ML responses or placeholder authorizations in
+   workspace.
+2. **Candidate D Phase 4 PR-D tooling** — operator territory;
+   labeling work still needed to begin.
+3. **Candidate E cassette corpus expansion** — 20 → 25/30
+   representative domains.
+4. **Candidate K-a Azurite-backed integration test** — now
+   **OPTIONAL** rather than required (per the S30-folded
+   LESSONS posture-validation note). Still available as a
+   defense-in-depth choice; not on any critical path.
+
+──────── Tags state at S30 close ─────────────────────────────────
+
+13 total (11 canonical + 2 new operator-side eval_data tags
+from between S29 close and S30 open):
+- baseline-v0
+- pre-remediation-2026-05-19
+- workstream-0-week1-end / week2-end / week3-end / week4-1-5-end /
+  week4-end / week5-end / week7-end
+- workstream-0-end (placed S27 at a1c5636; unchanged)
+- workstream-a-week1-end (placed S22)
+- **workstream-stage1-prestaged-flags-end** → `af6f1d4`
+  (operator-side eval_data tag; observed at S30 open)
+- **workstream-stage1-step3-end** → `d4f06b8`
+  (operator-side eval_data tag; observed at S30 open)
+
+**Canonical S30-close baseline for S31 Phase 0 Step 0.5
+(VERIFIED at HEAD `af6f1d4` at S30 open):**
+
+```
+.venv/bin/python -m pytest \
+    tests/scraper/test_fixture_conformance.py \
+    tests/runners/fixture_cascade/ \
+    tests/baseline_v0/ \
+    tests/synthetic_crawl/ \
+    tests/scraper/test_robots.py \
+    tests/scraper/test_robots_gate.py \
+    tests/scraper/test_robots_bypass_config.py \
+    tests/classifier/pipeline/test_cost_journal.py \
+    tests/classifier/pipeline/test_cost_journal_local.py \
+    tests/classifier/pipeline/test_cost_journal_adls.py \
+    tests/orchestrator/test_robots_integration.py \
+    tests/orchestrator/test_vmss_worker.py \
+    tests/orchestrator/test_job_runner.py \
+    tests/orchestrator/test_worker_loop.py \
+    tests/orchestrator/test_robots_gate_integration.py \
+    tests/orchestrator/test_worker_loop_persistence.py -q
+# Expected: 970 passed / 0 failed / 0 skipped
+# Sub-totals identical to S27/S28/S29 close (unchanged).
+# (S30's K-b-exec is operator-driven execution; no new tests.)
+```
+
+S30 narrower 14-path baseline: **944 passed / 0 failed / 0
+skipped** (unchanged from S27/S28/S29 close).
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
