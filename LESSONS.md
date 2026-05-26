@@ -2102,3 +2102,73 @@ This is a sibling to S25-folded "Q-J.8 explicit allowlist may
 be incomplete" — both are cases where Phase 2 authorization
 turns out narrower than the implementation actually needs, with
 the gap surfacing at the first combined-suite or size-check.
+
+---
+
+## Deferred wiring gaps fold cleanly into workstream-end if the original implementation left a parallel-API seam (S27 folding)
+
+**Pattern observed during S27 closing the S14 carry-forward
+"per-tier cost-accounting wiring gap":**
+
+The S14 full-corpus cascade run surfaced that
+`cost_journal.totals.stageN_*_usd` per-tier fields all stayed at
+$0 while shard-level `cost_usd` carried real costs. S15 deferred
+the fix as "low severity; total cost telemetry intact; per-tier
+breakdown is nice-to-have". Twelve sessions later (S27), a
+single-commit retrofit closed 6 of 8 `_TOTALS_FIELDS` slots
+without touching `src/barcada_scraper/` at all — purely a
+driver-side rewire from `with_shard_appended(record_with_full_cost)`
+to a chained `with_stage_cost_added(...)+with_shard_appended(...with_zero_cost)`
+pattern.
+
+The retrofit was clean ONLY because the original `cost_journal.py`
+module shipped a deliberately two-mode public API:
+
+- `with_shard_appended(record)` — rollup-only mode; adds
+  `record.cost_usd` to `totals.cost_usd` aggregate; per-tier
+  slots untouched. Simpler; what S14 used.
+- `with_stage_cost_added(stage, component, delta_usd)` —
+  per-component mode; bumps the matching `_TOTALS_FIELDS` slot
+  AND `totals.cost_usd`. Granular; what S27 retrofitted to.
+
+The docstrings on both methods explicitly described the two modes
+("Records carry an opaque `cost_usd` only; per-component splits
+accumulate via `with_stage_cost_added` mid-shard"). The S14
+implementation chose mode 1 as the simpler/safer path; mode 2
+remained available for later retrofits as a *parallel API seam*.
+
+**Forward-applicable rule:** when deferring a low-severity wiring
+gap, document *which seam* will close it. If the seam is a
+parallel public-API method on an existing surface (as here), say
+so explicitly in the SESSION_LOG disposition entry. If no seam
+exists yet — if closing the gap will require new src/ work —
+acknowledge that "defer" silently becomes "src/-surgery later"
+and weight the deferral cost accordingly. Without naming the
+seam at deferral time, future-you must re-derive the closure
+shape from scratch, and the deferral often grows into a larger
+src/ scope than the original cost framing implied.
+
+**Detection at deferral time:** when scoping a "carry-forward to
+later session" disposition, run one query: "if I had to close
+this in one driver-side commit *today*, what existing public
+function on the relevant surface would I call?" If the answer is
+a real function (with a docstring you can cite), the deferral is
+cheap to honor. If the answer is "I'd have to refactor X first,
+then call something new", the deferral is masking real src/
+work — surface that to the operator before deciding to defer.
+
+**Detection at closure time:** at the eventual closing session,
+re-source-verify that the seam still exists before drafting
+Phase 2 options. APIs sometimes drift between sessions (per S23
+LESSONS source-verify line numbers; per S25 LESSONS Phase 2
+source-verify drives option-set design). The S27 retrofit
+benefited from confirming
+`with_stage_cost_added` / `_TOTALS_FIELDS` were unchanged from
+S22 before drafting Q-B options; otherwise the entire Q-B.1
+option set would have been wrong.
+
+This complements the S22-folded "Plan-vs-reality at Phase 2"
+LESSONS pattern: plan wording describes intent; source code
+describes what's actually callable. For deferred gaps the source
+code shape at deferral time predicts the closure cost more
+reliably than the plan's severity rating does.

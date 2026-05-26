@@ -1,9 +1,9 @@
-# Session Transition Template — Handoff from Session 26 → Session 27
+# Session Transition Template — Handoff from Session 27 → Session 28
 
 This file is the handoff document filled out at the end of one Claude
 Code session for the next session to read first. Overwritten at each
 transition (use git history to recover prior handoffs). Sessions 1-11
-are summarized in SESSION_LOG.md; Sessions 12-26 are in the most
+are summarized in SESSION_LOG.md; Sessions 12-27 are in the most
 recent SESSION_LOG.md entries.
 
 Pair this with the latest entry in `SESSION_LOG.md`, with
@@ -11,69 +11,78 @@ Pair this with the latest entry in `SESSION_LOG.md`, with
 `BARCADA_CRAWLER_REMEDIATION_PLAN.md` to start a session cold and
 be productive within ~10 minutes.
 
-**Session 27 invocation prompt:** drafted post-S26-close at
-`~/crawler-audit/SESSION_27_PROMPT.md` (1562 lines / 65 KB;
-mirrors the S20-S26 7-phase structure). Operator-commissioned
-between sessions per the S20→S21..S25→S26 precedent. Apply
-reviewer-feedback hygiene per the prompt's "Reviewer-feedback
-hygiene" section if any pre-S27-open reviewer findings surface.
-Anchors:
-- Workspace HEAD: this prompt-drafting commit's SHA (succeeds
-  the anchor-pinning follow-up `03cadd3` AND the post-close
-  LESSONS correction `c0458dc`; S28 Phase 0 will need to
-  tolerate ≥2 prompt-drafting commits between S26 close and S27
-  open per the S22-folded Workspace HEAD delta tolerance
-  pattern).
-- Repo HEAD: `2314f5e` (S26 Commit 1 final).
-- Canonical baseline: 964 tests (16-path invocation, unchanged
-  from S25 close since S26 was doc-only).
-- Narrower baseline (used at S26 for Candidate H): 938 tests
-  (14-path invocation excluding test_cost_journal_adls.py +
-  test_robots_gate_integration.py).
-- Primary recommended scope: none — Candidate H closed at S26;
-  S27 picks from carry-forwards A/B/D/E/K (J closed S25, H closed
-  S26).
+**Session 28 invocation prompt:** not yet drafted as of Session 27
+close. Per the S20→S21..S26→S27 precedent, prompt-drafting is
+operator-commissioned between sessions; the operator decides whether
+to commission an S28 prompt or scope one at S28 open. Apply
+reviewer-feedback hygiene per the eventual prompt's "Reviewer-
+feedback hygiene" section if any pre-S28-open reviewer findings
+surface.
+
+Anchors for Session 28 cold start:
+- Workspace HEAD: pinned in the follow-up commit after this primary
+  close-out lands. Per S21-S26 LESSONS pattern "Workspace HEAD delta
+  tolerance": tolerate N additional prompt-drafting / audit-
+  correction commits between sessions; verify each is consistent
+  with that pattern before continuing. (S26→S27 saw 2 prompt
+  commits; S20→S21 saw 1; S22→S23 saw 2; S27→S28 will depend on
+  whether operator commissions a prompt before S28 open.)
+- Repo HEAD: `a1c5636` (S27 Commit 1 final;
+  WA0.W5.X.per-tier-cost-wiring).
+- Canonical baseline: **970 tests** (16-path invocation; driver
+  sub-suite grew 46 → 52 with the 6 net-new per-tier-wiring tests).
+- Narrower baseline (for candidates that don't exercise ADLS test
+  paths): **944 tests** (14-path; 970 minus 19 cost_journal_adls
+  minus 7 robots_gate_integration).
+- Primary recommended scope: none — Workstream 0 fully closes at
+  S27 with the workstream-0-end tag at `a1c5636`. S28 picks from
+  carry-forwards A/D/E/K (B closed S27, H closed S26, J closed S25).
 - Carry-forward candidates: A (barcada-drift; blocked on parquets),
-  B (per-tier cost-accounting retrofit; warrants
-  `workstream-0-end`), D (Phase 4 PR-D tooling), E (cassette
-  corpus expansion), K (ADLSCostJournal live Azure smoke; NEW
-  from S25 handoff).
+  D (Phase 4 PR-D tooling), E (cassette corpus expansion), K
+  (ADLSCostJournal live Azure smoke). PLUS new from S27: Stage 1
+  ShardResult LLM-vs-embedding split (would unblock (1,llm) /
+  (1,embedding) per-tier slots; deferred for a future src/ scope).
 
 ---
 
 ## Handoff metadata
 
-- Outgoing session number: 26
-- Closing date: 2026-05-25
-- Outgoing session scope: CRAWLING_POLICY.md tightening per S26
-  Candidate H. 1 doc-only commit per Q-SHARED.1:
-  `2314f5e WA1.W8.crawling-policy-tighten` (8102 -> 2519 bytes,
-  69% reduction; -174 / +49 LOC; 938 narrower baseline preserved
-  net-zero). Q-H.1 14% over the 2.2 KB cap due to Q-H.3 "both
-  audiences" floor — documented in commit body.
-  No tag placed (1.TAG = Defer; Candidate H is doc-only, no
-  workstream milestone). LLM spend: $0.
-- Reason for transition: S26 1-commit scope completed cleanly;
-  Candidate H shipped end-to-end with documented Q-H.1 variance.
-  Operator authorized Q-H.2-EXT mid-Phase-3 (op-defaults Notes
-  col + References collapse) in one AskUserQuestion turn. No
-  in-flight sub-surface.
+- Outgoing session number: 27
+- Closing date: 2026-05-26
+- Outgoing session scope: per-tier cost-accounting retrofit
+  (S27 Candidate B). 1 commit per Q-SHARED.1:
+  `a1c5636 WA0.W5.X.per-tier-cost-wiring` (cascade.py +105 / -6;
+  test_cost_journal_wiring.py NEW 338 LOC; 964 → 970 combined
+  suite; 6 of 8 _TOTALS_FIELDS slots wired; Stage 1 + Stage 3
+  fetch stay $0 by design).
+  `workstream-0-end` tag PLACED at `a1c5636` with full W0-closure
+  annotation (mirrors workstream-a-week1-end pattern). LLM spend:
+  $0.
+- Reason for transition: S27 1-commit scope completed cleanly;
+  Candidate B shipped end-to-end with workstream-0-end milestone
+  reached. Phase 1 → Phase 6 in a single context window with no
+  HALTs. No in-flight sub-surface.
 
 ---
 
 ## Repository state — `/Users/administrator/projects/barcada-scraper/`
 
 - Branch: `main`
-- Last commit SHA: `2314f5e` (WA1.W8.crawling-policy-tighten).
-- Last commit subject: "WA1.W8.crawling-policy-tighten:
-  docs/CRAWLING_POLICY.md (S26 Candidate H per Q-H.1 ~2 KB tight
-  + Q-H.2 4-section trim + Q-H.2-EXT op-defaults Notes col +
-  References collapse + Q-H.3 ops+compliance audience; 202 -> 77
-  lines, 8102 -> 2519 bytes, 69% reduction; 938 narrower baseline
-  preserved)".
+- Last commit SHA: `a1c5636` (WA0.W5.X.per-tier-cost-wiring).
+- Last commit subject: "WA0.W5.X.per-tier-cost-wiring:
+  tests/runners/fixture_cascade/cascade.py +
+  tests/runners/fixture_cascade/test_cost_journal_wiring.py
+  (S27 Candidate B per Q-B.1 Option 1 driver-only scope; 6 of 8
+  _TOTALS_FIELDS slots wired from Stage 2/3 ShardResult components;
+  Stage 1 (1,llm)/(1,embedding) intentionally $0 pending Stage 1
+  ShardResult split; Stage 3 fetch_cost_usd rolls through
+  shard.cost_usd lacking (3,'fetch') slot; 964 -> 970 (6 net-new
+  tests); single W5.X-prefix bundled commit per Q-B.4;
+  LocalFSCostJournal verification per Q-B.6; closes S14
+  carry-forward cost-accounting wiring gap)".
 - Branch sync with `origin/main`: 0 ahead / 0 behind (verified
-  at S26 close after push at HEAD `2314f5e`).
-- Tags (10 total; unchanged from S22-S25 close; do NOT move):
+  at S27 close after push of `2314f5e..a1c5636`).
+- Tags (11 total; NEW S27 = `workstream-0-end`):
   - `pre-remediation-2026-05-19` at `3cbb9b3`
   - `workstream-0-week1-end` at `4f9d23f`
   - `workstream-0-week2-end` at `e5d2f91`
@@ -83,35 +92,39 @@ Anchors:
   - `workstream-0-week5-end` at `ddd3cb0` (annotated)
   - `baseline-v0` at `9e9a1fb` (annotated)
   - `workstream-0-week7-end` at `ea37102` (annotated)
+  - **`workstream-0-end` at `a1c5636` (annotated; NEW S27)**
   - `workstream-a-week1-end` at `fdc8a7a` (annotated; placed S22)
-- Pre-push gate state at HEAD `2314f5e`: ALL CHECKS PASS (ruff +
-  ruff format + vermin 3.10 + validate_consistency 0/0).
-- Pre-S26 unstaged operator territory (Sessions 8-26 precedent —
-  expected to stay unstaged across sessions): `eval_data/README.md`,
-  `eval_data/TAXONOMY_GAP_LOG.md`, `eval_data/stage1_labels.jsonl`.
-  S26 saw NO new operator-side eval_data commits between S25 close
-  and S26 open.
+- Pre-push gate state at HEAD `a1c5636`: ALL CHECKS PASS (ruff +
+  ruff format on 352 files + vermin 3.10 + validate_consistency
+  0/0).
+- Pre-S27 unstaged operator territory (Sessions 8-27 precedent —
+  expected to stay unstaged across sessions):
+  `eval_data/TAXONOMY_GAP_LOG.md`,
+  `eval_data/audits/step3_professional_credentials_queue.jsonl`,
+  `eval_data/stage1_labels.jsonl`.
+  S27 saw NO new operator-side eval_data commits between S26 close
+  and S27 open.
 - Corpus: 222 .html fixtures (unchanged from S17 close).
 - 202 expected.json files (unchanged).
 - 222 meta.json files (unchanged).
 - 1213 baseline-v0 files (unchanged from S18 close at `9e9a1fb`).
-- MODIFIED Session 26 (Commit 1 SHA `2314f5e`):
-    - `docs/CRAWLING_POLICY.md` (202 -> 77 lines; 8102 -> 2519
-      bytes). Section trims:
-        - Crawler identity (22 lines) folded into intro.
-        - robots.txt compliance (55 -> 21 lines; preserved
-          3-decision tree + first-match-wins + permissive-on-
-          failure).
-        - Bypass-config policy + 2 subsections (70 -> 21 lines;
-          preserved principle + schema + audit-record + ETag
-          persistence).
-        - Operational defaults (13 -> 9 lines; Notes column
-          dropped per Q-H.2-EXT).
-        - Out-of-scope (22 -> 4 lines; single sentence + 1-line
-          guidance).
-        - References (9 -> 4 lines; inline semicolon collapse).
-- (Unchanged from S25 close, all locked):
-    - All S21-S25 deliverables (32 robots tests + 30 robots_gate +
+- MODIFIED Session 27 (Commit 1 SHA `a1c5636`):
+    - `tests/runners/fixture_cascade/cascade.py` (+105 / -6 LOC):
+        - Module docstring extended with "Per-tier cost-accounting
+          wiring (WA0.W5.X, S27 Candidate B)" paragraph.
+        - New module-level helper `_journal_record_with_breakdown`
+          (chained `with_stage_cost_added` + `with_shard_appended`
+          in one `update_with_retry` round-trip).
+        - Stage 2 invoker replaced (components dict; unattributed
+          $0).
+        - Stage 3 invoker replaced (components dict; fetch as
+          unattributed).
+        - Stage 1 invoker unchanged.
+    - `tests/runners/fixture_cascade/test_cost_journal_wiring.py`
+      NEW 338 LOC; 6 driver-level integration tests (5
+      cascade-driven + 1 helper-direct unit test).
+- (Unchanged from S26 close, all locked):
+    - All S21-S26 deliverables (32 robots tests + 30 robots_gate +
       30 robots_bypass_config + 43 cost_journal + 13
       cost_journal_local + 19 cost_journal_adls + 35
       robots_integration + 74 vmss_worker + 129 job_runner + 152
@@ -120,131 +133,124 @@ Anchors:
     - `cost_journal_adls.py` (S25 full backend at `835a531`).
     - `_open_cost_journal_for_worker` body (S25 abfss:// dispatch
       at `aed7873`).
+    - `docs/CRAWLING_POLICY.md` (S26 tightened doc at `2314f5e`;
+      77 lines / 2519 bytes).
     - All scraper/orchestrator surfaces locked per Out-of-scope
-      list in SESSION_26_PROMPT.md.
-- Combined test suite at HEAD `2314f5e`:
-    - **964 passed / 0 failed / 0 skipped** with the 16-path
-      canonical invocation (S26 close = S25 close; S26 is
-      doc-only, no test count delta).
-    - **938 passed / 0 failed / 0 skipped** with the narrower
-      14-path invocation used at S26 Phase 3 for Candidate H.
-    - 480 / 538 narrower-baselines (S22 era) remain valid for
-      future doc-only candidates that don't touch orchestrator
-      or journal paths.
+      list in SESSION_27_PROMPT.md.
+- Combined test suite at HEAD `a1c5636`:
+    - **970 passed / 0 failed / 0 skipped** with the canonical
+      16-path invocation (964 → 970; +6 net-new driver-level
+      tests from `test_cost_journal_wiring.py`).
+    - **944 passed / 0 failed / 0 skipped** with the narrower
+      14-path invocation (canonical minus 19 cost_journal_adls
+      minus 7 robots_gate_integration; verified post-push).
+    - 480 / 538 / 938 narrower-baselines (S22 / S26 era) remain
+      valid for future candidates that don't touch journal or
+      orchestrator paths.
 
 ---
 
 ## Workspace state — `/Users/administrator/crawler-audit/`
 
 - Branch: `main`
-- Last commit SHA at Session 26 start: `2262eea` (S26 prompt v2
-  M-1 arithmetic fix; 2 commits ahead of S25-close-pinned
-  `8e6d836` due to prompt-drafting + v1->v2 reviewer-findings
-  audit — matched the S20-S25 precedent for prompt-drafting
-  between sessions). At S26 Phase 0 Step 0.1 this was tolerated
-  under the "Workspace HEAD delta tolerance" pattern (both extra
-  commits were SESSION_26_PROMPT.md / SESSION_TRANSITION_
-  TEMPLATE.md edits only).
-- Session 26 close-out workspace commits: 1 (this file's primary
-  edit + SESSION_LOG entry + LESSONS S26 fold) + 1 expected
-  follow-up pinning the anchor SHA for S27 Phase 0 Step 0.1.
-- **Last commit SHA at Session 26 CLOSE: this commit (the
-  follow-up pinning the anchor)**. S27 prompt's Phase 0 Step 0.1
+- Last commit SHA at Session 27 start: `9b6c2d8` (S27 prompt v2
+  amendment; 2 commits ahead of `c0458dc` S26-close anchor due to
+  prompt-drafting + v1→v2 reviewer-findings audit — matched the
+  S20-S26 precedent for prompt-drafting between sessions). At
+  Session 27 Phase 0 Step 0.1 this was tolerated under the
+  "Workspace HEAD delta tolerance" pattern (both extra commits
+  were SESSION_27_PROMPT.md / SESSION_TRANSITION_TEMPLATE.md edits
+  only).
+- Session 27 close-out workspace commits: 1 (this file's primary
+  edit + SESSION_LOG entry + LESSONS S27 fold) + 1 expected
+  follow-up pinning the anchor SHA for S28 Phase 0 Step 0.1.
+- **Last commit SHA at Session 27 CLOSE: this commit (the
+  follow-up pinning the anchor)**. S28 prompt's Phase 0 Step 0.1
   MUST anchor workspace expectation to THIS follow-up's SHA, NOT
   to the primary close-out (which this follow-up succeeds). Per
-  S21-S25 LESSONS pattern "Workspace HEAD delta tolerance":
+  S21-S26 LESSONS pattern "Workspace HEAD delta tolerance":
   tolerate N additional prompt-drafting / audit-correction
   commits between sessions; verify each is consistent with that
   pattern before continuing.
 - Branch sync with `origin/main`: 0 ahead / 0 behind expected
-  after Session 26 close push.
+  after Session 27 close push.
 
 ---
 
-## Session 27 execution order (enforce strict sequence)
+## Session 28 execution order (enforce strict sequence)
 
 Same N-phase shape applies regardless of scope choice (Phase 0
 cold-start verify → Phase 1 scope → Phase 2 design-gate → Phase 3
 impl → Phase 4 pre-push → Phase 5 push+tag → Phase 6 close-out).
 Halt-on-mismatch at every phase; never bypass `--no-verify`.
 
-Session 27 starts cold by:
+Session 28 starts cold by:
 
 1. Reading this template (current handoff state).
-2. Reading the SESSION_LOG.md Session 26 entry.
-3. Reading the LESSONS.md additions Session 26 landed (2 new
-   sections at end of file, "S26 folding" suffix).
+2. Reading the SESSION_LOG.md Session 27 entry.
+3. Reading the LESSONS.md addition Session 27 landed (1 new
+   section at end of file, "S27 folding" suffix).
 4. Reading the relevant section of BARCADA_CRAWLER_
-   REMEDIATION_PLAN.md for the chosen Session 27 scope (see
-   "Notes for Session 27" below).
-5. Reading the Session 27 prompt if one has been drafted, OR
-   commissioning a fresh draft at S27 open.
+   REMEDIATION_PLAN.md for the chosen Session 28 scope (see
+   "Notes for Session 28" below).
+5. Reading the Session 28 prompt if one has been drafted, OR
+   commissioning a fresh draft at S28 open.
 6. Running Phase 0 cold-start verification per the prompt's
-   protocol (or per the S26 prompt template if S27 prompt is
-   not yet drafted).
+   protocol (or per the S27 prompt template if S28 prompt is
+   not yet drafted; mirror the S27 Phase 0 9-step verification
+   shape, updating workspace HEAD anchor, repo HEAD anchor
+   (`a1c5636`), and canonical baseline (970)).
 
 ---
 
-## Outstanding operator-input requests entering Session 27
+## Outstanding operator-input requests entering Session 28
 
-1. **Session 27 scope choice** — pick from the candidates in
-   "Notes for Session 27" below. Candidate H closed at S26; the
-   carry-forwards (A/B/D/E/K) remain. Candidate B specifically
-   would close Workstream 0 and warrant `workstream-0-end` tag.
+1. **Session 28 scope choice** — pick from the candidates in
+   "Notes for Session 28" below. Candidate B closed at S27; the
+   carry-forwards (A/D/E/K) remain, plus the new S27-deferred
+   Stage 1 ShardResult split.
 
 2. **Eval_data labeling continuity** — operator-WIP edits to
-   `eval_data/*.jsonl` continue across sessions (Sessions 8-26
-   precedent). S26 saw NO operator-side eval_data commits between
-   S25 close and S26 open. validate_consistency stayed green
-   throughout S26.
+   `eval_data/*.jsonl` continue across sessions (Sessions 8-27
+   precedent). S27 saw NO operator-side eval_data commits between
+   S26 close and S27 open. validate_consistency stayed green
+   throughout S27.
 
-3. **barcada-drift AI/ML alignment** — unchanged from S21-S26
-   handoffs. If operator wants to ship `barcada-drift` in S27,
+3. **barcada-drift AI/ML alignment** — unchanged from S21-S27
+   handoffs. If operator wants to ship `barcada-drift` in S28,
    the 4 AI/ML team decisions need to be pre-resolved OR scoped
    narrowly with placeholders. Plus the prereq of 2+ parquet
-   files (earliest natural date 2026-06-06).
+   files (earliest natural date 2026-06-06 if the launchd
+   installer fired immediately after S20 close).
 
 4. **launchd kit installation** — unchanged. Operator should
    run `scripts/launchd/install_canary_schedule.sh` when ready
    to enable the weekly Saturday-9am canary job. Required
    prerequisite for Candidate A.
 
-5. **Session 27 prompt draft commissioning** — operator decides
-   whether to commission an S27 prompt between sessions or scope
-   one at S27 open.
+5. **Session 28 prompt draft commissioning** — operator decides
+   whether to commission an S28 prompt between sessions or scope
+   one at S28 open.
 
 6. **Live Azure smoke for ADLSCostJournal** (Candidate K;
-   carry-forward from S25 handoff) — S25 shipped ADLSCostJournal
-   tested against DummyBlobBackend in-memory (Q-J.3 (c)). The
-   production code path against real Azure / Azurite has never
-   been exercised. A small operator-driven smoke test
-   (write_initial + try_update + read against a sandbox
-   container) would close the mock-vs-prod divergence risk.
+   carry-forward from S25→S26→S27) — S25 shipped ADLSCostJournal
+   tested against DummyBlobBackend in-memory. The production
+   code path against real Azure / Azurite has never been
+   exercised.
 
 ---
 
-## Notes for Session 27
+## Notes for Session 28
 
-Suggested S27 scope candidates (operator picks at S27 open):
+Suggested S28 scope candidates (operator picks at S28 open):
 
 ### Candidate A (carry-forward): `barcada-drift` skeleton
 
-Unchanged from S21-S26 handoffs. Per CLASSIFICATION_ADJACENT_PLAN.md
+Unchanged from S21-S27 handoffs. Per CLASSIFICATION_ADJACENT_PLAN.md
 §Item 8. Consumes `canary_runs/<date>.parquet` artifacts.
 **Blocked**: 2+ parquet files needed (launchd installer not yet
-run as of S26 close; earliest natural date 2026-06-06).
-Estimated ~300 LOC.
-
-### Candidate B (carry-forward): Per-tier cost-accounting retrofit
-
-Unchanged from S21-S26 handoffs. Closes Workstream 0; warrants
-`workstream-0-end` tag. Touches W4.1.5 driver area (locked except
-via W5.X-prefix commits). Estimated 100-200 LOC.
-
-Now that Candidate J (abfss://) closed at S25, the cost-accounting
-retrofit can plausibly use abfss:// CostJournal end-to-end in its
-verification — though the per-tier wiring itself does not require
-ADLS; LocalFSCostJournal still works.
+run as of S27 close; earliest natural date 2026-06-06 if installed
+post-S20-close).  Estimated ~300 LOC.
 
 ### Candidate D (carry-forward): Phase 4 PR-D operator-led labeling
 
@@ -253,8 +259,9 @@ territory.
 
 ### Candidate E (carry-forward): Cassette corpus expansion
 
-Unchanged from S22-S26 handoffs. S20 shipped 20 cassettes; plan's
-upper bound is 30. Could expand or curate.
+Unchanged from S22-S27 handoffs. S20 shipped 20 cassettes; plan's
+upper bound is 30. Could expand or curate. Optional FP
+re-investigation of archive.org / hashicorp.com / stripe.com.
 
 ### Candidate K (carry-forward from S25): ADLSCostJournal live smoke
 
@@ -266,39 +273,56 @@ ADLSCostJournal backend. Two flavors:
 - **K-b: Operator-driven sandbox smoke** — ~30 LOC Python
   script; no CI integration.
 
+### NEW S27-deferred: Stage 1 ShardResult LLM-vs-embedding split
+
+Would let `(1, 'llm')` / `(1, 'embedding')` per-tier slots in
+`cost_journal._TOTALS_FIELDS` populate from real Stage 1 costs.
+Currently `stage1_run.ShardResult` exposes only an aggregate
+`cost_usd` with no LLM-vs-embedding breakdown, so the S27
+retrofit left those two slots at $0. Closing this would touch
+`src/barcada_scraper/classifier/stage1/run.py` and
+`stage1/cost_tracker.py` (src/ scope — requires Phase 2 design-
+gate authorization for additive src/ touch).  Estimated ~80-100
+LOC. Tag implication: NONE (no workstream milestone left after
+workstream-0-end).
+
 ---
 
-## Required reading (Session 27 first 10 minutes)
+## Required reading (Session 28 first 10 minutes)
 
 In this order:
 
 1. **This template** (current handoff state).
-2. **`SESSION_LOG.md`** Session 26 entry — 1-commit narrative;
-   Q-H.1 through Q-H.3 + Q-H.2-EXT decisions; the AskUserQuestion
-   4-option-limit pattern that drove the mid-Phase-3 extension.
-3. **`LESSONS.md`** — 1 consolidated section appended at S26
-   close ("S26 folding" suffix): "AskUserQuestion 4-option limit
-   can silently truncate a Q-* option set". Covers BOTH
-   downstream surface effects (Q-H.2-EXT round-trip latency +
-   Q-H.1 14% size-target variance) as twin consequences of the
-   same Phase 2 truncation. Includes explicit anti-pattern note
-   against generalizing the variance to "size-vs-coverage
-   intrinsic collision".
+2. **`SESSION_LOG.md`** Session 27 entry — 1-commit narrative;
+   Q-B.1 through Q-B.6 + Q-SHARED.1 decisions; the closed S14
+   carry-forward; the new workstream-0-end tag annotation.
+3. **`LESSONS.md`** — 1 new section appended at S27 close
+   ("S27 folding" suffix): "Deferred wiring gaps fold cleanly
+   into workstream-end if the original implementation left a
+   parallel-API seam".
 4. **`BARCADA_CRAWLER_REMEDIATION_PLAN.md`** — chosen-scope
-   section per Session 27 candidate choice. Plan is READ-ONLY.
+   section per Session 28 candidate choice. Plan is READ-ONLY.
 5. **`CLASSIFICATION_ADJACENT_PLAN.md`** §Item 8 — only if
    Candidate A (barcada-drift) is chosen.
 6. **`src/barcada_scraper/classifier/pipeline/cost_journal_adls.py`**
-   — only if Candidate B or K touches the ADLS backend.
-7. **`docs/CRAWLING_POLICY.md`** — only if operator wants to
-   review the S26-tightened version (now 77 lines / 2.52 KB).
+   — only if Candidate K touches the ADLS backend.
+7. **`tests/runners/fixture_cascade/cascade.py`** at S27 HEAD —
+   only if Stage 1 ShardResult split candidate is chosen
+   (cascade.py's docstring documents exactly which slots remain
+   at $0 and why).
+8. **`docs/CRAWLING_POLICY.md`** at S26 SHA `2314f5e` — only if
+   operator wants to review the S26-tightened version (77 lines
+   / 2.52 KB). Locked.
 
 ---
 
-## Outstanding items carried forward to Session 27+
+## Outstanding items carried forward to Session 28+
 
-1. **Per-tier cost-accounting wiring gap** — carry-forward from
-   S14; severity LOW. Unchanged disposition.
+1. **Per-tier cost-accounting wiring gap** — CLOSED at S27 for
+   6 of 8 _TOTALS_FIELDS slots. The remaining 2 slots
+   (`stage1_llm_usd`, `stage1_embedding_usd`) stay $0 by design
+   pending Stage 1 ShardResult split (see Candidate "Stage 1
+   ShardResult split" above).
 
 2. **`barcada-drift` CLI** — CLASSIFICATION_ADJACENT_PLAN.md
    §Item 8; 4 AI/ML team decisions outstanding. Blocked also
@@ -314,24 +338,28 @@ In this order:
    should run `scripts/launchd/install_canary_schedule.sh` to
    enable the weekly job. Required for Candidate A.
 
-6. **Phase 4 PR-D/E/F/G** (forward look) — Unchanged. Opens
-   after Workstream 0 fully closes AND operator-led Stage 2 +
-   Stage 3 labeling work begins.
+6. **Phase 4 PR-D/E/F/G** (forward look) — opens now that
+   Workstream 0 fully closes (workstream-0-end tag at `a1c5636`).
+   Operator-led Stage 2 + Stage 3 labeling work still needs to
+   begin before PR-D/E/F/G work can land.
 
 7. **CRAWLING_POLICY.md size** — CLOSED at S26 (2.52 KB).
-   Removed from carry-forward.
 
 8. **abfss:// CostJournal Phase 5 promotion** — CLOSED at S25.
 
 9. **Live Azure smoke for ADLSCostJournal** (Candidate K) —
-   carry-forward from S25→S26. Optional; not a session-scope
+   carry-forward from S25→S26→S27. Optional; not a session-scope
    blocker.
+
+10. **Stage 1 ShardResult LLM-vs-embedding split** (NEW S27
+    deferral) — would close the remaining 2 of 8 _TOTALS_FIELDS
+    slots. src/ scope; needs Phase 2 design-gate authorization.
 
 ---
 
-## Locked artifact reminders for Session 27
+## Locked artifact reminders for Session 28
 
-Carry-forward from Sessions 8-26:
+Carry-forward from Sessions 8-27 (additions for S27 marked NEW):
 
 - `eval_data/` — labeling-workstream territory. Operator-WIP
   edits across sessions are expected. Pre-push validate_
@@ -340,11 +368,24 @@ Carry-forward from Sessions 8-26:
 - `stage1.schema.json` v1.0 with 49 keywords.
 - `pre-remediation-2026-05-19` tag.
 - `baseline-v0` tag at `9e9a1fb`.
-- All `workstream-0-*` tags at their placed SHAs (9 tags from
-  S20 close; unchanged).
+- All `workstream-0-*-end` tags at their placed SHAs.
+- **NEW S27 LOCK**: `workstream-0-end` tag at `a1c5636`
+  (annotated). Do NOT move.
 - `workstream-a-week1-end` tag at `fdc8a7a` (placed S22).
-- `tests/runners/fixture_cascade/` — W4.1.5 driver locked at
-  `dd64963` except via W5.X-prefix commits.
+- `tests/runners/fixture_cascade/` — W4.1.5 driver area; locked
+  at `dd64963` except via W5.X-prefix commits. **NEW S27
+  ADDITION**: `cascade.py` modified at SHA `a1c5636` under
+  W5.X-prefix authorization for the per-tier cost-accounting
+  retrofit (2nd W5.X commit in the driver area; 1st was Session
+  16's `8d0fc0e`). The new
+  `_journal_record_with_breakdown` helper and the Stage 2/3
+  invoker pattern are locked at `a1c5636`; further modifications
+  require Phase 2 design-gate authorization. Stage 1's invoker
+  intentionally unchanged.
+- **NEW S27 LOCK**:
+  `tests/runners/fixture_cascade/test_cost_journal_wiring.py`
+  — S27 deliverable; locked at `a1c5636`. 6 tests (5 cascade-
+  driven + 1 helper-direct unit test).
 - `tests/fixtures/baseline-v0/` snapshot — locked at `9e9a1fb`.
 - `tools/baseline_v0/check.py`, `generate.py`, `determinism.py`,
   `canary.py` — S18-20 deliverables; locked.
@@ -363,7 +404,10 @@ Carry-forward from Sessions 8-26:
 - `tests/scraper/test_robots_bypass_config.py` — S22 deliverable.
 - `src/barcada_scraper/classifier/pipeline/cost_journal.py` —
   S22-extended at `1d9404e`; S25 Q-J.8 extension touched ONLY
-  the test file (1↔1 replacement); production file unchanged.
+  the test file; production file unchanged. S27 consumed the
+  existing public API (`with_stage_cost_added`,
+  `with_shard_appended`, `update_with_retry`) without
+  modification.
 - `src/barcada_scraper/classifier/pipeline/cost_journal_local.py`
   — production local-FS backend; locked.
 - `src/barcada_scraper/classifier/pipeline/cost_journal_adls.py`
@@ -373,8 +417,7 @@ Carry-forward from Sessions 8-26:
   exists / path. Locked.
 - `tests/classifier/pipeline/test_cost_journal_adls.py` — 19
   tests locked at `835a531`. Includes `DummyBlobBackend`.
-- **NEW S26 LOCK**:
-  `docs/CRAWLING_POLICY.md` — tightened W A.1 doc at S26 SHA
+- `docs/CRAWLING_POLICY.md` — tightened W A.1 doc at S26 SHA
   `2314f5e` (77 lines / 2.52 KB). Further trimming OR additions
   require Phase 2 design-gate authorization.
 - `src/barcada_scraper/orchestrator/robots_integration.py` —
@@ -420,16 +463,16 @@ Carry-forward from Sessions 8-26:
   `orchestrator/worker_loop.py` (additive: S23 gate wiring +
   S24 durable persistence helpers + S25 abfss:// guard removal
   in 1 helper body). S26 added no new src/ authorizations
-  (doc-only).
+  (doc-only). S27 added no new src/ authorizations
+  (driver-only, W5.X-prefix).
 - All `.claude/rules/*.md` and `CLAUDE.md` — operator preferences;
   honored every commit.
 
 ---
 
-## Combined-suite-at-Session-27-open baseline
+## Combined-suite-at-Session-28-open baseline
 
-Canonical (16 paths; mirrors S25-close = S26-close invocation,
-since S26 was doc-only):
+Canonical (16 paths):
 
 ```
 .venv/bin/python -m pytest \
@@ -449,38 +492,39 @@ since S26 was doc-only):
     tests/orchestrator/test_worker_loop.py \
     tests/orchestrator/test_robots_gate_integration.py \
     tests/orchestrator/test_worker_loop_persistence.py -q
-# Expected: 964 passed / 0 failed / 0 skipped
+# Expected: 970 passed / 0 failed / 0 skipped
 ```
 
-Sub-totals: 210 conformance + 46 driver + 99 baseline_v0 + 33
+Sub-totals: 210 conformance + 52 driver + 99 baseline_v0 + 33
 synthetic_crawl + 32 robots + 30 robots_gate + 30 robots_bypass_config
 + 43 cost_journal + 13 cost_journal_local + 19 cost_journal_adls +
 35 robots_integration + 74 vmss_worker + 129 job_runner + 152
-worker_loop + 7 robots_gate_integration (4 S23 + 2 S24-unchanged
-+ 1 S25-replaced) + 12 worker_loop_persistence (11 S24-unchanged
-+ 1 S25-replaced) = 964.
+worker_loop + 7 robots_gate_integration + 12 worker_loop_persistence
+= 970. (Only the driver sub-suite changed S26 → S27: 46 → 52; all
+15 other counts unchanged.)
 
 Cumulative-test-count gate: the count NEVER decreases between
 commit boundaries.
 
-Narrower baselines (still valid for S27 candidates that don't
+Narrower baselines (still valid for S28 candidates that don't
 exercise the new ADLS test paths):
 - 480 (S22 headline suite; no orchestrator/, no journal)
 - 538 (S22 headline + journal-suite)
-- 938 (S25-equivalent narrower; 16-path minus
-  test_cost_journal_adls.py's 19 + test_robots_gate_integration.py's
-  7 — for Candidate-H-style doc-only candidates; used at S26
-  Phase 3).
+- 938 (S26 narrower 14-path; no longer applicable after S27 since
+  driver suite grew — replaced by 944)
+- 944 (S27-equivalent narrower; canonical 16-path minus 19
+  cost_journal_adls minus 7 robots_gate_integration; verified
+  post-S27-push)
 
 Choose at Phase 0 Step 0.5 per Candidate selection.
 
 ---
 
-## Pre-push gate at Session 27 open
+## Pre-push gate at Session 28 open
 
 ```
 .venv/bin/ruff check .                                   # All checks passed!
-.venv/bin/ruff format --check .                          # 351+ files OK
+.venv/bin/ruff format --check .                          # 352+ files OK
 git ls-files '*.py' | xargs .venv/bin/vermin --target=3.10
                                                          # Minimum required 3.10
 .venv/bin/python eval_data/scripts/validate_consistency.py
@@ -489,8 +533,8 @@ git ls-files '*.py' | xargs .venv/bin/vermin --target=3.10
 
 Note on gate 4: validate_consistency runs against working-tree
 state; if operator-WIP in eval_data introduces a schema violation
-between S26 close and S27 open, the gate will block even though
-no S27 commit touches eval_data. Per LESSONS: surface to operator
+between S27 close and S28 open, the gate will block even though
+no S28 commit touches eval_data. Per LESSONS: surface to operator
 with the row+detail, propose operator-fix or stash-and-restore;
 do NOT auto-fix.
 
@@ -498,22 +542,21 @@ do NOT auto-fix.
 
 ## Context-window awareness
 
-Session 26 ran across 1 commit + Phase 2 source-verification +
-1 mid-Phase-3 Q-H.2-EXT HALT-and-extend (resolved in one
-AskUserQuestion turn) + Phase 6 close-out, comfortably within
-context. Session 27 budget per chosen candidate:
+Session 27 ran across 1 commit + Phase 2 source-verification +
+Phase 6 close-out, comfortably within context. No HALTs, no
+mid-Phase-3 extensions. Session 28 budget per chosen candidate:
 
 - Candidate A (barcada-drift): only if launchd job has run ≥2
   times AND AI/ML decisions ready. Estimated ~300 LOC.
-- Candidate B (per-tier cost-accounting): touches W4.1.5 area;
-  more careful Phase 0 verification needed. Estimated 100-200 LOC.
 - Candidate D (Phase 4 PR-D tooling): operator-led; tooling only.
 - Candidate E (cassette corpus expansion): depends on operator
   curation choices.
 - Candidate K (ADLSCostJournal live smoke): K-a ~50-100 LOC +
   Docker; K-b ~30 LOC operator-driven.
+- Stage 1 ShardResult split (NEW S27 deferral): ~80-100 LOC;
+  touches src/stage1/. Needs Phase 2 src/ authorization.
 
-Strategies (unchanged from S20-S26 prompts):
+Strategies (unchanged from S20-S27 prompts):
 - Use Edit over Write for small additions.
 - Delegate multi-file design-of-record analysis to Explore.
 - For any live-HTTP corpus work, pilot 1-3 before full N-domain.
@@ -525,40 +568,41 @@ Strategies (unchanged from S20-S26 prompts):
   AskUserQuestion drafts (S25 LESSONS pattern).
 - Grep for same-shape tests outside the prompt's explicit
   allowlist at Phase 0 (S25 LESSONS Q-J.8 extension lesson).
-- **NEW S26 LESSONS**: at Phase 2, count the prompt's Q-*
-  option set; if any single Q-* enumerates >4 options, tier the
-  question or split the AskUserQuestion call rather than
-  silently narrowing. The truncation has TWO downstream surface
-  effects, both worth pre-empting: the visible mid-Phase-3
-  round-trip AND the less-visible structural-hardening variance
-  that can persist past the eventual HALT-and-extend. Do NOT
-  conflate the latter with an "intrinsic gate collision"
-  (per post-S26-close operator correction folded into LESSONS).
+- At Phase 2, count the prompt's Q-* option set; if any single
+  Q-* enumerates >4 options, tier the question or split the
+  AskUserQuestion call rather than silently narrowing (S26
+  LESSONS pattern).
+- **NEW S27 LESSONS**: when deferring a low-severity wiring gap,
+  document the specific parallel-API seam that will close it
+  later. The S14 → S27 deferred-to-closed cycle worked because
+  the original cost_journal API shipped both rollup and
+  per-component modes as a deliberately two-mode design. Without
+  the seam, "defer" silently becomes "src/-surgery later".
 
 Self-monitor cadence:
 - Report estimated context usage at ~30%, ~60%.
-- If usage crosses ~70% before chosen S27 scope closes,
+- If usage crosses ~70% before chosen S28 scope closes,
   transition per "no mid-commit-batch transitions".
 
 ---
 
 ## Reporting in chat at session close
 
-Same pattern as Sessions 13-26:
+Same pattern as Sessions 13-27:
 
-1. Commit SHA(s) of each Session 27 sub-surface.
+1. Commit SHA(s) of each Session 28 sub-surface.
 2. Sub-surfaces landed.
-3. Test count delta: 964 baseline → S27 close.
-4. Driver suite count (46/46 expected unless realigned).
+3. Test count delta: 970 baseline → S28 close.
+4. Driver suite count (52/52 expected unless realigned).
 5. Files touched per surface.
-6. Tag dispositions (e.g., does S27 warrant a new tag?
-   Candidate B alone — closing Workstream 0 — warrants
-   `workstream-0-end`; A/D/E/K do not).
+6. Tag dispositions (Workstream 0 closed at S27 — no further
+   workstream-0-* tags. workstream-A milestones depend on W A.2
+   completion; W A.1 closed at S22's workstream-a-week1-end).
 7. Carry-forward dispositions.
 8. Any spend (LLM, infrastructure).
 9. Any new LESSONS patterns to fold in.
 
 ---
 
-End of Session 26 handoff template. Refill at Session 27 close
+End of Session 27 handoff template. Refill at Session 28 close
 per Phase 6 close-out protocol.

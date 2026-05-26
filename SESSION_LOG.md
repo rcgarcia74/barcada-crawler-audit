@@ -6111,3 +6111,320 @@ S26 narrower 14-path baseline (used at Phase 3 for Candidate H):
 S27 unchanged.
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+
+═══════════════════════════════════════════════════════════════════
+Session 27 (2026-05-26) — Candidate B per-tier cost-accounting
+retrofit closes Workstream 0
+═══════════════════════════════════════════════════════════════════
+
+Single-scope engineering session. Operator chose Candidate B
+(per-tier cost-accounting retrofit) at Phase 1, with Sub-question
+1.TAG = Place `workstream-0-end`. Closes the S14-noted carry-forward
+where `cost_journal.totals.stageN_*_usd` per-tier fields all stayed
+at $0 even though shard-level `cost_usd` carried real costs. Per
+S15 disposition the gap was "deferred at W4.3.X (low severity;
+total cost telemetry intact)" — S27 lands the fix and places the
+workstream-end tag in the same session.
+
+──────── Phase 0 cold-start verification ─────────────────────────
+
+All 9 steps green (~52s for the 964-test combined suite):
+- Workspace HEAD: `9b6c2d8` (2 prompt-drafting commits past
+  c0458dc anchor: `bfa6ee5` initial draft + `9b6c2d8` v2
+  amendment — both tolerated under the S22-folded Workspace
+  HEAD delta tolerance pattern).
+- Repo HEAD: `2314f5e` (S26 close, no eval_data delta from
+  operator side).
+- 10 tags at their placed SHAs.
+- Driver locked at `dd64963` (only test_fixture_fetcher.py
+  changed via W5.X realign at 8d0fc0e).
+- Fixture counts: 222 / 202 / 222 / 1213 / 20 / 20 — all match.
+- Combined suite: **964 passed in 51.35s** (canonical 16-path).
+- Manifest baseline-v0/0.1.0 + 18-col stage3_decision shape ✓.
+- S24/S25 public APIs unchanged; abfss:// dispatch still routes
+  to ADLSCostJournal.
+- docs/CRAWLING_POLICY.md still 77 lines / 2519 bytes with all
+  4 load-bearing markers (BypassAuthorization / first-match-wins /
+  ETag- / authorized_by) present.
+
+──────── Phase 1 scope resolution ────────────────────────────────
+
+Operator picked **Candidate B** at Phase 1 (single AskUserQuestion
+turn with 4 candidate options + 3 1.TAG options):
+- Q1.1 candidate = B (per-tier cost-accounting retrofit).
+- Q1.1.TAG = Place `workstream-0-end`.
+
+──────── Phase 2 design-gate elicitation ─────────────────────────
+
+Two AskUserQuestion batches (3+3 questions; ≤4 options each per
+the S26-folded LESSONS rule on 4-option truncation). Source-
+verification via grep + Python AST inspection at session-current
+HEAD before drafting option sets, per S25-folded "Phase 2 source-
+verify drives option-set design".
+
+Pre-Q-* source-verification findings (folded into option-set
+design):
+- Driver only uses `with_shard_appended`, never
+  `with_stage_cost_added` — confirmed gap.
+- `cost_journal._TOTALS_FIELDS` has 8 slots: (1,llm/embedding);
+  (2,fetch/summarization/classification); (3,evidence/primary/
+  secondary). No (3,'fetch') slot — Stage 3 fetch_cost_usd cannot
+  flow into a per-tier slot.
+- Stage 2 ShardResult exposes 3 split fields mapping 1:1 to
+  _TOTALS_FIELDS.
+- Stage 3 ShardResult exposes 4 split fields; 3 map to
+  _TOTALS_FIELDS, the 4th (fetch_cost_usd) has no slot.
+- Stage 1 ShardResult exposes only aggregate `cost_usd` (no
+  LLM-vs-embedding split available without src/ touch).
+- `stage2/run.py:1002` confirms s2_total = fetch + summ + class.
+- `stage3/run.py:814` confirms s3_total = fetch + ev + pri + sec.
+- `stage3/run.py:604` shows
+  `r["evidence_cost_usd"] = 0.0  # cost is per-shard, not per-domain`
+  — the S14 finding "per-row evidence_cost_usd is $0" is
+  DELIBERATE design, not a wiring bug. NOT in scope.
+
+Phase 2 batch 1 (Q-B.1 / Q-B.2 / Q-B.3) resolved:
+- Q-B.1 = Option 1: driver-only Stage 2 (3 fields) + Stage 3
+  (evidence/primary/secondary). 6 of 8 _TOTALS_FIELDS slots
+  wired. NO src/ touch. (1,llm), (1,embedding), and Stage 3
+  fetch left at $0 — documented in cascade.py module docstring.
+- Q-B.2 = Option 1: no backfill. Per-tier totals live in the
+  runtime cost_journal artifact, not in baseline-v0 manifest
+  or expected/*.json. Re-runs naturally produce correct totals.
+- Q-B.3 = Option 1: new driver-level integration test file at
+  tests/runners/fixture_cascade/test_cost_journal_wiring.py.
+
+Phase 2 batch 2 (Q-B.4 / Q-B.6 / Q-SHARED.1) resolved:
+- Q-B.4 = Option 1: single W5.X-prefix bundled commit (cascade.py
+  edit + new test file). W5.X-prefix authorization for the
+  W4.1.5 driver locked since `dd64963`. Second W5.X commit in
+  the driver area after Session 16's `8d0fc0e`.
+- Q-B.6 = Option 1: LocalFSCostJournal-only verification.
+  Candidate K (ADLS live smoke) remains independent carry-forward.
+- Q-SHARED.1 = Option 1: per-module commits (S18-S26 default).
+
+──────── Phase 3 implementation ──────────────────────────────────
+
+Single commit: **`a1c5636 WA0.W5.X.per-tier-cost-wiring`**.
+
+Files changed:
+- `tests/runners/fixture_cascade/cascade.py` (+105 / -6 LOC)
+  - Module docstring extended with "Per-tier cost-accounting
+    wiring (WA0.W5.X, S27 Candidate B)" paragraph documenting
+    which (stage, component) pairs flow into _TOTALS_FIELDS,
+    why Stage 1 stays $0, why Stage 3 fetch rolls through
+    shard.cost_usd.
+  - New module-level helper `_journal_record_with_breakdown`:
+    takes `components={component: delta_usd}` mapping + optional
+    `unattributed_cost_usd`. Chains all per-component
+    `with_stage_cost_added` bumps and the final
+    `with_shard_appended` into one `update_with_retry` round-trip.
+    Preserves the cardinal invariant
+        totals.cost_usd ==
+            sum(shard.cost_usd) + sum(per-tier slot values)
+            ==
+            stage1_total + stage2_total + stage3_total
+  - Stage 2 invoker replaced — components dict + 0.0 unattributed.
+  - Stage 3 invoker replaced — components dict + fetch as
+    unattributed.
+  - Stage 1 invoker unchanged (continues to use the existing
+    `_journal_record` helper; aggregate cost_usd only).
+- `tests/runners/fixture_cascade/test_cost_journal_wiring.py`
+  (NEW, 338 LOC; 6 net-new tests):
+  1. `test_journal_totals_has_per_tier_slots_after_run` —
+     structural check: all 8 _TOTALS_FIELDS slots + cost_usd +
+     cached_input_tokens present in totals.
+  2. `test_stage1_per_tier_slots_remain_zero_by_design` —
+     pins Q-B.1 Option 1 scope decision (Stage 1 stays $0).
+  3. `test_stage3_fetch_cost_routes_through_shard_record` —
+     pins the Stage 3 fetch-rollup pattern + Stage 2 cost_usd=0
+     shard shape.
+  4. `test_totals_cost_usd_invariant_holds_across_run` —
+     cardinal invariant (no double-counting, no leakage).
+  5. `test_injected_adjudicator_costs_route_to_correct_slots`
+     — monkey-patches `_build_fake_components` to inject non-zero
+     `cost_per_call_usd` on every fake adjudicator; asserts
+     Stage 2 summarization/classification + Stage 3 evidence/
+     primary slots populate from real numeric flow.
+  6. `test_journal_record_with_breakdown_chains_mutations` —
+     direct helper-level unit test against a freshly-initialised
+     LocalFSCostJournal.
+
+Per-commit checkpoint (6 steps):
+- Combined suite: 964 → 970 ✓
+- Ruff check + format on touched files: clean
+  (1 round-trip — initial I001 import-sort + F401 unused-import
+  on `build_fake_adjudicators` fixed in place; verified before
+  staging)
+- Verification table: 18 claims × ✓
+- git status: only intended 2 files staged; eval_data WIP
+  (TAXONOMY_GAP_LOG.md + step3_professional_credentials_queue.jsonl
+  + stage1_labels.jsonl) stayed unstaged per Sessions 8-26
+  precedent
+- Operator confirm-to-commit: confirmed
+- Post-commit re-verify on new HEAD `a1c5636`: 970 still pass
+
+──────── Phase 4 pre-push gate (whole-tree) ──────────────────────
+
+All 4 gates green:
+- `ruff check .` — All checks passed!
+- `ruff format --check .` — 352 files already formatted
+- `git ls-files '*.py' | xargs vermin --target=3.10` —
+  Minimum required versions: 3.10
+- `validate_consistency.py` — 0 errors / 0 warnings (no
+  eval_data WIP halt protocol triggered; operator-WIP rows
+  satisfy schema at HEAD)
+
+──────── Phase 5 push + workstream-0-end tag ─────────────────────
+
+- Pushed `2314f5e..a1c5636` to origin/main (operator-confirmed).
+- Placed annotated `workstream-0-end` tag at `a1c5636` with a
+  full W0-closure summary (mirrors the workstream-a-week1-end
+  annotation pattern from S22).
+- Pushed tag to origin (operator-confirmed).
+- Tag count: 10 → 11.
+
+──────── Phase 6 workspace close-out ─────────────────────────────
+
+This entry + refilled SESSION_TRANSITION_TEMPLATE.md for S28 +
+1 new LESSONS section folded at file end ("S27 folding" suffix).
+After workspace close-out primary commit lands, expect 1 follow-up
+commit pinning the S28 Phase 0 workspace anchor SHA per the S21-S26
+precedent.
+
+──────── Decisions of record (operator-locked) ───────────────────
+
+1. Candidate selection: B (per-tier cost-accounting), 1.TAG =
+   Place workstream-0-end. Resolved at Phase 1 in one
+   AskUserQuestion turn.
+2. Q-B.1 = Option 1 (driver-only; 6 of 8 _TOTALS_FIELDS wired;
+   Stage 1 + Stage 3 fetch stay $0 by design). No src/ touch.
+3. Q-B.2 = Option 1 (no backfill).
+4. Q-B.3 = Option 1 (new driver-level integration test file).
+5. Q-B.4 = Option 1 (single W5.X-prefix bundled commit; 2nd
+   W5.X commit in driver area; 1st was Session 16's `8d0fc0e`).
+6. Q-B.6 = Option 1 (LocalFSCostJournal-only verification;
+   Candidate K stays independent carry-forward).
+7. Q-SHARED.1 = Option 1 (per-module commits).
+8. workstream-0-end tag placed at a1c5636 with full W0-closure
+   annotation; 11 tags total at S27 close.
+
+──────── Patterns reinforced this session ─────────────────────
+
+- **Phase 2 source-verify drives option-set design** (S25
+  LESSONS): pre-Q-* grep + AST inspection surfaced 7 distinct
+  facts that shaped the option-set, the most important being
+  the deliberate `stage3/run.py:604 evidence_cost_usd = 0.0`
+  comment which kept per-row evidence cost out of scope.
+- **AskUserQuestion 4-option-limit hygiene** (S26 LESSONS):
+  6 Q-* split into 2 batches of 3+3, each Q with ≤4 options.
+  Zero mid-Phase-3 HALT-and-extend cycles; no silent narrowing.
+- **Verify-before-asking discipline** (S19-S26 LESSONS): 18-row
+  verification table reconciled before staging; all claims
+  source-verified.
+- **W5.X-prefix discipline for the W4.1.5 driver** (S16
+  precedent): only the 2nd W5.X commit in the locked driver
+  area; commit prefix called out in body for future bisects.
+- **Workspace HEAD delta tolerance** (S22 LESSONS): 2 prompt-
+  drafting workspace commits past the c0458dc anchor were
+  walked + tolerated at Phase 0 Step 0.1 per pattern.
+
+──────── New LESSONS folded ───────────────────────────────────────
+
+1 new section folded at LESSONS.md end ("S27 folding" suffix):
+**"Deferred wiring gaps fold cleanly into workstream-end if the
+original implementation left a parallel-API seam"**. Covers the
+shape of the S14 → S27 deferred-to-closed cycle: the original
+cost_journal API ships `with_shard_appended` (rollup-only mode)
+AND `with_stage_cost_added` (per-component mode) as a deliberately
+two-mode design. The S14 driver picked rollup-only as the simpler
+mode; S27 retrofits to breakdown+rollup-with-zero-cost-shard.
+Forward-applicable: when deferring a low-severity gap, document
+*which seam* will close it. Without the seam, "defer" silently
+becomes "src/-surgery later".
+
+──────── Workspace changes landed this session ────────────────
+
+- `SESSION_LOG.md`: this Session 27 entry append.
+- `SESSION_TRANSITION_TEMPLATE.md`: refilled for Session 28 with
+  workspace anchor SHA to be pinned in the follow-up commit.
+- `LESSONS.md`: 1 new section appended at file end.
+
+Repo changes:
+- W A.0 W5.X commit `a1c5636 WA0.W5.X.per-tier-cost-wiring`
+  (tests/runners/fixture_cascade/cascade.py +
+   tests/runners/fixture_cascade/test_cost_journal_wiring.py).
+- Annotated tag `workstream-0-end` placed at `a1c5636` and pushed
+  to origin.
+- Pushed to origin/main: `2314f5e..a1c5636`.
+
+──────── Spend ───────────────────────────────────────────────────
+
+- LLM: $0 (all cascade runs were fake-mode).
+- Infrastructure: nil (no new Azure/Docker dependencies).
+- Cassette capture: nil (Candidate E not in scope).
+
+──────── Outstanding for Session 28 ──────────────────────────────
+
+1. **Candidate A barcada-drift** (carry-forward) — still blocked
+   on AI/ML decisions + ≥2 canary_runs parquets (earliest natural
+   2026-06-06).
+2. **Candidate D Phase 4 PR-D tooling** — operator territory.
+3. **Candidate E cassette corpus expansion** — 20 → 25/30
+   representative domains.
+4. **Candidate K ADLSCostJournal live Azure smoke** — operator-
+   driven sandbox OR Azurite-backed integration test.
+5. **Stage 1 ShardResult LLM-vs-embedding split** (NEW S27
+   carry-forward) — would let (1,llm) / (1,embedding) per-tier
+   slots populate. Deferred for a future src/ scope. Documented
+   in cascade.py module docstring and in the workstream-0-end
+   tag annotation.
+
+──────── Tags state at S27 close ─────────────────────────────────
+
+11 total (10 → 11):
+- baseline-v0
+- pre-remediation-2026-05-19
+- workstream-0-week1-end / week2-end / week3-end / week4-1-5-end /
+  week4-end / week5-end / week7-end
+- workstream-0-end (NEW at a1c5636)
+- workstream-a-week1-end
+
+**Canonical S27-close baseline for S28 Phase 0 Step 0.5
+(VERIFIED post-push at HEAD `a1c5636`):**
+
+```
+.venv/bin/python -m pytest \
+    tests/scraper/test_fixture_conformance.py \
+    tests/runners/fixture_cascade/ \
+    tests/baseline_v0/ \
+    tests/synthetic_crawl/ \
+    tests/scraper/test_robots.py \
+    tests/scraper/test_robots_gate.py \
+    tests/scraper/test_robots_bypass_config.py \
+    tests/classifier/pipeline/test_cost_journal.py \
+    tests/classifier/pipeline/test_cost_journal_local.py \
+    tests/classifier/pipeline/test_cost_journal_adls.py \
+    tests/orchestrator/test_robots_integration.py \
+    tests/orchestrator/test_vmss_worker.py \
+    tests/orchestrator/test_job_runner.py \
+    tests/orchestrator/test_worker_loop.py \
+    tests/orchestrator/test_robots_gate_integration.py \
+    tests/orchestrator/test_worker_loop_persistence.py -q
+# Expected: 970 passed / 0 failed / 0 skipped
+# Sub-totals: 210 conformance + 52 driver + 99 baseline_v0 + 33
+#   synthetic_crawl + 32 robots + 30 robots_gate + 30
+#   robots_bypass_config + 43 cost_journal + 13 cost_journal_local
+#   + 19 cost_journal_adls + 35 robots_integration + 74
+#   vmss_worker + 129 job_runner + 152 worker_loop + 7
+#   robots_gate_integration + 12 worker_loop_persistence = 970
+# (Only the driver sub-suite changed: 46 → 52; all others
+# identical to S26 close.)
+```
+
+S27 narrower 14-path baseline (still valid for future doc-only
+candidates that don't exercise the new ADLS test paths):
+**944 passed / 0 failed / 0 skipped** (970 minus 19
+cost_journal_adls minus 7 robots_gate_integration).
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
