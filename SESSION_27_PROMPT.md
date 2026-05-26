@@ -558,17 +558,23 @@ print('OK abfss:// dispatch routes to ADLSCostJournal (S25 Candidate J seam inta
 
 # S26: CRAWLING_POLICY.md doc stability — landed at S26 SHA
 # 2314f5e at 77 lines / 2519 bytes; verify it hasn't drifted.
+# Note the explicit `|| { ... exit 1; }` clauses below: the
+# Phase 0 contract is fail-loud-and-halt, so any drift here must
+# terminate the script. Earlier drafts used `&& ... || echo HALT`
+# which printed the HALT message but exited 0, letting Step 0.9
+# continue running — fixed per the operator-S26-close review.
 test "$(wc -l < docs/CRAWLING_POLICY.md)" = "77" && \
-    test "$(wc -c < docs/CRAWLING_POLICY.md)" = "2519" && \
-    echo "OK docs/CRAWLING_POLICY.md unchanged from S26 close (77 lines / 2519 bytes)" || \
-    echo "HALT: CRAWLING_POLICY.md drifted from S26-landed shape"
+    test "$(wc -c < docs/CRAWLING_POLICY.md)" = "2519" || \
+    { echo "HALT: CRAWLING_POLICY.md drifted from S26-landed shape (expected 77 lines / 2519 bytes)"; exit 1; }
+echo "OK docs/CRAWLING_POLICY.md unchanged from S26 close (77 lines / 2519 bytes)"
 
 # Verify the load-bearing content still present:
 grep -q "BypassAuthorization" docs/CRAWLING_POLICY.md && \
     grep -q "first-match-wins" docs/CRAWLING_POLICY.md && \
     grep -q "ETag-" docs/CRAWLING_POLICY.md && \
-    grep -q "authorized_by" docs/CRAWLING_POLICY.md && \
-    echo "OK CRAWLING_POLICY.md load-bearing content (audit record / first-match / ETag / sidecar schema) all present"
+    grep -q "authorized_by" docs/CRAWLING_POLICY.md || \
+    { echo "HALT: CRAWLING_POLICY.md load-bearing content missing (one of: BypassAuthorization / first-match-wins / ETag- / authorized_by)"; exit 1; }
+echo "OK CRAWLING_POLICY.md load-bearing content (audit record / first-match / ETag / sidecar schema) all present"
 ```
 
 If any of 0.1-0.9 fail, HALT before doing any work.
@@ -798,10 +804,15 @@ Carry-forward from S22-S26 prompts (unchanged).
 - Q-A.1 CLI namespace; Q-A.2 drift metric; Q-A.3 alert threshold;
   Q-A.4 input contract; Q-A.5 output shape; Q-A.6 test corpus.
 
-(NB: 6 Q-* gates exceed the 4-option AskUserQuestion limit. If
-each Q-* itself has ≤4 options per gate, batch them as 2-3
-sequential AskUserQuestion calls (3 Q-* + 3 Q-*) rather than one
-6-question batch.)
+(NB: Candidate A has 6 Q-* gates. Two AskUserQuestion caps apply
+independently and BOTH need to be checked:
+- 4 OPTIONS per question (the S26 LESSONS topic): check each Q-*
+  individually; if any single Q-* exceeds 4 options, apply the
+  tier/split protocol from "CRITICAL Phase 2 hygiene" above.
+- 4 QUESTIONS per call (a separate tool-schema cap; not the
+  S26 LESSONS cap): batching all 6 Q-* into one AskUserQuestion
+  would violate this; split into 2-3 sequential calls (e.g.,
+  3 + 3, or 2 + 2 + 2).)
 
 ### If Candidate B (per-tier cost-accounting retrofit)
 
@@ -1139,21 +1150,22 @@ numbering.
 - **S3.** Tag placed per Phase 1 Sub-question 1.TAG OR explicit
   defer.
 - **S4.** Regression-protection checklist held (see "Out-of-scope"
-  below). In particular: ALL S21-S26 deliverables stay at the
-  SHAs they landed at; their public APIs are unchanged. The 32
-  robots-parser tests stay 32/32 green; the 30 robots_gate tests
-  stay 30/30 green; the 30 robots_bypass_config tests stay 30/30
-  green; the 43 cost_journal tests stay 43/43 green; the 13
-  cost_journal_local tests stay 13/13 green; the 19
-  cost_journal_adls tests stay 19/19 green; the 35
-  robots_integration tests stay 35/35 green; the 74 vmss_worker
-  + 129 job_runner + 152 worker_loop tests stay green (or grow);
-  the 7 integration tests stay 7/7 green; the 12
-  worker_loop_persistence tests stay 12/12 green;
-  `docs/CRAWLING_POLICY.md` stays at 77 lines / 2519 bytes
-  unchanged. The total stays at 964 (or grows) unless a Q-*
-  AskUserQuestion explicitly authorizes a same-shape 1↔1
-  replacement.
+  below). In particular:
+  - ALL S21-S26 deliverables stay at the SHAs they landed at;
+    their public APIs are unchanged.
+  - Per-sub-suite test counts stay green (or grow): 32 robots-
+    parser / 30 robots_gate / 30 robots_bypass_config / 43
+    cost_journal / 13 cost_journal_local / 19 cost_journal_adls
+    / 35 robots_integration / 74 vmss_worker / 129 job_runner /
+    152 worker_loop / 7 robots_gate_integration (4 S23 +
+    2 S24-unchanged + 1 S25-replaced) / 12
+    worker_loop_persistence (11 S24-unchanged + 1 S25-replaced).
+  - `docs/CRAWLING_POLICY.md` stays at 77 lines / 2519 bytes
+    unchanged from S26 SHA `2314f5e` (verified at Phase 0
+    Step 0.9).
+  - The combined total stays at 964 (or grows) unless a Q-*
+    AskUserQuestion explicitly authorizes a same-shape 1↔1
+    replacement.
 
 ---
 
@@ -1550,9 +1562,16 @@ into this prompt — S27 does not need a separate amendment file:
   doc-only candidates), Step 0.9 (S24+S25 public API stability
   PLUS new S26 CRAWLING_POLICY.md doc-stability check at 77
   lines / 2519 bytes).
-- **1 LESSONS section from S26 close (consolidated post-operator-
-  review)** referenced where it applies: "AskUserQuestion
-  4-option limit can silently truncate a Q-* option set" — at
+- **1 LESSONS section from S26 close (the result of a
+  deletion-and-merge per operator review post-S26-close: the
+  originally-folded second section "Size-target gates can
+  collide with audience-coverage gates" was DELETED as misframed,
+  and the surviving section "AskUserQuestion 4-option limit can
+  silently truncate a Q-* option set" was BROADENED to cover
+  both downstream surface effects (Q-H.2-EXT round-trip latency
+  + Q-H.1 14% size-target variance) PLUS an explicit anti-
+  pattern warning against generalizing the variance to an
+  "intrinsic gate collision")** referenced where it applies: at
   Phase 2 "CRITICAL Phase 2 hygiene from S26 LESSONS" (apply
   BEFORE every AskUserQuestion call) AND at the Verify-before-
   asking section's LESSONS-folded-discoveries list.
