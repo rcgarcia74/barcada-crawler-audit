@@ -20,13 +20,16 @@ feedback hygiene" section if any pre-S28-open reviewer findings
 surface.
 
 Anchors for Session 28 cold start:
-- Workspace HEAD: pinned in the follow-up commit after this primary
-  close-out lands. Per S21-S26 LESSONS pattern "Workspace HEAD delta
-  tolerance": tolerate N additional prompt-drafting / audit-
-  correction commits between sessions; verify each is consistent
-  with that pattern before continuing. (S26→S27 saw 2 prompt
-  commits; S20→S21 saw 1; S22→S23 saw 2; S27→S28 will depend on
-  whether operator commissions a prompt before S28 open.)
+- Workspace HEAD: `5aab563` (S27 primary close-out commit:
+  SESSION_LOG.md + SESSION_TRANSITION_TEMPLATE.md + LESSONS.md).
+  THIS commit (the anchor-pinning follow-up) supersedes it as the
+  actual S28 Phase 0 Step 0.1 target. Per S21-S26 LESSONS pattern
+  "Workspace HEAD delta tolerance": tolerate N additional
+  prompt-drafting / audit-correction commits between sessions;
+  verify each is consistent with that pattern before continuing.
+  (S26→S27 saw 2 prompt commits; S20→S21 saw 1; S22→S23 saw 2;
+  S27→S28 will depend on whether operator commissions a prompt
+  before S28 open.)
 - Repo HEAD: `a1c5636` (S27 Commit 1 final;
   WA0.W5.X.per-tier-cost-wiring).
 - Canonical baseline: **970 tests** (16-path invocation; driver
