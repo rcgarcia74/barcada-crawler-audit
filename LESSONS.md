@@ -2030,13 +2030,47 @@ During Phase 2 drafting, the option list was narrowed to 4 (the
 "first 4 mentioned in the prompt"), silently dropping
 Operational defaults + References from the trim-authorization.
 
-This forced a mid-Phase-3 HALT when the trimmed draft landed at
-2.71 KB vs the Q-H.1 ~2 KB target — the missing 2 trim
-authorizations were exactly what made the cap unreachable. A
-follow-up `Q-H.2-EXT` AskUserQuestion resolved it in one turn
-(operator authorized op-defaults Notes column trim + References
-collapse), but the round-trip added latency vs surfacing the
-4-option limit during Phase 2 drafting.
+The truncation caused TWO downstream surface effects, not one.
+Both are forward-applicable consequences of the same Phase 2
+authorization gap.
+
+**Surface effect #1 — Q-H.2-EXT round-trip latency.** When the
+trimmed draft landed at 2.71 KB vs Q-H.1's ~2 KB target, the
+missing 2 trim authorizations surfaced as a mid-Phase-3 HALT.
+A follow-up `Q-H.2-EXT` AskUserQuestion resolved the gap in one
+turn (operator authorized op-defaults Notes column trim +
+References collapse), but the round-trip forced the operator to
+relive Phase 2 in the middle of implementation.
+
+**Surface effect #2 — Q-H.1 14% size-target variance.** The
+final doc landed at 2.52 KB, 14% over Q-H.1's `±10%` 2.2 KB cap.
+At close-out moment this looked like a clean Q-H.1-vs-Q-H.3
+intrinsic collision ("size cap conflicts with both-audiences
+requirement") and was initially folded as a separate LESSONS
+section under that framing. The operator correctly pointed out
+that framing is wrong: the variance is downstream of the
+truncation, NOT an independent gate collision. By the time
+Q-H.2-EXT surfaced mid-Phase-3, drafts v1-v3 had hardened around
+structural assumptions about the un-authorized sections (full
+Operational defaults Notes column, original References block,
+original section structure). The Q-H.2-EXT trims were bolted
+atop v3's structure, getting v4 -> v5 -> v6 via prose-density
+work alone (2.71 KB -> 2.58 KB -> 2.52 KB). Had Q-H.2 had all
+6 options from Phase 2, a holistic structural pass would likely
+have hit ~2.0-2.2 KB cleanly (load-bearing compliance content
+~700 bytes + essential framing + minimum operational defaults +
+minimum References ~1300-1500 bytes = within Q-H.1 ±10%). The
+variance landed because the additional trim authorization came
+too late to drive a fresh structural rethink.
+
+**The misframing matters.** Future-Claude should NOT generalize
+the S26 variance to "size-target vs coverage-target intrinsic
+collision". The proximate cause was Phase 2 authorization
+truncation, full stop. Treating it as an independent collision
+risks (a) papering over the real fix (don't truncate Q-* option
+sets at Phase 2) with a false fix (relax ±10% acceptance bands)
+and (b) over-applying the "collision" framing to future
+candidates that don't actually have it.
 
 **Forward-applicable rule:** before drafting an `AskUserQuestion`
 batch, count the prompt's option set. If any single Q-* enumerates
@@ -2056,67 +2090,15 @@ batch, count the prompt's option set. If any single Q-* enumerates
 Detection at Phase 2: read the prompt's Q-* options literally;
 when option-count > 4, pick one of the 3 strategies above
 *before* writing the AskUserQuestion tool call. Do NOT silently
-narrow — silent narrowing surfaces as a Phase 3 HALT-and-extend
-cycle (per the S25-folded Q-J.8 pattern), and the operator has
-to relive Phase 2 in the middle of implementation.
+narrow — silent narrowing surfaces as BOTH the Phase 3 HALT-and-
+extend cycle (per the S25-folded Q-J.8 pattern) AND the
+downstream structural-hardening variance described above. The
+round-trip is not a costless recovery: by the time the missing
+authorization arrives, the implementation has often already
+committed to assumptions that constrain how much further trim
+is practical.
 
 This is a sibling to S25-folded "Q-J.8 explicit allowlist may
 be incomplete" — both are cases where Phase 2 authorization
 turns out narrower than the implementation actually needs, with
 the gap surfacing at the first combined-suite or size-check.
-
----
-
-## Size-target gates can collide with audience-coverage gates (S26 folding)
-
-S26 Candidate H had two Phase 2 design-gate decisions that
-appeared independent but were jointly constrained:
-
-- **Q-H.1** asked for a target doc size (~2 KB tight or ~3 KB mid).
-- **Q-H.3** asked for the reviewer audience (ops on-call,
-  compliance, or both).
-
-The operator picked **~2 KB tight** + **both audiences**. These
-turned out to be incompatible: the load-bearing compliance content
-(sidecar schema + audit-record fields + ETag-conditional
-persistence note) costs ~700 bytes, and dropping any of it loses
-the compliance audience. After exhausting Q-H.2 + Q-H.2-EXT
-authorized trim opportunities, the doc landed at 2.52 KB — 14%
-over Q-H.1's `±10%` 2.2 KB cap.
-
-The variance was surfaced honestly in the commit body's "Q-H.1
-size variance disclosure" section rather than silently shipped.
-The acceptance-criteria gate (Q-H.1 ±10%) is a soft constraint
-when an unbendable audience-coverage requirement (Q-H.3) imposes
-a higher practical floor.
-
-**Forward-applicable rules:**
-
-1. **Cross-check Q-* gates for joint-feasibility at Phase 2**:
-   when a candidate has BOTH a quantitative target (size,
-   latency, LOC budget) AND a qualitative coverage requirement
-   (audience, feature set, persona), sanity-check whether the
-   coverage requirement's natural floor is below the quantitative
-   target. If not, surface the tension as an extra Phase 2
-   sub-question BEFORE Phase 3 starts (e.g., "Q-H.3-PRE:
-   compliance-essential content costs ~N bytes; Q-H.1 cap is
-   ~M bytes. If N > M, which gate wins?").
-
-2. **Quantitative gate variance disclosure in the commit body**:
-   when a target is missed due to a higher-priority constraint,
-   the commit body MUST quantify the variance + name the
-   constraint that imposed the floor. Avoids the operator
-   re-deriving the same reasoning at audit time.
-
-3. **±10% acceptance bands need explicit floor checking**: the
-   "±10%" wording in acceptance criteria implies the target is
-   achievable within tolerance. If a sibling Q-* gate imposes a
-   floor outside that tolerance, the band is meaningless. Treat
-   ±10% as a planning estimate, not a hard pre-commit gate, when
-   coverage requirements dominate.
-
-This is the *quantitative-vs-qualitative* sibling pattern to
-S25's "Phase 2 source-verify drives option-set design, not just
-gates" — that lesson was about *which* options to present; this
-one is about whether *combinations of accepted options* are
-jointly satisfiable.

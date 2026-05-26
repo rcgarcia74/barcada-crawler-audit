@@ -271,10 +271,14 @@ In this order:
 2. **`SESSION_LOG.md`** Session 26 entry — 1-commit narrative;
    Q-H.1 through Q-H.3 + Q-H.2-EXT decisions; the AskUserQuestion
    4-option-limit pattern that drove the mid-Phase-3 extension.
-3. **`LESSONS.md`** — 2 new sections appended at S26 close
-   ("S26 folding" suffix): AskUserQuestion 4-option limit can
-   silently truncate a Q-* option set / Size-target gates can
-   collide with audience-coverage gates.
+3. **`LESSONS.md`** — 1 consolidated section appended at S26
+   close ("S26 folding" suffix): "AskUserQuestion 4-option limit
+   can silently truncate a Q-* option set". Covers BOTH
+   downstream surface effects (Q-H.2-EXT round-trip latency +
+   Q-H.1 14% size-target variance) as twin consequences of the
+   same Phase 2 truncation. Includes explicit anti-pattern note
+   against generalizing the variance to "size-vs-coverage
+   intrinsic collision".
 4. **`BARCADA_CRAWLER_REMEDIATION_PLAN.md`** — chosen-scope
    section per Session 27 candidate choice. Plan is READ-ONLY.
 5. **`CLASSIFICATION_ADJACENT_PLAN.md`** §Item 8 — only if
@@ -519,9 +523,12 @@ Strategies (unchanged from S20-S26 prompts):
 - **NEW S26 LESSONS**: at Phase 2, count the prompt's Q-*
   option set; if any single Q-* enumerates >4 options, tier the
   question or split the AskUserQuestion call rather than
-  silently narrowing. AND: cross-check quantitative-vs-
-  qualitative Q-* gates for joint-feasibility BEFORE Phase 3
-  starts — size targets can collide with coverage requirements.
+  silently narrowing. The truncation has TWO downstream surface
+  effects, both worth pre-empting: the visible mid-Phase-3
+  round-trip AND the less-visible structural-hardening variance
+  that can persist past the eventual HALT-and-extend. Do NOT
+  conflate the latter with an "intrinsic gate collision"
+  (per post-S26-close operator correction folded into LESSONS).
 
 Self-monitor cadence:
 - Report estimated context usage at ~30%, ~60%.

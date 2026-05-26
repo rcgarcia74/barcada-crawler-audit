@@ -6035,8 +6035,15 @@ Cost budget remaining (cap $100): $99.29.
 Candidate H disposition: shipped. CRAWLING_POLICY.md tightened
 from 8.1 KB to 2.52 KB while retaining the load-bearing robots
 contract for both ops and compliance audiences. The 14% over
-Q-H.1's 2.2 KB cap is documented in the commit body and the
-Q-H.1/Q-H.3 collision pattern is folded into LESSONS for S27+.
+Q-H.1's 2.2 KB cap is documented in the commit body. Initial
+S26 close-out framed the variance as an independent Q-H.1/Q-H.3
+gate collision and folded it as a separate LESSONS section;
+operator review corrected the framing — the variance is a
+downstream consequence of the Phase 2 AskUserQuestion 4-option
+truncation that left v1-v3 drafts hardened around un-authorized
+structural assumptions, not an independent intrinsic collision.
+LESSONS rewritten accordingly (single consolidated section
+covering both surface effects).
 
 Outstanding carry-forwards entering Session 27:
 - Candidate A (barcada-drift) — still blocked on 2+ parquet files
@@ -6051,20 +6058,27 @@ Outstanding carry-forwards entering Session 27:
   close mock-vs-prod divergence risk.
 - (Candidate H) — CLOSED at S26.
 
-S26-folded LESSONS (2 new sections at end of LESSONS.md):
+S26-folded LESSONS (1 consolidated section at end of LESSONS.md;
+revised post-operator-review from the original 2-section fold):
 1. "AskUserQuestion 4-option limit can silently truncate a Q-*
    option set" — Q-H.2's 6-option enumeration in the prompt was
-   narrowed to 4 in the AskUserQuestion call; the missing 2
-   surfaced as a Phase 3 HALT-and-extend. Forward-applicable:
-   detect option-count >4 at Phase 2 drafting, tier or split the
-   question, do not silently narrow.
-2. "Size-target gates can collide with audience-coverage gates"
-   — Q-H.1's ~2 KB target and Q-H.3's "both audiences"
-   requirement turned out jointly infeasible; the 14% variance
-   was surfaced honestly in the commit body. Forward-applicable:
-   cross-check Q-* gates for joint-feasibility at Phase 2
-   (quantitative vs qualitative); surface tension as a pre-flight
-   sub-question rather than discovering it mid-Phase-3.
+   narrowed to 4 in the AskUserQuestion call. Two downstream
+   surface effects, both consequences of the same authorization
+   gap: (#1) the Q-H.2-EXT round-trip that made the operator
+   relive Phase 2 mid-implementation, and (#2) the Q-H.1 14%
+   size-target variance that landed because the late-arriving
+   Q-H.2-EXT trims were bolted atop v1-v3's hardened structure
+   instead of driving a holistic structural rethink.
+   Forward-applicable: detect option-count >4 at Phase 2 drafting,
+   tier or split the question, do not silently narrow. The
+   downstream variance is the more insidious surface effect; the
+   round-trip is visible immediately, the structural-hardening
+   tail isn't.
+   Explicit anti-pattern: do NOT generalize the S26 variance to
+   "size-target gates intrinsically collide with audience-coverage
+   gates". The proximate cause was truncation, not an independent
+   gate collision; treating it otherwise risks papering over the
+   real fix with a false fix.
 
 **Canonical S26-close baseline for S27 Phase 0 Step 0.5 (VERIFIED
 post-push at HEAD `2314f5e`):**
