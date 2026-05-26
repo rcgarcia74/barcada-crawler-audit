@@ -23,13 +23,16 @@ S30 SESSION_LOG.md entry + the new S30-folded LESSONS section
 tradeoffs).
 
 Anchors for Session 31 cold start:
-- Workspace HEAD: the S30 close-out commit (succeeds the S30
-  anchor-pin follow-up `5421cb2`, which itself succeeds the
-  S30 prompt review-fixes commit `09f9dd8` and the S30 prompt
-  draft `589c6af`). S31 Phase 0 Step 0.1 MUST anchor workspace
-  expectation to the close-out commit's SHA (pinned by the
-  follow-up commit that lands AFTER the primary close-out per
-  S21-S29 LESSONS pattern "Workspace HEAD delta tolerance").
+- Workspace HEAD: `9d4691e` (S30 primary close-out commit;
+  succeeds the S30 anchor-pin commit `5421cb2`, which itself
+  succeeds `09f9dd8` S30 prompt review fixes + `589c6af` S30
+  prompt draft + `e736eee` S29 anchor-pin follow-up). S31
+  Phase 0 Step 0.1 MUST anchor workspace expectation to
+  `9d4691e` OR this anchor-pin follow-up's SHA (the commit
+  containing THIS edit). Per S21-S29 LESSONS pattern "Workspace
+  HEAD delta tolerance": tolerate N additional audit-correction
+  / prompt-drafting commits between sessions; verify each is
+  consistent with that pattern before continuing.
 - Repo HEAD: `af6f1d4` (operator-side eval_data audit:
   A3 pre-staged flags + appointment_booking refinement;
   1 commit ahead of S29 close at `75a3937`; eval_data-only
@@ -160,17 +163,16 @@ in all 5 steps. No follow-up needed.
   0.1 all three workspace commits were tolerated under the
   "Workspace HEAD delta tolerance" pattern (all prompt-only
   edits).
-- Session 30 close-out workspace commits: TBD (this template
-  is part of the primary close-out commit; expected 1-2
-  follow-up commits pinning the anchor SHA for S31 Phase 0
-  Step 0.1, per S21-S29 LESSONS pattern).
-- **Last commit SHA at Session 30 CLOSE: TBD (the anchor-pin
-  follow-up commit that succeeds the primary close-out)**. S31
-  prompt's Phase 0 Step 0.1 MUST anchor workspace expectation
-  to THAT follow-up's SHA. Per S21-S30 LESSONS pattern: tolerate
-  N additional prompt-drafting / audit-correction commits
-  between sessions; verify each is consistent with that pattern
-  before continuing.
+- Session 30 close-out workspace commits: 2 — primary close-out
+  `9d4691e` (SESSION_LOG.md + SESSION_TRANSITION_TEMPLATE.md +
+  LESSONS.md) + THIS anchor-pin follow-up (succeeds `9d4691e`).
+- **Last commit SHA at Session 30 CLOSE: this anchor-pin
+  follow-up (succeeds `9d4691e`)**. S31 prompt's Phase 0 Step
+  0.1 MUST anchor workspace expectation to THIS commit's SHA
+  OR `9d4691e`. Per S21-S30 LESSONS pattern: tolerate N
+  additional prompt-drafting / audit-correction commits between
+  sessions; verify each is consistent with that pattern before
+  continuing.
 - Branch sync with `origin/main`: 0 ahead / 0 behind expected
   after Session 30 close push.
 
