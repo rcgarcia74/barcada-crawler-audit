@@ -182,9 +182,9 @@ Run in order. Halt and surface to operator on any mismatch.
 # (anchor-pinning follow-up). This prompt drafted as a follow-up
 # commit succeeding e736eee.
 git -C ~/crawler-audit rev-parse HEAD
-# Expect: <prompt-drafting commit SHA succeeding e736eee> OR
-# a later commit if additional workspace doc edits or an S30
-# prompt-revision landed post-draft. If N commits ahead, verify
+# Expect: 589c6af (S30 prompt-drafted post-S29-close, succeeding
+# e736eee) OR a later commit if additional workspace doc edits or
+# an S30 prompt-revision landed post-draft. If N commits ahead, verify
 # each prior commit's subject via `git log --oneline e736eee..HEAD`
 # against expected prompt-finalization / doc-edit patterns;
 # surface the SHA delta and request authorization to proceed if
@@ -216,7 +216,7 @@ git -C /Users/administrator/projects/barcada-scraper rev-parse HEAD
 # and S30 open.
 ```
 
-### Step 0.2 — Tags (unchanged from S27/S28/S29 close)
+### Step 0.2 — Tags (unchanged since S27 close; S28 and S29 each placed no tag)
 
 ```
 git -C /Users/administrator/projects/barcada-scraper tag -l | sort
@@ -738,12 +738,12 @@ from pathlib import Path
 path = Path('scripts/smoke_test_adls_cost_journal.py')
 assert path.exists(), f'S29 K-b script missing: {path}'
 
-# Verify size approximately matches S29 ship (220 LOC; tolerate ±5
-# for whitespace-only edits that don't alter semantics).
-lines = path.read_text().splitlines()
-assert 215 <= len(lines) <= 225, f'S29 K-b script size drifted: {len(lines)} lines (expected ~220)'
-
 # Verify import-loads cleanly (no syntax errors; all imports resolve).
+# Matches S25/S26/S27/S28 Step 0.9 precedent — pin behavior, not size.
+# A bug fix to the script between S29 and S30 (anticipated by Phase 1
+# Candidate K-b-exec at the 'follow-up to fix the divergence' clause)
+# would alter LOC without altering correctness; the import-load +
+# public-surface check below is the load-bearing signal.
 spec = importlib.util.spec_from_file_location('s29_smoke', str(path))
 m = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(m)
@@ -753,7 +753,7 @@ assert hasattr(m, 'main'), 'main() missing from K-b smoke script'
 assert hasattr(m, '_build_credential'), '_build_credential helper missing'
 assert hasattr(m, '_delete_blob'), '_delete_blob helper missing'
 
-print(f'OK S29 K-b script intact ({len(lines)} lines; import OK; public surface intact)')
+print('OK S29 K-b script intact (import OK; public surface intact)')
 "
 ```
 
@@ -779,12 +779,16 @@ In this order:
 3. **`~/crawler-audit/LESSONS.md`** — 2 new sections folded at
    S29 close, at end of file ("S29 folding" suffix). Locate via
    `grep -n '^## .*(S29 folding)' LESSONS.md`. Read with care:
-   - "Operator-driven script LOC estimates run ~3× higher than
-     logic-only estimates" (S29 folding) — **MANDATORY READ for
-     any Phase 1 candidate that proposes an operator-driven
-     script or CLI tool**. Documents how Copyright + docstring +
-     argparse overhead drove S29's K-b script from "~30 LOC"
-     prompt-estimate to 220 LOC delivered.
+   - "Operator-driven script LOC estimates need a ~70-100 LOC
+     additive overhead floor, not a linear multiplier" (S29
+     folding) — **MANDATORY READ for any Phase 1 candidate that
+     proposes an operator-driven script or CLI tool**. Documents
+     how Copyright + docstring + argparse overhead drove S29's
+     K-b script from "~30 LOC" prompt-estimate to 220 LOC
+     delivered, and why the right framing is ADDITIVE
+     (logic + ~70-100 LOC floor), not multiplicative
+     (logic × 3×). The ~3× ratio observed for K-b is a special
+     case where logic is small enough that overhead dominates.
    - "Public-API-only cleanup pattern extends from tests to
      operator scripts" (S29 folding) — extends S24 pattern.
      Forward-applicable: any new script/test that consumes a
@@ -843,9 +847,14 @@ readiness; each is independent.
 
 Per `CLASSIFICATION_ADJACENT_PLAN.md` §Item 8. Consumes the
 `canary_runs/<date>.parquet` artifacts the S20 launchd job
-produces. Estimated ~300 LOC logic = **~900 LOC delivered** per
-the S29-folded LESSONS pattern (Copyright + docstring + argparse
-overhead at ~3× multiplier).
+produces. Estimated ~300 LOC logic + ~70-100 LOC overhead floor
+(Copyright header + module docstring + argparse) ≈ **~370-400
+LOC delivered**. The S29-folded LESSONS "~3×" ratio reflects
+the overhead-floor:logic-LOC relationship at very small logic
+budgets (K-b: 70 LOC logic + 150 LOC overhead = 220 LOC total
+≈ 3× total/logic); it is NOT a linear multiplier. For larger
+logic budgets the overhead floor stays roughly constant, so
+total/logic ratio compresses toward 1×.
 
 **Prerequisites:**
 - 2+ `canary_runs/*.parquet` files exist on operator's machine.
@@ -1030,21 +1039,36 @@ encoding the OLD design.
 
 ### **CRITICAL Phase 2 hygiene from S29 LESSONS (LOC budgeting)** (apply when sizing any candidate with new files)
 
-Per S29-folded LESSONS "Operator-driven script LOC estimates run
-~3× higher than logic-only estimates": when a candidate proposes
-new operator-driven Python files (scripts, tests, CLIs), audit
-the proposed LOC estimate against the ~3× multiplier:
+Per S29-folded LESSONS "Operator-driven script LOC estimates
+need a ~70-100 LOC additive overhead floor, not a linear
+multiplier": when a candidate proposes new operator-driven
+Python files (scripts, tests, CLIs), audit the proposed LOC
+estimate by ADDING the overhead floor, not multiplying:
 
 - Mandatory Copyright header: ~13 LOC
 - Module docstring (usage + auth + safety): ~20-30 LOC
 - Imports + format-standard spacing: ~10-15 LOC
 - Argparse (if applicable): ~30-50 LOC
 
-So **~70-100 LOC of overhead** before any logic. A prompt estimate
-of "~50 LOC" likely means **~150-200 LOC delivered**. Surface this
-budgeting note in any Phase 2 Q-* that asks the operator to
-choose between scope variants — let them see the real LOC
-implications.
+That's **~70-100 LOC of additive overhead** before any logic.
+
+- "~30 LOC logic" → ~100-130 LOC delivered (overhead dominates;
+  total/logic ≈ 3-4×; S29 K-b matched this band).
+- "~50 LOC logic" → ~120-150 LOC delivered (total/logic ≈ 2.5×).
+- "~100 LOC logic" → ~170-200 LOC delivered (total/logic ≈ 1.7-2×).
+- "~300 LOC logic" → ~370-400 LOC delivered (total/logic ≈ 1.3×).
+
+**Do NOT apply a linear ~3× multiplier.** The K-b case happened
+to land at ~3× because its logic was small enough that overhead
+dominated. For larger logic budgets the overhead floor stays
+roughly constant, so the total/logic ratio compresses toward 1×.
+Applying ~3× linearly to a ~300 LOC logic candidate would
+overstate scope by ~500 LOC and could nudge the operator to
+decline a perfectly-sized candidate on false budget grounds.
+
+Surface this budgeting note in any Phase 2 Q-* that asks the
+operator to choose between scope variants — let them see the
+real LOC implications.
 
 ### If Candidate A (barcada-drift)
 
@@ -1171,6 +1195,11 @@ At EVERY Phase 3 commit boundary, run these 6 steps IN ORDER:
     tests/orchestrator/test_robots_gate_integration.py \
     tests/orchestrator/test_worker_loop_persistence.py \
     <new S30 test paths if any> -q
+# If Candidate K-a is chosen with Q-K-a.4 = Option 2, the
+# concrete addition is:
+#     tests/classifier/pipeline/test_cost_journal_adls_azurite.py
+# (17-path invocation; recompute headline as 970 + N new
+# Azurite tests).
 ```
 
 Expected: previous_baseline + N new tests, all passing. If
@@ -1218,10 +1247,11 @@ For exit-code claims: use
 `cmd > /tmp/out 2> /tmp/err; echo "Exit: $?"` to avoid the
 bash-pipe-exit-code-masking pattern (LESSONS).
 
-Per S29 LESSONS "Operator-driven script LOC estimates run ~3×
-higher than logic-only estimates": if the commit ships a new
-script/file, claim total LOC (via `wc -l`) NOT logic-only LOC.
-Verification-table mismatch on LOC is a common ✗ source.
+Per S29 LESSONS "Operator-driven script LOC estimates need a
+~70-100 LOC additive overhead floor, not a linear multiplier":
+if the commit ships a new script/file, claim total LOC (via
+`wc -l`) NOT logic-only LOC. Verification-table mismatch on LOC
+is a common ✗ source.
 
 **4. `git status` check**
 
@@ -1336,7 +1366,8 @@ Note: workstream-0-end already placed at S27. workstream-A is
 mid-flight (W A.1 closed at S22's `workstream-a-week1-end`; W A.2
 is the orchestrator-side robots work landed across S23+S24+S25
 plus the K-b script at S29). If Candidate K-a is chosen at S30
-AND operator considers it the final W A.2 milestone, a
+AND operator considers it the final W A.2 code milestone
+(K-b-exec is execution, not code, so it does not gate the tag), a
 `workstream-a-week2-end` annotated tag would be appropriate at
 S30 Phase 5.
 
@@ -1860,14 +1891,17 @@ LESSONS-folded discoveries from S22-S29 worth re-applying:
   via the Bash tool's `timeout` arg AND via `timeout 60s`
   prefixed on the inner command.
 
-- **Operator-driven script LOC estimates run ~3× higher than
-  logic-only estimates** (S29 LESSONS): Copyright + docstring +
-  argparse alone are ~50-100 LOC of overhead in this codebase. A
-  prompt estimate of "~30 LOC" likely means "~100-130 LOC
-  delivered". Apply the ~3× multiplier when sizing any candidate
-  with new operator-driven Python files. Verification-table LOC
-  claims should use `wc -l` on the delivered file (not the
-  estimate), or expect ✗ rows.
+- **Operator-driven script LOC estimates need a ~70-100 LOC
+  additive overhead floor, not a linear multiplier** (S29
+  LESSONS): Copyright + docstring + imports + argparse total
+  ~70-100 LOC of overhead in this codebase, ADDITIVE to whatever
+  logic the script needs. So "~30 LOC logic" → ~100-130 LOC
+  delivered (overhead dominates; total/logic ≈ 3-4×), but
+  "~300 LOC logic" → ~370-400 LOC delivered (overhead is a
+  smaller fraction; total/logic ≈ 1.3×). Do NOT multiply linearly
+  by ~3×; the K-b ~3× ratio was a small-logic special case.
+  Verification-table LOC claims should use `wc -l` on the
+  delivered file (not the estimate), or expect ✗ rows.
 
 - **Public-API-only cleanup pattern extends from tests to
   operator scripts** (S29 LESSONS): when an operator-driven
@@ -1930,11 +1964,14 @@ S29 ran across 1 commit + Phase 2 source-verification + Phase 6
 close-out (2 close-out commits), comfortably within context. S30
 budget per scope:
 
-- Candidate A: medium-large (~300 LOC logic = ~900 LOC delivered).
+- Candidate A: medium (~300 LOC logic + ~70-100 LOC overhead
+  floor ≈ ~370-400 LOC delivered; see Phase 1 Candidate A for
+  the additive-overhead framing that supersedes a linear ~3×
+  multiplier).
 - Candidate D: small.
 - Candidate E: small.
-- Candidate K-a: medium (~50-100 LOC logic = ~150-300 LOC
-  delivered + Docker setup).
+- Candidate K-a: medium (~50-100 LOC logic + ~70-100 LOC
+  overhead floor ≈ ~120-200 LOC delivered + Docker setup).
 - Candidate K-b-exec: ~0 LOC (operator-driven; Claude Code only
   interprets trace).
 
@@ -2002,11 +2039,12 @@ into this prompt — S30 does not need a separate amendment file:
   stability PLUS new S29 K-b script existence + import-load
   check + public-surface verification).
 - **2 LESSONS sections from S29 close**:
-  - "Operator-driven script LOC estimates run ~3× higher than
-    logic-only estimates" referenced at Phase 2 "CRITICAL Phase
-    2 hygiene from S29 LESSONS (LOC budgeting)" (apply when
-    sizing any candidate with new files) AND at the Verify-
-    before-asking section's LESSONS-folded-discoveries list.
+  - "Operator-driven script LOC estimates need a ~70-100 LOC
+    additive overhead floor, not a linear multiplier"
+    referenced at Phase 2 "CRITICAL Phase 2 hygiene from S29
+    LESSONS (LOC budgeting)" (apply when sizing any candidate
+    with new files) AND at the Verify-before-asking section's
+    LESSONS-folded-discoveries list.
   - "Public-API-only cleanup pattern extends from tests to
     operator scripts" referenced at Phase 2 (in Candidate K-a's
     sub-question about Azurite-specific test setup) AND at the

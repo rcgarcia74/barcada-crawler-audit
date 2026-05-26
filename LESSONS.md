@@ -2327,7 +2327,7 @@ monkeypatch" LESSONS pattern in spirit: a small shell-vs-Python
 hygiene fix prevents a real session-blocking failure mode.
 Cheap to fold; expensive to debug at session open.
 
-## Operator-driven script LOC estimates run ~3× higher than logic-only estimates (S29 folding)
+## Operator-driven script LOC estimates need a ~70-100 LOC additive overhead floor, not a linear multiplier (S29 folding)
 
 **Context**: at S29 Phase 1, Candidate K-b was sized in the prompt
 as "~30 LOC" for an operator-driven Python smoke script. The
@@ -2355,8 +2355,8 @@ predictably):
 | **Total**                              | **220** |                      |
 
 **Forward-applicable rule**: when sizing operator-driven Python
-script deliverables in this codebase, multiply the "core logic"
-LOC estimate by **~3×** for honest total-LOC sizing. The fixed
+script deliverables in this codebase, **add a ~70-100 LOC
+overhead floor to the "core logic" LOC estimate**. The fixed
 overhead floor is roughly:
 
 - ~13 LOC mandatory Copyright header (`CLAUDE.md`)
@@ -2364,9 +2364,24 @@ overhead floor is roughly:
 - ~10-15 LOC imports/format spacing
 - ~30-50 LOC argparse if the script takes CLI args
 
-That's already **~70-100 LOC of overhead before any logic**.
-So "~30 LOC logic" really means **"~100-130 LOC delivered"**.
-"~50 LOC logic" means **"~150-200 LOC delivered"**.
+That's **~70-100 LOC of overhead before any logic** —
+**additive, not multiplicative**. So:
+
+- "~30 LOC logic" → ~100-130 LOC delivered (overhead dominates;
+  total/logic ratio ≈ 3-4×).
+- "~50 LOC logic" → ~120-150 LOC delivered (ratio ≈ 2.5×).
+- "~100 LOC logic" → ~170-200 LOC delivered (ratio ≈ 1.7-2×).
+- "~300 LOC logic" → ~370-400 LOC delivered (ratio ≈ 1.3×).
+- "~1000 LOC logic" → ~1070-1100 LOC delivered (ratio → 1×).
+
+**Do NOT multiply by 3× linearly.** The ~3× ratio observed for
+K-b (70 LOC logic → 220 LOC total) is a special case where
+overhead happens to ≈ 2× logic. For larger logic budgets the
+overhead floor stays roughly constant, so the total/logic ratio
+compresses toward 1×. Applying ~3× linearly to a 300 LOC logic
+candidate would overstate scope by ~500 LOC and could push the
+operator to decline a perfectly-sized candidate on false
+budget grounds.
 
 **Detection at prompt-drafting time**: when an estimate sounds
 too small (e.g., "~30 LOC" for a script with auth + argparse +
