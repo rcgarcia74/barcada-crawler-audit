@@ -6712,3 +6712,317 @@ robots_gate_integration; verified post-S28-push, unchanged from
 S27 close).
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+
+## Session 29 — 2026-05-26 — ADLSCostJournal live Azure smoke (Candidate K-b)
+
+──────── Scope shipped ───────────────────────────────────────────
+
+Candidate K-b (operator-driven live-Azure smoke for ADLSCostJournal)
+per S25 → S28 carry-forward. Closes the mock-vs-prod divergence risk
+for the three `ADLSCostJournal` public-API operations
+(`write_initial` / `read` / `try_update`) plus their two 412 mappings
+(`JournalAlreadyExistsError` on re-`write_initial`; `try_update`
+returns `False` on stale ETag). Operator-driven script; no CI
+integration per the K-b posture (Q-K.5 was K-a-only). 1 commit.
+
+Repo HEAD: `ae9e627` (+ 2 tolerated operator-side eval_data commits
+`f1802ab` / `d4f06b8`) → `75a3937` (1 commit ahead).
+
+Commit landed:
+
+1. **`75a3937 WA2.W8.adls-live-smoke`** —
+   - `scripts/smoke_test_adls_cost_journal.py` (NEW; 220 LOC
+     including 13-line Copyright header + ~28-line module
+     docstring): exercises the full 5-step ETag-conflict matrix
+     against a live Azure container. Argparse with
+     `--account` / `--container` / `--prefix` / `--run-id` /
+     `--ceiling-usd`; env-var defaults from `AZURE_STORAGE_ACCOUNT`
+     and `AZURE_STORAGE_CONTAINER`. Auth precedence
+     `AZURE_STORAGE_KEY → AzureNamedKeyCredential` else
+     `DefaultAzureCredential` (mirrors `smoke_test_adls_gen2.py`).
+     stdout-only `[N/5]` per-step trace. Auto-delete in finally
+     via a separate `BlobClient` constructed with the same
+     credential (public-API-only — ADLSCostJournal's private
+     `_backend` attr is never touched, per S24 LESSONS pattern
+     extended to scripts).
+   - No `src/` changes. No test-suite changes. 970 canonical
+     16-path baseline preserved.
+
+──────── Phase 0 cold-start verification ─────────────────────────
+
+All 9 steps green at S29 open:
+- 0.1 ✓ Workspace HEAD `586df7c` (2 prompt-finalization commits
+  ahead of `3089faa`: `ff779aa` + `586df7c`); repo HEAD `d4f06b8`
+  (2 eval_data-only commits ahead of `ae9e627`: `f1802ab` +
+  `d4f06b8`; each verified via `git show --stat` per the
+  "Workspace HEAD delta tolerance" pattern).
+- 0.2 ✓ 11 tags; `workstream-0-end` at `a1c5636`.
+- 0.3 ✓ Driver-lock diff empty outside the 3 W5.X-authorized
+  files (`test_fixture_fetcher.py` / `cascade.py` /
+  `test_cost_journal_wiring.py`).
+- 0.4 ✓ Fixture counts via the Python rglob() pattern (per S28
+  post-close LESSONS): html=222, expected=202, meta=222,
+  baseline=1213, cassettes=20, exclusions=20. No hung shells.
+- 0.5 ✓ Canonical 970/0/0 in 105.94s.
+- 0.6 ✓ manifest.json (baseline-v0/0.1.0; 202 fixtures;
+  driver_sha prefix `521e363`); expected.schema.json v1.1
+  (18-col stage3 shape).
+- 0.7 ✓ baseline_v0 CLI (3 subcommands) + synthetic_crawl CLI
+  (2 subcommands).
+- 0.8 ✓ Wiring 6 + stage1 run 16 + stage1 cost_tracker 16 = 38
+  passed.
+- 0.9 ✓ All S24/S25 public APIs unchanged; abfss:// dispatch
+  intact; CRAWLING_POLICY.md unchanged (77 lines / 2519 bytes);
+  per-tier wiring invariant smoke passes (all 8 slots populate);
+  ShardResult 14 fields with llm/embedding split; cascade.py
+  Stage 1 invoker AST structure intact (3
+  `_journal_record_with_breakdown` calls; stage=1 has llm +
+  embedding components).
+
+──────── Phase 1 scope resolution + Phase 2 design-gate ──────────
+
+Phase 1 reasoning (surfaced to operator at the start of the
+session): Candidate A's prerequisites confirmed UNMET — 0
+parquets on disk, launchd installer not run, no AI/ML team
+responses or placeholder authorizations in workspace. Candidate
+A blocked per Phase 1 HALT condition. Operator picked Candidate K
+flavor K-b. 1.TAG resolved to defer (no candidate-specific tag).
+
+Phase 2 Q-K.b answers (all resolved to recommended option 1):
+- Q-K.b.1 = Option 1 (Full ETag-conflict matrix; 5-step trace).
+- Q-K.b.2 = Option 1 (stdout only).
+- Q-K.b.3 = Option 1 (Mirror `smoke_test_adls_gen2.py` auth
+  precedence — `AZURE_STORAGE_KEY → AzureNamedKeyCredential`
+  else `DefaultAzureCredential`).
+- Q-K.b.4 = Option 1 (Auto-delete in finally).
+
+Q-SHARED.1 not asked: K-b is 1 file (~220 LOC); commit shape
+trivially per-module = 1 commit.
+
+Source-verifications applied at Phase 2 per S25 LESSONS:
+- Read `cost_journal_adls.py` end-to-end (295 LOC) to confirm
+  `_AzureBlobBackend.__init__(*, blob_url, credential=None)`
+  shape — credential is an object passed to
+  `BlobClient.from_blob_url`, NOT shared-key kwargs like
+  `account_key=`. This drove Q-K.b.3's option text to be
+  precise about credential-OBJECT construction
+  (`AzureNamedKeyCredential` adapter, not `account_key=`).
+- Read `scripts/smoke_test_adls_gen2.py` to confirm the
+  established `scripts/smoke_test_*.py` convention (no Phase 2
+  authorization needed for new `scripts/` file; `scripts/launchd/`
+  is the only locked scripts/ subdir).
+- Verified `JournalState.fresh(*, run_id, ceiling_usd)`
+  signature + `_ReadResult` field shape (`state` + `etag`) via
+  `inspect.signature` and `dataclasses.fields` before drafting
+  the script's call sites.
+
+──────── Per-commit checkpoint (6 steps × 1 commit) ──────────────
+
+The single commit cleared the 6-step protocol:
+- Combined suite: 970/0/0 pre-commit AND post-commit ✓
+- Ruff check + format on touched files: all checks passed +
+  1 file already formatted ✓
+- Verification table: 12 claims (LOC + 5-step matrix + auth +
+  conventions + cleanup pattern + no src/ + no test-suite +
+  baseline + ruff + --help + Q-K.b answers + commit prefix);
+  all ✓ ✓
+- git status: only `scripts/smoke_test_adls_cost_journal.py`
+  staged; `.claude/scheduled_tasks.lock` left untracked ✓
+- Operator confirm-to-commit ✓
+- Post-commit re-verify: HEAD advanced to `75a3937`; combined
+  suite re-ran green (970/0/0 in 113.58s) ✓
+
+──────── Phase 4 pre-push gate (whole-tree) ──────────────────────
+
+All 4 gates green at S29 close:
+- `ruff check .` — All checks passed!
+- `ruff format --check .` — 353 files already formatted (1 more
+  than S28 close: the new smoke script).
+- `git ls-files '*.py' | xargs vermin --target=3.10` —
+  Minimum required versions: 3.10
+- `validate_consistency.py` — 0 errors / 0 warnings (no
+  transient first-run error this session; the S28 curiosity did
+  not reproduce).
+
+Pre-push hook re-ran all 4 gates before the push and reported
+clean again.
+
+──────── Phase 5 push (no tag) ───────────────────────────────────
+
+- Pushed `d4f06b8..75a3937` to origin/main (operator-confirmed).
+- No tag placed per Phase 1 Sub-question 1.TAG = "Defer; K-b
+  closes a carry-forward but no workstream milestone is
+  implicated (W A.2 is the closest, but the K-b deliverable is
+  an operator-driven smoke, not a permanent CI safety net —
+  Q-K.5 explicitly noted no CI integration for K-b)".
+- Tag count unchanged: 11.
+
+──────── Decisions of record (operator-locked) ───────────────────
+
+1. Candidate selection: K (flavor K-b — operator-driven sandbox
+   smoke), 1.TAG = Defer. Resolved at Phase 1 after operator
+   asked for K + E option detail; A confirmed blocked.
+2. Q-K.b.1 = Option 1 (Full ETag-conflict matrix; 5-step trace).
+3. Q-K.b.2 = Option 1 (stdout only).
+4. Q-K.b.3 = Option 1 (Mirror `smoke_test_adls_gen2.py` auth
+   precedence).
+5. Q-K.b.4 = Option 1 (Auto-delete in finally).
+
+──────── Patterns reinforced this session ─────────────────────
+
+- **Phase 2 source-verify drives option-set design** (S25 LESSONS):
+  reading `cost_journal_adls.py` end-to-end at Phase 2 confirmed
+  `_AzureBlobBackend` takes a credential OBJECT (not shared-key
+  kwargs); this shaped Q-K.b.3's option text to be precise about
+  adapter construction (`AzureNamedKeyCredential` for shared-key
+  intent → object passed via `credential=`). Without the source-
+  read, Q-K.b.3 could have implied a 1:1 kwarg mapping that
+  doesn't exist.
+- **Test/script against public API surface only** (S24 LESSONS,
+  extended here to scripts): the cleanup step needed `delete_blob`
+  but `ADLSCostJournal` exposes no `delete()` method. Solution:
+  construct a parallel `BlobClient` with the same URL+credential
+  for the delete step rather than reach into the journal's
+  private `_backend._client`. Forward-applicable to operator
+  scripts as well as tests.
+- **Verify-before-asking discipline** (S19-S28 LESSONS):
+  verification table built for the commit before staging; 12
+  claims × ✓.
+- **Empirical Phase 1 prerequisite check before scope-narrow**:
+  When operator asked "are Candidate A's prerequisites met?",
+  the empirical check (0 parquets on disk; no launchd plist in
+  `~/Library/LaunchAgents/`; no AI/ML responses found in
+  workspace grep) decisively ruled A out. Forward-applicable:
+  when a candidate's prereqs are external-state-dependent, run
+  the empirical check at Phase 1 BEFORE re-issuing the scope
+  question — gives the operator a concrete go/no-go rather than
+  a "depends on what's on disk" qualifier.
+
+──────── New LESSONS folded ───────────────────────────────────────
+
+2 new sections folded at LESSONS.md end ("S29 folding" suffix):
+1. **"Operator-driven script LOC estimates run 5-10× higher than
+   logic-only estimates"** — prompt's K-b "~30 LOC" assumed
+   bare-minimum logic; the shipped script came in at 220 LOC
+   because mandatory Copyright header (13 lines) + module
+   docstring (~28 lines) + argparse + helper functions + full
+   5-step matrix add ~150 lines around the core ~70 LOC of
+   actual journal-operation calls. Forward-applicable to future
+   "operator-driven script ~X LOC" estimates: multiply the
+   logic-only estimate by ~3× for honest total-LOC sizing in
+   this codebase (Copyright + docstring + argparse alone are
+   ~50 LOC of overhead before any logic).
+2. **"Public-API-only cleanup pattern extends from tests to
+   operator scripts"** — the S24 "Test against public API surface
+   only" LESSONS pattern (originally framed for test code)
+   applies just as cleanly to operator-driven scripts that need
+   an operation a wrapper class doesn't expose: construct a
+   parallel SDK client rather than reach into private attrs.
+   Concrete example from S29: K-b script needs `delete_blob` but
+   `ADLSCostJournal` only exposes `write_initial / read /
+   try_update / exists / path`; rather than touch the journal's
+   private `_backend._client`, the script constructs a fresh
+   `BlobClient.from_blob_url(blob_url, credential=credential)`
+   for the cleanup step. Same auth, same URL, no private-attr
+   coupling. Forward-applicable.
+
+──────── Workspace changes landed this session ────────────────
+
+- `SESSION_LOG.md`: this Session 29 entry append.
+- `SESSION_TRANSITION_TEMPLATE.md`: refilled for Session 30 with
+  workspace anchor SHA to be pinned in the follow-up commit.
+- `LESSONS.md`: 2 new sections appended at file end ("S29
+  folding" suffix).
+
+Repo changes:
+- 1 commit `75a3937 WA2.W8.adls-live-smoke`.
+- No new tag placed.
+- Pushed to origin/main: `d4f06b8..75a3937`.
+
+──────── Spend ───────────────────────────────────────────────────
+
+- LLM: $0 (no live-Azure invocation during the session itself;
+  the K-b script is operator-runnable but was not executed
+  against Azure during S29 — operator can run it ad-hoc when an
+  Azure sandbox container is available).
+- Infrastructure: nil (no Azure / Docker dependencies added or
+  exercised in CI; K-b posture is explicitly no-CI).
+- Cassette capture: nil (Candidate E not in scope).
+
+──────── Outstanding for Session 30 ──────────────────────────────
+
+1. **Candidate A barcada-drift** (carry-forward) — still blocked
+   on AI/ML decisions + ≥2 canary_runs parquets. As of S29
+   close: 0 parquets on disk; launchd installer not yet run;
+   no AI/ML responses or placeholder authorizations in
+   workspace. Earliest natural date 2026-06-06 if installer
+   fires immediately and runs ≥2 Saturdays.
+2. **Candidate D Phase 4 PR-D tooling** — operator territory;
+   labeling work still needed to begin.
+3. **Candidate E cassette corpus expansion** — 20 → 25/30
+   representative domains.
+4. **Candidate K-b live-Azure smoke EXECUTION** — script
+   shipped at S29 (`scripts/smoke_test_adls_cost_journal.py`);
+   not yet executed against real Azure. Carry-forward:
+   operator runs `python scripts/smoke_test_adls_cost_journal.py`
+   ad-hoc when an Azure sandbox container is available; paste
+   the trace into SESSION_LOG.md / LESSONS.md if any divergence
+   from DummyBlobBackend behavior surfaces. (The K-b posture
+   per Q-K.5 is no CI integration; this carry-forward is
+   bound to operator availability of an Azure sandbox, not to
+   a session.)
+5. **Candidate K-a Azurite-backed integration test** —
+   alternative flavor of K not chosen at S29; still available
+   as a future-session candidate if a permanent CI safety net
+   for ADLSCostJournal is desired (Q-K.5 = add a 17th path to
+   the canonical invocation).
+
+──────── Tags state at S29 close ─────────────────────────────────
+
+11 total (unchanged from S27/S28 close):
+- baseline-v0
+- pre-remediation-2026-05-19
+- workstream-0-week1-end / week2-end / week3-end / week4-1-5-end /
+  week4-end / week5-end / week7-end
+- workstream-0-end (placed S27 at a1c5636)
+- workstream-a-week1-end
+
+**Canonical S29-close baseline for S30 Phase 0 Step 0.5
+(VERIFIED post-push at HEAD `75a3937`):**
+
+```
+.venv/bin/python -m pytest \
+    tests/scraper/test_fixture_conformance.py \
+    tests/runners/fixture_cascade/ \
+    tests/baseline_v0/ \
+    tests/synthetic_crawl/ \
+    tests/scraper/test_robots.py \
+    tests/scraper/test_robots_gate.py \
+    tests/scraper/test_robots_bypass_config.py \
+    tests/classifier/pipeline/test_cost_journal.py \
+    tests/classifier/pipeline/test_cost_journal_local.py \
+    tests/classifier/pipeline/test_cost_journal_adls.py \
+    tests/orchestrator/test_robots_integration.py \
+    tests/orchestrator/test_vmss_worker.py \
+    tests/orchestrator/test_job_runner.py \
+    tests/orchestrator/test_worker_loop.py \
+    tests/orchestrator/test_robots_gate_integration.py \
+    tests/orchestrator/test_worker_loop_persistence.py -q
+# Expected: 970 passed / 0 failed / 0 skipped
+# Sub-totals identical to S27/S28 close:
+#   210 conformance + 52 driver + 99 baseline_v0 + 33
+#   synthetic_crawl + 32 robots + 30 robots_gate + 30
+#   robots_bypass_config + 43 cost_journal + 13 cost_journal_local
+#   + 19 cost_journal_adls + 35 robots_integration + 74
+#   vmss_worker + 129 job_runner + 152 worker_loop + 7
+#   robots_gate_integration + 12 worker_loop_persistence = 970
+# (S29's K-b ship is a new script under scripts/, NOT a test;
+#  the canonical 16-path test count is unchanged.)
+```
+
+S29 narrower 14-path baseline: **944 passed / 0 failed / 0 skipped**
+(canonical 16-path minus 19 cost_journal_adls minus 7
+robots_gate_integration; verified post-S29-push, unchanged from
+S27/S28 close).
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.

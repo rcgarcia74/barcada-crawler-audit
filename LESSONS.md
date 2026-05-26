@@ -2327,4 +2327,139 @@ monkeypatch" LESSONS pattern in spirit: a small shell-vs-Python
 hygiene fix prevents a real session-blocking failure mode.
 Cheap to fold; expensive to debug at session open.
 
+## Operator-driven script LOC estimates run ~3× higher than logic-only estimates (S29 folding)
+
+**Context**: at S29 Phase 1, Candidate K-b was sized in the prompt
+as "~30 LOC" for an operator-driven Python smoke script. The
+shipped deliverable
+(`scripts/smoke_test_adls_cost_journal.py`) came in at **220
+LOC**. Same scope (Q-K.b options didn't expand the spec); same
+correctness; no over-engineering. The size gap came entirely
+from mandatory overhead in this codebase that the "~30 LOC"
+estimate did not budget for.
+
+**Breakdown of the 220 LOC** (the ~7× overshoot decomposes
+predictably):
+
+| Component                              | LOC | Required by              |
+| -------------------------------------- | --- | ------------------------ |
+| `#!/usr/bin/env python3` + Copyright   |  13 | `CLAUDE.md` template     |
+| Module docstring (usage + auth + cost) |  28 | Established convention   |
+| Imports + blank lines                  |  15 | Format standard          |
+| `_build_credential` helper             |  17 | Auth-precedence logic    |
+| `_delete_blob` helper                  |  14 | Public-API-only cleanup  |
+| `main()` argparse setup                |  35 | 5 CLI args + env defaults|
+| `main()` 5-step matrix                 |  70 | Q-K.b.1 Option 1 scenario|
+| `main()` finally + entry-point         |  10 | Cleanup + `__main__`     |
+| Inter-block blank lines + final NL     |  18 | Format standard          |
+| **Total**                              | **220** |                      |
+
+**Forward-applicable rule**: when sizing operator-driven Python
+script deliverables in this codebase, multiply the "core logic"
+LOC estimate by **~3×** for honest total-LOC sizing. The fixed
+overhead floor is roughly:
+
+- ~13 LOC mandatory Copyright header (`CLAUDE.md`)
+- ~20-30 LOC module docstring (usage + auth + safety notes)
+- ~10-15 LOC imports/format spacing
+- ~30-50 LOC argparse if the script takes CLI args
+
+That's already **~70-100 LOC of overhead before any logic**.
+So "~30 LOC logic" really means **"~100-130 LOC delivered"**.
+"~50 LOC logic" means **"~150-200 LOC delivered"**.
+
+**Detection at prompt-drafting time**: when an estimate sounds
+too small (e.g., "~30 LOC" for a script with auth + argparse +
+cleanup), check whether the estimate is logic-only or
+total-LOC. If logic-only, add the ~70-100 LOC overhead floor
+explicitly so the operator and reviewer aren't surprised at
+ship time. If the prompt sources from an earlier session's
+ballpark (e.g., S25 sized Candidate K-b at "~30 LOC"), audit
+whether that estimate included Copyright + docstring +
+argparse or just the minimum-correctness logic before forwarding.
+
+**Why this matters beyond aesthetics**: the per-commit
+verification table (per `[[double-check-before-commit]]`)
+requires honest LOC claims. A commit message claiming "30 LOC
+single file" against a 220-LOC actual is a verification-table ✗.
+Conservative honest estimates (logic + overhead floor) avoid
+the cleanup at Phase 3 step 3.
+
+## Public-API-only cleanup pattern extends from tests to operator scripts (S29 folding)
+
+**Context**: the S24 LESSONS pattern "Test against public API
+surface only" was originally framed for test code: probe
+behavior via the public surface (e.g., `.path`, `.exists()`),
+not via private attrs. S29 demonstrated the same pattern
+applies cleanly to **operator-driven scripts**, not just tests.
+
+**Concrete S29 setup**: Candidate K-b's cleanup step needs to
+`delete_blob` after the 5-step ETag matrix runs. `ADLSCostJournal`
+exposes:
+
+- `write_initial(state) -> None`
+- `read() -> _ReadResult | None`
+- `try_update(*, expected_etag, new_state) -> bool`
+- `exists() -> bool`
+- `path -> str` (property)
+
+No `delete()`. The journal's private `_backend` attribute is an
+`_AzureBlobBackend` instance whose `_client` is a `BlobClient`,
+and that client *does* have `delete_blob()` — so the "obvious"
+shortcut would be:
+
+```python
+# DO NOT do this:
+journal._backend._client.delete_blob()
+```
+
+That works at runtime but tightly couples the script to two
+levels of `ADLSCostJournal`'s internals. If
+`_AzureBlobBackend.__init__` changes its attribute name (or
+`ADLSCostJournal` switches backends), the script breaks silently
+(or not-so-silently).
+
+**Pattern applied at S29**: construct a parallel SDK client with
+the same URL+credential the journal would have used, and call
+the operation directly on it:
+
+```python
+# Public-API-only cleanup:
+def _delete_blob(blob_url: str, credential: Any) -> None:
+    from azure.storage.blob import BlobClient
+    client = BlobClient.from_blob_url(blob_url, credential=credential)
+    client.delete_blob()
+```
+
+Same auth, same URL, same SDK operation, but the script never
+touches `ADLSCostJournal`'s internals. The journal is consumed
+purely via `write_initial / read / try_update`.
+
+**Why this is forward-applicable**:
+
+1. Tests already do this (S24 pattern). Scripts that touch the
+   same wrappers in operator-driven contexts should too.
+2. Wrapper classes inevitably grow, shrink, or get replaced.
+   Scripts that depend on their internals break under those
+   refactors; scripts that only depend on the public surface +
+   adjacent SDK client primitives do not.
+3. The cost is small: ~3-5 extra LOC for the parallel-client
+   construction. The benefit is decoupling.
+
+**Detection at design time** (Phase 2): when scoping an
+operator-driven script that consumes a wrapper class, audit
+which operations the script needs. If any needed operation is
+**NOT in the wrapper's public surface**, decide explicitly:
+
+- Construct a parallel SDK client (recommended; preserves
+  decoupling).
+- Petition for a new public method on the wrapper (heavier;
+  requires src/ Phase 2 authorization).
+
+Do NOT silently reach into private attrs as a "quick fix" — it
+defeats the decoupling that the wrapper exists to provide.
+
+This pairs with S24's "Test against public API surface only"
+LESSONS pattern: the same principle, broader scope.
+
 
