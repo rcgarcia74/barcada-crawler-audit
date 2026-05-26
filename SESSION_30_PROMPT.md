@@ -182,9 +182,12 @@ Run in order. Halt and surface to operator on any mismatch.
 # (anchor-pinning follow-up). This prompt drafted as a follow-up
 # commit succeeding e736eee.
 git -C ~/crawler-audit rev-parse HEAD
-# Expect: 589c6af (S30 prompt-drafted post-S29-close, succeeding
-# e736eee) OR a later commit if additional workspace doc edits or
-# an S30 prompt-revision landed post-draft. If N commits ahead, verify
+# Expect: 09f9dd8 (S30 prompt review-fixes commit applying 4
+# S-tier + 2 N-tier + 1 self-audit finding; succeeds the
+# prompt-draft 589c6af, which itself succeeds the S29 anchor-pin
+# e736eee) OR a later commit if additional workspace doc edits
+# (incl. an anchor-pin follow-up of THIS commit, or further
+# prompt revisions) landed post-fixes. If N commits ahead, verify
 # each prior commit's subject via `git log --oneline e736eee..HEAD`
 # against expected prompt-finalization / doc-edit patterns;
 # surface the SHA delta and request authorization to proceed if
