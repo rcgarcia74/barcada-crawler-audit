@@ -11,13 +11,21 @@ Pair this with the latest entry in `SESSION_LOG.md`, with
 `BARCADA_CRAWLER_REMEDIATION_PLAN.md` to start a session cold and
 be productive within ~10 minutes.
 
-**Session 29 invocation prompt:** not yet drafted at S28 close.
-Per S20→S21..S26→S27→S28 precedent, prompt-drafting is operator-
-commissioned between sessions. If operator commissions one, mirror
-the S20-S28 7-phase structure (Phase 0 cold-start verify → Phase 1
-scope → Phase 2 design-gate → Phase 3 impl → Phase 4 pre-push →
-Phase 5 push+tag → Phase 6 close-out) with halt-on-mismatch at
-every phase.
+**Session 29 invocation prompt:** drafted post-S28-close at
+`~/crawler-audit/SESSION_29_PROMPT.md` (1804 lines; mirrors the
+S20-S28 7-phase structure). Operator-commissioned at S28 close
+per the "create the handoff docs and ensure completeness" request.
+Folds both items from the post-S28 prompt-drafting discussion:
+(1) Phase 0 Step 0.5 breadcrumb note about S28's +1 net-new test
+location outside the canonical 16-path invocation; (2) Phase 0
+Step 0.9 invariant smoke for the S28 seam (ShardResult field
+presence + `_build_shard_result` behavioral population check +
+AST-based cascade.py Stage 1 invoker structure check). Also folds
+the S28 post-close LESSONS section "Phase 0 fixture-count
+commands need `2>/dev/null` + a bounded timeout" directly into
+Step 0.4. Apply reviewer-feedback hygiene per the prompt's
+"Reviewer-feedback hygiene" section if any pre-S29-open reviewer
+findings surface.
 
 Anchors for Session 29 cold start:
 - Workspace HEAD: THIS commit (the anchor-pinning follow-up,
