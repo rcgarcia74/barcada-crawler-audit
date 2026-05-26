@@ -20,13 +20,13 @@ Phase 5 push+tag → Phase 6 close-out) with halt-on-mismatch at
 every phase.
 
 Anchors for Session 29 cold start:
-- Workspace HEAD: this commit (S28 primary close-out:
-  SESSION_LOG.md + SESSION_TRANSITION_TEMPLATE.md + LESSONS.md).
-  THIS commit's follow-up (the anchor-pinning commit) supersedes
-  it as the actual S29 Phase 0 Step 0.1 target. Per S21-S27 LESSONS
-  pattern "Workspace HEAD delta tolerance": tolerate N additional
-  prompt-drafting / audit-correction commits between sessions;
-  verify each is consistent with that pattern before continuing.
+- Workspace HEAD: THIS commit (the anchor-pinning follow-up,
+  succeeding `2bb5879` S28 primary close-out). S29 Phase 0
+  Step 0.1 MUST anchor workspace expectation to THIS follow-up's
+  SHA. Per S21-S27 LESSONS pattern "Workspace HEAD delta
+  tolerance": tolerate N additional prompt-drafting / audit-
+  correction commits between sessions; verify each is consistent
+  with that pattern before continuing.
 - Repo HEAD: `ae9e627` (S28 Commit 3 final;
   WA0.W5.X.stage1-cost-split-wiring-test).
 - Canonical baseline: **970 tests** (16-path invocation; unchanged
@@ -167,17 +167,18 @@ Anchors for Session 29 cold start:
   "Workspace HEAD delta tolerance" pattern (the extra commit was
   a SESSION_28_PROMPT.md + SESSION_TRANSITION_TEMPLATE.md edit
   only).
-- Session 28 close-out workspace commits: 1 (this file's primary
-  edit + SESSION_LOG entry + LESSONS S28 fold) + 1 expected
-  follow-up pinning the anchor SHA for S29 Phase 0 Step 0.1.
+- Session 28 close-out workspace commits: 2 (primary
+  `2bb5879` close-out: SESSION_LOG.md + SESSION_TRANSITION_TEMPLATE.md
+  + LESSONS.md; THIS follow-up pinning the anchor SHA for S29
+  Phase 0 Step 0.1).
 - **Last commit SHA at Session 28 CLOSE: this commit (the
-  follow-up pinning the anchor)**. S29 prompt's Phase 0 Step 0.1
-  MUST anchor workspace expectation to THIS follow-up's SHA, NOT
-  to the primary close-out (which this follow-up succeeds). Per
-  S21-S27 LESSONS pattern "Workspace HEAD delta tolerance":
-  tolerate N additional prompt-drafting / audit-correction
-  commits between sessions; verify each is consistent with that
-  pattern before continuing.
+  follow-up pinning the anchor; succeeds `2bb5879`)**. S29
+  prompt's Phase 0 Step 0.1 MUST anchor workspace expectation to
+  THIS follow-up's SHA, NOT to `2bb5879` (which this follow-up
+  succeeds). Per S21-S27 LESSONS pattern "Workspace HEAD delta
+  tolerance": tolerate N additional prompt-drafting / audit-
+  correction commits between sessions; verify each is consistent
+  with that pattern before continuing.
 - Branch sync with `origin/main`: 0 ahead / 0 behind expected
   after Session 28 close push.
 
