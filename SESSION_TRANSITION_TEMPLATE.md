@@ -11,11 +11,11 @@ Pair this with the latest entry in `SESSION_LOG.md`, with
 `BARCADA_CRAWLER_REMEDIATION_PLAN.md` to start a session cold and
 be productive within ~10 minutes.
 
-**Session 28 invocation prompt:** not yet drafted as of Session 27
-close. Per the S20→S21..S26→S27 precedent, prompt-drafting is
-operator-commissioned between sessions; the operator decides whether
-to commission an S28 prompt or scope one at S28 open. Apply
-reviewer-feedback hygiene per the eventual prompt's "Reviewer-
+**Session 28 invocation prompt:** drafted post-S27-close at
+`~/crawler-audit/SESSION_28_PROMPT.md` (1728 lines; mirrors the
+S20-S27 7-phase structure). Operator-commissioned at S27 close
+per the "create the handoff docs and ensure completeness" request.
+Apply reviewer-feedback hygiene per the prompt's "Reviewer-
 feedback hygiene" section if any pre-S28-open reviewer findings
 surface.
 
