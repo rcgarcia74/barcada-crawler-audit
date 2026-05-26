@@ -250,7 +250,7 @@ assert meta_count == 222, meta_count
 assert baseline_count == 1213, baseline_count
 assert cassette_count == 20, cassette_count
 assert exclusions_count == 20, exclusions_count
-print('OK fixture counts unchanged from S17 close')
+print(f'OK fixture counts: html={html_count} expected={expected_count} meta={meta_count} baseline={baseline_count} cassette={cassette_count} exclusions={exclusions_count} (unchanged from the locked snapshot)')
 "
 ```
 
@@ -300,10 +300,9 @@ retry if any command hangs >30 seconds.
 # (`test_shard_result_carries_llm_and_embedding_cost_split`) lives
 # in tests/classifier/stage1/test_run_cascade.py — OUTSIDE the
 # canonical 16-path invocation, so the headline count holds at 970.
-# If S29 picks a candidate that touches Stage 1, expand the
-# invocation to include tests/classifier/stage1/ and add the
-# pre-existing 32 (16 test_run_cascade + 16 test_cost_tracker)
-# to the new headline (970 → 1002 for a 17-path invocation).
+# If a future session adds a stage1-touching candidate, expand the
+# invocation to include tests/classifier/stage1/ and recompute the
+# headline at that prompt's Phase 0 Step 0.5.
 #
 # Pinned in SESSION_LOG.md "Canonical S28-close baseline" block.
 # The 970 count is invariant under operator-side eval_data
@@ -462,10 +461,12 @@ print('OK expected.schema.json v1.1 (18-col stage3 shape)')
 
 # S28 Stage 1 ShardResult split tests (outside canonical 16-path)
 .venv/bin/python -m pytest tests/classifier/stage1/test_run_cascade.py -q
-# Expect: 16 passed (15 pre-existing + 1 S28-added
-# test_shard_result_carries_llm_and_embedding_cost_split)
+# Expect: 16 passed (15 historical pre-existing + 1 S28-added
+# `test_shard_result_carries_llm_and_embedding_cost_split`; all 16
+# pre-existing at S29-open — i.e., reference frame matches Step 0.5's
+# "32 pre-existing" total).
 .venv/bin/python -m pytest tests/classifier/stage1/test_cost_tracker.py -q
-# Expect: 16 passed (unchanged pre-existing tests)
+# Expect: 16 passed (all pre-existing — unchanged since before S28).
 ```
 
 ### Step 0.9 — S25-shipped + S26-shipped + S27-shipped + S28-shipped public API + doc stability (any-candidate prereq)
@@ -683,26 +684,17 @@ assert len(fields) == 14, f'expected 14 fields; got {len(fields)}: {fields}'
 print('OK S28 ShardResult llm_cost_usd + embedding_cost_usd fields present; total 14 fields')
 "
 
-# S28 NEW: _build_shard_result population behavioral smoke.
-.venv/bin/python -c "
-from pathlib import Path
-from barcada_scraper.classifier.stage1.run import _build_shard_result
-from barcada_scraper.classifier.stage1.cost_tracker import CostTracker
-
-ct = CostTracker()
-ct.add_llm(input_tokens=100, output_tokens=20, cost_usd=0.05)
-ct.add_embedding(input_tokens=500, cost_usd=0.001)
-result = _build_shard_result(
-    output_rows=[],
-    cost_tracker=ct,
-    output_path=Path('/tmp/dummy.parquet'),
-)
-assert result.llm_cost_usd == 0.05, result.llm_cost_usd
-assert result.embedding_cost_usd == 0.001, result.embedding_cost_usd
-assert abs(result.cost_usd - (result.llm_cost_usd + result.embedding_cost_usd)) < 1e-9, result.cost_usd
-# Cardinal invariant: aggregate == sum of components.
-print('OK S28 ShardResult population invariant holds')
-"
+# Runtime behavioral coverage for the Stage 1 split is provided by
+# the prior block's _journal_record_with_breakdown smoke (stage=1
+# components={'llm': 0.04, 'embedding': 0.01} → totals.stage1_llm_usd
+# / totals.stage1_embedding_usd populate). Combined with the
+# ShardResult field-presence check above (compile-time guarantee)
+# and the cascade.py AST inspection below (call-site guarantee), the
+# S28 seam is fully verified without depending on the CostTracker
+# write API (add_llm / add_embedding) at Phase 0. Tests in
+# tests/classifier/stage1/test_run_cascade.py + test_cost_tracker.py
+# cover the CostTracker → ShardResult population path end-to-end
+# during the regression suite (Step 0.8).
 
 # S28 NEW: cascade.py Stage 1 invoker call-site structure (AST-based,
 # robust to formatting drift). Verifies exactly 1 _journal_record_with_breakdown
@@ -936,7 +928,7 @@ exclusive options:
 
 Do NOT silently narrow.
 
-### **CRITICAL Phase 2 hygiene from S28 LESSONS** (apply during retrofit-style closures)
+### **CRITICAL Phase 2 hygiene from S28 LESSONS (empirical-vs-by-design)** (apply during retrofit-style closures)
 
 Per S28-folded LESSONS "Empirical-vs-by-design distinction in
 test pins": when closing a deferred gap or otherwise extending an
@@ -950,6 +942,12 @@ re-framing in place (comment/docstring/name update).
 This is not a candidate-specific concern; it applies whenever
 S29's scope extends a surface that has existing test assertions
 encoding the OLD design.
+
+**Note**: S28 contributed a *second* forward-applicable LESSONS
+section — "Phase 0 fixture-count commands need `2>/dev/null` + a
+bounded timeout" — but that one applies at Phase 0 rather than
+Phase 2, and is already operationalized in Step 0.4 (Python
+`rglob()` pattern). See `LESSONS.md` for the full text if needed.
 
 ### If Candidate A (barcada-drift)
 
@@ -1754,8 +1752,9 @@ S13-28 pattern:
    candidate added new driver-area tests).
 5. Files touched per sub-surface.
 6. Tag dispositions (incl. any new tag per 1.TAG).
-7. Per-tier cost-accounting wiring status: CLOSED end-to-end
-   since S28; verify no S29 candidate regressed it.
+7. Per-tier cost-accounting wiring: CLOSED end-to-end since S28
+   (regression-protection enforced via Phase 0 Step 0.9 invariant
+   smokes + Phase 3 per-commit checkpoint).
 8. ADLSCostJournal live-smoke disposition: shipped (Candidate K)
    or carry-forward.
 9. Any spend (LLM, infrastructure, cassette-capture).
