@@ -2172,3 +2172,84 @@ LESSONS pattern: plan wording describes intent; source code
 describes what's actually callable. For deferred gaps the source
 code shape at deferral time predicts the closure cost more
 reliably than the plan's severity rating does.
+
+---
+
+## Empirical-vs-by-design distinction in test pins (S28 folding)
+
+**Context**: at S27, `test_cost_journal_wiring.py` shipped a test
+named `test_stage1_per_tier_slots_remain_zero_by_design` whose
+body asserted `totals['stage1_llm_usd'] == 0.0` and
+`totals['stage1_embedding_usd'] == 0.0`. The test pinned a
+deliberate scope decision: Stage 1 ShardResult lacked an
+LLM-vs-embedding split, so the S27 retrofit left the two
+per-tier slots un-wired at $0.
+
+At S28 (Candidate StgSplit), the Stage 1 ShardResult split shipped
+and the cascade.py Stage 1 invoker switched to
+`_journal_record_with_breakdown(stage=1, ...)`. The `(1, 'llm')`
+and `(1, 'embedding')` slots are NOW wired.
+
+**The trap**: re-running the S27 test post-Commit-2 of S28 — it
+still passes. The fixture corpus used by the test (a single
+fixture, `hubspot.com`) rules-classifies at
+`signals_business_score >= 8` and skips Tier 2 (LR + embeddings)
+and Tier 3 (LLM) entirely. So Stage 1 LLM cost = $0 and Stage 1
+embedding cost = $0, and `stage1_llm_usd == 0.0` remains
+empirically true.
+
+The literal assertion holds. But the *semantic intent* has changed:
+- **Before**: $0 BY DESIGN (the data isn't exposed by ShardResult).
+- **After**: $0 EMPIRICALLY (the data IS exposed; the fixtures
+  don't exercise the LLM tier; same numeric outcome, different
+  mechanism).
+
+A future reader looking at the test post-S28 would conclude that
+the Stage 1 wiring is still un-shipped — exactly wrong.
+
+**Forward-applicable rule**: when closing a deferred gap, audit
+EVERY existing test pin in the affected surface for the
+"by design / empirically true" distinction. Two failure modes to
+catch:
+
+1. A pin labeled "by design $0" whose mechanism is changing under
+   the retrofit. The literal assertion may stay green
+   (rules-classified fixtures → no cost → still $0), but it now
+   pins a different invariant. Options:
+   - **1↔1 replace** the test with one that pins the NEW design
+     (e.g., direct-helper-test at stage=1 with non-zero
+     components). Q-StgSplit.4-style same-shape replacement
+     preserves net-zero test count.
+   - **Re-frame in place**: keep the assertion, but update the
+     docstring + comment + name from "by design" to "empirically
+     true because [specific fixture rationale]" so a future
+     reader can tell whether the assertion is still load-bearing.
+
+2. A pin in an integration test that asserts $0 alongside other
+   "$0 by design" assertions — that integration test got the
+   updated comment treatment at S28 (the
+   `test_injected_adjudicator_costs_route_to_correct_slots`
+   comment was rewritten to explicitly call out that the $0 is
+   now empirical, with a cross-reference to the direct-helper
+   test that exercises the wiring under non-zero conditions).
+
+**Detection at retrofit time**: grep the affected test file for
+phrases like "by design", "intentionally $0", "deferred",
+"out of scope". Each match is a candidate for re-framing.
+Phase 2 source-verification (per S25 LESSONS pattern) catches
+this if you specifically ask "what assertions encode the OLD
+design invariant we're now closing?" alongside "what's the
+seam?" question.
+
+**Detection at deferral time**: when writing a "Stage X stays at
+$0 by design" assertion, leave a `# TODO(closure)` comment in
+the test naming the future test name OR the future assertion
+target. This makes the retrofit-time audit trivial: grep for
+`TODO(closure)` and walk each match.
+
+This pairs with the S27 "Deferred wiring gaps fold cleanly into
+workstream-end if the original implementation left a parallel-
+API seam" pattern: the SEAM closes the gap structurally; the
+TEST PIN AUDIT closes the gap *semantically*. Both have to land
+together for the retrofit to be honest about what changed.
+

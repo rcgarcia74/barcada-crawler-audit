@@ -6428,3 +6428,287 @@ candidates that don't exercise the new ADLS test paths):
 cost_journal_adls minus 7 robots_gate_integration).
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+
+---
+
+## Session 28 — 2026-05-26 — Stage 1 ShardResult LLM-vs-embedding split (Candidate StgSplit)
+
+──────── Scope shipped ───────────────────────────────────────────
+
+Candidate StgSplit (Stage 1 ShardResult LLM-vs-embedding split) per
+S27 carry-forward disposition. Closes the remaining 2 of 8
+`_TOTALS_FIELDS` slots (`stage1_llm_usd`, `stage1_embedding_usd`)
+that S27 Candidate B left at $0 by design. Per-module commits per
+Q-SHARED.1 + Q-StgSplit.6 = Option 1 (3 commits).
+
+Repo HEAD: `a1c5636` → `ae9e627` (3 commits ahead).
+
+Commits landed (in order, all pushed to `origin/main` at S28 close):
+
+1. **`776d203 WA0.W5.X.stage1-cost-split-shardresult`** —
+   - `src/barcada_scraper/classifier/stage1/run.py`: ShardResult
+     dataclass + `_build_shard_result` populate. Added 2 new fields
+     `llm_cost_usd: float` and `embedding_cost_usd: float` between
+     `cost_usd` and `cached_input_tokens`. Field count 12 → 14.
+     Populated from CostTracker's pre-existing `llm_cost_usd` /
+     `embedding_cost_usd` properties (verified at Phase 2 source-
+     verification: cost_tracker.py:118-123 already tracks them
+     separately — pure plumbing change). Docstring documents the
+     cardinal invariant `cost_usd == llm_cost_usd +
+     embedding_cost_usd`.
+   - `tests/classifier/stage1/test_run_cascade.py`: +1 net-new
+     test `test_shard_result_carries_llm_and_embedding_cost_split`
+     asserts both new fields are present + non-negative + invariant
+     holds + values agree with the source CostTracker properties.
+
+2. **`9afde57 WA0.W5.X.stage1-cost-split-cascade-invoker`** —
+   - `tests/runners/fixture_cascade/cascade.py`: Stage 1 invoker
+     switched from `_journal_record` to
+     `_journal_record_with_breakdown` with
+     `components={'llm': s1_result.llm_cost_usd, 'embedding':
+     s1_result.embedding_cost_usd}, unattributed_cost_usd=0.0`.
+     Closes the remaining 2 of 8 `_TOTALS_FIELDS` slots ((1,'llm') /
+     (1,'embedding')). Module docstring updated from "Stage 1 ...
+     out of scope for S27" to "All 8 `_TOTALS_FIELDS` slots now
+     populate after a full cascade run; Stage 1 closure shipped
+     S28". Removed now-orphaned `_journal_record` helper (24 LOC)
+     after a repo-wide grep confirmed it had no callers post-
+     Commit-2. Net: 38 lines removed, 25 added.
+
+3. **`ae9e627 WA0.W5.X.stage1-cost-split-wiring-test`** —
+   - `tests/runners/fixture_cascade/test_cost_journal_wiring.py`:
+     1↔1 same-shape replacement per Q-StgSplit.4 Option 1.
+     `test_stage1_per_tier_slots_remain_zero_by_design` REMOVED;
+     `test_stage1_per_tier_slots_populate_from_split` ADDED at the
+     same shape (same file, same module-level position). New test
+     exercises `_journal_record_with_breakdown(stage=1, ...)`
+     directly with non-zero `components={'llm': 0.04, 'embedding':
+     0.01}` to confirm slot routing fires. Module docstring updated
+     from "Stage 1 is intentionally excluded" to "All 8
+     `_TOTALS_FIELDS` slots are wired (Stage 1 closure landed S28)".
+     `test_injected_adjudicator_costs_route_to_correct_slots`
+     comment updated from "$0 by design" to "$0 empirically because
+     the 3 sample fixtures rules-classify at signals_business_score
+     >= 8 and skip Tier 2/3 entirely" with cross-reference to the
+     new direct helper test. Net-zero wiring-test count preserved
+     (6 → 6).
+
+──────── Per-commit checkpoint (6 steps × 3 commits) ─────────────
+
+All 3 commits cleared the 6-step protocol:
+- Combined suite at each commit boundary: 970 canonical 16-path
+  baseline preserved across all 3 commits ✓
+- Ruff check + format on touched files: all clean (no fixes
+  needed) ✓
+- Verification tables (8-row + 6-row + 8-row): all ✓ checks ✓
+- git status: only intended files staged; eval_data WIP
+  (TAXONOMY_GAP_LOG.md + step3_professional_credentials_queue.jsonl
+  + stage1_labels.jsonl) stayed unstaged per Sessions 8-27
+  precedent ✓
+- Operator confirm-to-commit: confirmed for all 3 ✓
+- Post-commit re-verify: HEAD advanced correctly + combined suite
+  re-ran green ✓
+
+──────── Phase 4 pre-push gate (whole-tree) ──────────────────────
+
+All 4 gates green at S28 close:
+- `ruff check .` — All checks passed!
+- `ruff format --check .` — 352 files already formatted
+- `git ls-files '*.py' | xargs vermin --target=3.10` —
+  Minimum required versions: 3.10
+- `validate_consistency.py` — 0 errors / 0 warnings (after a
+  transient "1 error" first run that cleared on re-run with no
+  intervening eval_data edits — likely a race with operator-WIP
+  saves; documented as a curiosity, not a halt-blocker)
+
+──────── Phase 5 push (no tag) ───────────────────────────────────
+
+- Pushed `a1c5636..ae9e627` to origin/main (operator-confirmed).
+- No tag placed per Phase 1 Sub-question 1.TAG = "Defer; no
+  workstream milestone implicated by S28's scope (W0 already
+  closed at S27 via workstream-0-end at a1c5636)".
+- Tag count unchanged: 11 (no new tags this session).
+
+──────── Decisions of record (operator-locked) ───────────────────
+
+1. Candidate selection: StgSplit (Stage 1 ShardResult LLM-vs-
+   embedding split), 1.TAG = Defer. Resolved at Phase 1 in one
+   AskUserQuestion turn.
+2. Q-StgSplit.1 = Option 1 (expose pre-existing CostTracker
+   accumulation; pure plumbing — no new accumulation logic).
+3. Q-StgSplit.2 = Option 1 (add 2 new fields, keep aggregate
+   `cost_usd`; backwards-compatible).
+4. Q-StgSplit.3 = Option 1 (use `_journal_record_with_breakdown`
+   in cascade.py Stage 1 invoker).
+5. Q-StgSplit.4 = Option 1 (1↔1 same-shape replace
+   `test_stage1_per_tier_slots_remain_zero_by_design` with
+   `test_stage1_per_tier_slots_populate_from_split`; net-zero
+   wiring-test count; update injected-costs comment from "by
+   design" to "empirical $0 due to rules-classified fixtures").
+6. Q-StgSplit.5 = Option 1 (no backfill of baseline-v0; Stage 1
+   per-tier slots are journal-internal accounting, not part of
+   the baseline-v0 contract).
+7. Q-StgSplit.6 = Option 1 (per-module commits; 3 commits).
+8. Q-StgSplit.7 = Option 1 (`stage1/run.py` only; source-
+   verification at Phase 2 proved `cost_tracker.py` did NOT need
+   modification — its `llm_cost_usd` / `embedding_cost_usd`
+   properties already existed). Original prompt estimate of
+   ~80-100 LOC narrowed to ~10-15 LOC src/ touch.
+
+──────── Patterns reinforced this session ─────────────────────
+
+- **Phase 2 source-verify drives option-set design** (S25 LESSONS):
+  source-verification of `cost_tracker.py` at S28 Phase 2 showed
+  the LLM-vs-embedding split was ALREADY tracked at the
+  accumulation level via separate `_llm_cost_usd` / `_embedding_cost_usd`
+  fields and `llm_cost_usd` / `embedding_cost_usd` properties.
+  The original prompt's Q-StgSplit.1 enumerated 3 options (expose
+  pre-existing / introduce new / aggregate-only-with-flag);
+  source-verification collapsed it to a 2-option question (expose
+  vs introduce). This re-shaped the option set to reflect reality
+  rather than speculation.
+- **Deferred wiring gaps fold cleanly into workstream-end if the
+  original implementation left a parallel-API seam** (S27 LESSONS):
+  the S27 deferral disposition explicitly named
+  `_journal_record_with_breakdown` as the seam. S28 closed against
+  that seam without modification — 3 lines of structural change in
+  cascade.py + 2 lines of data change in stage1/run.py + 4 lines
+  in the wiring test. Total src/ touch: ~10-15 LOC. The "seam
+  documented at deferral time" pattern paid for itself directly.
+- **Dead-code removal during retrofit** (code-quality.md): after
+  Stage 1's `_journal_record` consumer was removed in Commit 2,
+  the helper became orphaned. Removed atomically in the same
+  commit. Repo-wide grep first confirmed no callers existed
+  beyond the definition site. Pattern: when a refactor leaves a
+  helper without callers, remove it in the same commit; don't
+  defer.
+- **Empirical-vs-by-design distinction in test pins** (S28 new
+  pattern; documented below for LESSONS fold): old test pinned
+  `stage1_llm_usd == 0.0` AS A DESIGN INVARIANT. After the wiring
+  change, the same assertion is empirically true (no Stage 1 LLM
+  tier engagement for the 3 fake-mode rules-classified fixtures).
+  The assertion stays correct; the *semantic intent* changed. The
+  injected-costs test got a comment update reflecting this.
+- **AskUserQuestion 4-question-per-call cap** (S26 LESSONS): 7
+  Q-StgSplit questions split into 2 batches of 4+3.
+- **Verify-before-asking discipline** (S19-S27 LESSONS):
+  verification tables built for all 3 commits before staging.
+- **Pre-push gate transient errors** (S28 new observation):
+  validate_consistency reported "1 errors, FAIL" on first run
+  but "0 errors, PASS" on identical re-run with no intervening
+  edits. Treated as a curiosity / race with operator-WIP saves
+  rather than a halt-blocker. LESSONS-worthy if this reproduces
+  in S29+.
+
+──────── New LESSONS folded ───────────────────────────────────────
+
+1 new section folded at LESSONS.md end ("S28 folding" suffix):
+**"Empirical-vs-by-design distinction in test pins"**. Covers the
+shape of test-assertion semantic drift when a parallel-API seam
+closes a deferred gap: the old test asserted `X == 0.0` AS A
+DESIGN INVARIANT (Stage 1 slots stay $0 because the data isn't
+exposed). The new wiring exposes the data; in the test's specific
+fixture context, the same `X == 0.0` assertion is empirically
+true (no Stage 1 LLM tier engagement). The literal assertion
+holds; the SEMANTIC INTENT has changed. Forward-applicable: when
+closing a deferred gap, audit existing test pins for the "by
+design" / "empirically true" distinction. If a pin reads "by
+design $0", consider whether the design is changing under the
+retrofit; either 1↔1 replace the test (Q-StgSplit.4-style) or
+update the assertion's framing (comment, docstring, name) so
+future readers can tell whether the assertion is still load-
+bearing.
+
+──────── Workspace changes landed this session ────────────────
+
+- `SESSION_LOG.md`: this Session 28 entry append.
+- `SESSION_TRANSITION_TEMPLATE.md`: refilled for Session 29 with
+  workspace anchor SHA to be pinned in the follow-up commit.
+- `LESSONS.md`: 1 new section appended at file end ("S28 folding"
+  suffix).
+
+Repo changes:
+- 3 commits in WA0.W5.X.stage1-cost-split-* family:
+  `776d203` (shardresult), `9afde57` (cascade-invoker),
+  `ae9e627` (wiring-test).
+- No new tag placed.
+- Pushed to origin/main: `a1c5636..ae9e627`.
+
+──────── Spend ───────────────────────────────────────────────────
+
+- LLM: $0 (all cascade runs were fake-mode; verification tables
+  built from source, no Explore agent spend beyond initial
+  ShardResult-consumer survey).
+- Infrastructure: nil (no new Azure/Docker dependencies; Candidate
+  K stayed carry-forward).
+- Cassette capture: nil (Candidate E not in scope).
+
+──────── Outstanding for Session 29 ──────────────────────────────
+
+1. **Candidate A barcada-drift** (carry-forward) — still blocked
+   on AI/ML decisions + ≥2 canary_runs parquets (earliest natural
+   2026-06-06).
+2. **Candidate D Phase 4 PR-D tooling** — operator territory;
+   labeling work needed to begin.
+3. **Candidate E cassette corpus expansion** — 20 → 25/30
+   representative domains.
+4. **Candidate K ADLSCostJournal live Azure smoke** — operator-
+   driven sandbox OR Azurite-backed integration test. Still
+   carry-forward from S25→S26→S27→S28.
+5. **Per-tier cost-accounting wiring** — CLOSED end-to-end S28.
+   All 8 `_TOTALS_FIELDS` slots populate after a full cascade run
+   when non-zero costs flow. (Empirically $0 in default fake mode
+   against the fixture corpus because rules-classified fixtures
+   skip Tier 2/3.)
+
+──────── Tags state at S28 close ─────────────────────────────────
+
+11 total (unchanged from S27 close):
+- baseline-v0
+- pre-remediation-2026-05-19
+- workstream-0-week1-end / week2-end / week3-end / week4-1-5-end /
+  week4-end / week5-end / week7-end
+- workstream-0-end (placed S27 at a1c5636)
+- workstream-a-week1-end
+
+**Canonical S28-close baseline for S29 Phase 0 Step 0.5
+(VERIFIED post-push at HEAD `ae9e627`):**
+
+```
+.venv/bin/python -m pytest \
+    tests/scraper/test_fixture_conformance.py \
+    tests/runners/fixture_cascade/ \
+    tests/baseline_v0/ \
+    tests/synthetic_crawl/ \
+    tests/scraper/test_robots.py \
+    tests/scraper/test_robots_gate.py \
+    tests/scraper/test_robots_bypass_config.py \
+    tests/classifier/pipeline/test_cost_journal.py \
+    tests/classifier/pipeline/test_cost_journal_local.py \
+    tests/classifier/pipeline/test_cost_journal_adls.py \
+    tests/orchestrator/test_robots_integration.py \
+    tests/orchestrator/test_vmss_worker.py \
+    tests/orchestrator/test_job_runner.py \
+    tests/orchestrator/test_worker_loop.py \
+    tests/orchestrator/test_robots_gate_integration.py \
+    tests/orchestrator/test_worker_loop_persistence.py -q
+# Expected: 970 passed / 0 failed / 0 skipped
+# Sub-totals identical to S27 close:
+#   210 conformance + 52 driver + 99 baseline_v0 + 33
+#   synthetic_crawl + 32 robots + 30 robots_gate + 30
+#   robots_bypass_config + 43 cost_journal + 13 cost_journal_local
+#   + 19 cost_journal_adls + 35 robots_integration + 74
+#   vmss_worker + 129 job_runner + 152 worker_loop + 7
+#   robots_gate_integration + 12 worker_loop_persistence = 970
+# (S28 1↔1 replaced one test inside the 52 driver count; net-zero
+#  effect on canonical 16-path count. S28 +1 net-new test in
+#  tests/classifier/stage1/test_run_cascade.py is OUTSIDE the
+#  canonical 16-path invocation; baseline holds at 970.)
+```
+
+S28 narrower 14-path baseline: **944 passed / 0 failed / 0 skipped**
+(canonical 16-path minus 19 cost_journal_adls minus 7
+robots_gate_integration; verified post-S28-push, unchanged from
+S27 close).
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
