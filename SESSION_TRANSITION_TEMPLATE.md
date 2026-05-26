@@ -295,9 +295,18 @@ In this order:
    Q-StgSplit.1 through Q-StgSplit.7 + Sub-question 1.TAG
    decisions; the closed S27 carry-forward; the empirical-vs-by-
    design test-pin distinction that surfaced.
-3. **`LESSONS.md`** — 1 new section appended at S28 close
-   ("S28 folding" suffix): "Empirical-vs-by-design distinction
-   in test pins".
+3. **`LESSONS.md`** — 2 new sections appended at S28 close:
+   - "Empirical-vs-by-design distinction in test pins" (S28
+     folding; test-assertion semantic drift when a deferred gap
+     closes).
+   - "Phase 0 fixture-count commands need `2>/dev/null` + a
+     bounded timeout" (S28 post-close folding; **MUST be applied
+     when drafting S29 Phase 0 Step 0.4** — S28 saw ~24 stuck
+     `find`/`grep` shells accumulate in the background-task
+     registry because of unfiltered stderr + unbounded wallclock.
+     Use the Python alternative pattern documented in that
+     section, OR `find ... 2>/dev/null | wc -l` with an explicit
+     Bash tool timeout).
 4. **`BARCADA_CRAWLER_REMEDIATION_PLAN.md`** — chosen-scope
    section per Session 29 candidate choice. Plan is READ-ONLY.
 5. **`CLASSIFICATION_ADJACENT_PLAN.md`** §Item 8 — only if

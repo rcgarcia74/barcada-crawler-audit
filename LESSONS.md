@@ -2253,3 +2253,78 @@ API seam" pattern: the SEAM closes the gap structurally; the
 TEST PIN AUDIT closes the gap *semantically*. Both have to land
 together for the retrofit to be honest about what changed.
 
+---
+
+## Phase 0 fixture-count commands need `2>/dev/null` + a bounded timeout (S28 post-close folding)
+
+**Context**: at S28 Phase 0 Step 0.4, the prompt-suggested
+`find tests/fixtures/html -name '*.html' -type f | wc -l` (and
+five sibling counts) ran via the Bash tool. Several never
+returned output. Each retry I made (Python-based count, a fresh
+foreground `find`, etc.) spawned ANOTHER shell that also hung.
+By session close, **~24 stuck find/grep shells** had accumulated
+in the background-task registry, the oldest with **15+ hours**
+elapsed time. The agents panel was blocked.
+
+**Root cause (post-S28 forensics)**:
+- `find` without `2>/dev/null` filtering writes permission-error
+  noise (`.git/objects/pack/*`, macOS metadata files,
+  `__pycache__/`) to stderr; in some shell wrappers this can
+  buffer or stall.
+- `find` against `tests/fixtures/baseline-v0/` walks 1213 files;
+  in this session it hung indefinitely despite the tree being
+  small. Suspected interaction with Spotlight indexing, macOS
+  resource fork enumeration, or the wrapper script's read-pipe
+  buffering.
+- The Bash tool's background runner kept the wrapper alive even
+  after the inner `find` should have exited; no timeout fired
+  on the outer shell.
+- Kill confirmed harmless: `pkill -f "find tests/fixtures"` +
+  `pkill -f "grep -rn"` returned the registry to clean state.
+  No S28 commit depended on those stuck commands' output.
+
+**Forward-applicable rule for all future Phase 0 fixture-count
+commands**:
+
+1. **Always filter stderr** on `find`:
+   `find tests/fixtures/html -name '*.html' -type f 2>/dev/null | wc -l`
+2. **Always bound the wallclock** when shell wrapping introduces
+   buffering risk. Either:
+   - Pass an explicit Bash tool `timeout` arg (90-120s) AND
+     wrap the inner command in a system `timeout` (e.g.,
+     `timeout 60s find ...`).
+   - Or use Python for fixture-tree walks. S28 proved this
+     works: `python -c "from pathlib import Path; print(sum(1
+     for p in Path('tests/fixtures/html').rglob('*.html')))"`
+     returned all 6 counts in <2 seconds when the equivalent
+     `find` commands had been hung for 15+ hours.
+3. **Prefer one Python invocation over six `find` calls**.
+   Fewer shell wrappers = fewer ways to hang. Pattern:
+   ```python
+   from pathlib import Path
+   root = Path('tests/fixtures')
+   print(f"html={sum(1 for p in (root/'html').rglob('*.html'))}")
+   print(f"expected={sum(1 for p in (root/'html').rglob('*.json') if '/expected/' in str(p))}")
+   ...
+   ```
+4. **If a Phase 0 command hangs, kill it before retrying**.
+   Don't spawn a parallel attempt while the original is still
+   buffered — that's how registry accumulation starts. Use
+   `pkill -f "<command-fragment>"` to clear before retry.
+
+**Detection at prompt-drafting time**: when writing Phase 0
+verification commands, audit each `find` for stderr filtering
++ bounded scope. If the prompt's natural shape is "run these N
+small commands in sequence", consider consolidating into one
+Python script — fewer chances for any single command to wedge.
+
+**Detection at session-open time**: if Phase 0 Step 0.4 (or any
+fixture-count step) doesn't return within ~30 seconds, do NOT
+retry. Surface to operator + use the Python alternative.
+
+This pairs with the S25 "Local imports defeat module-attribute
+monkeypatch" LESSONS pattern in spirit: a small shell-vs-Python
+hygiene fix prevents a real session-blocking failure mode.
+Cheap to fold; expensive to debug at session open.
+
+
