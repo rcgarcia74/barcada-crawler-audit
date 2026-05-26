@@ -11,14 +11,19 @@ Pair this with the latest entry in `SESSION_LOG.md`, with
 `BARCADA_CRAWLER_REMEDIATION_PLAN.md` to start a session cold and
 be productive within ~10 minutes.
 
-**Session 27 invocation prompt:** not yet drafted at S26 close.
-Per the S20→S21..S25→S26 precedent, prompt-drafting is operator-
-commissioned between sessions. If commissioned, draft as
-`SESSION_27_PROMPT.md` mirroring the S20-S26 7-phase structure.
+**Session 27 invocation prompt:** drafted post-S26-close at
+`~/crawler-audit/SESSION_27_PROMPT.md` (1562 lines / 65 KB;
+mirrors the S20-S26 7-phase structure). Operator-commissioned
+between sessions per the S20→S21..S25→S26 precedent. Apply
+reviewer-feedback hygiene per the prompt's "Reviewer-feedback
+hygiene" section if any pre-S27-open reviewer findings surface.
 Anchors:
-- Workspace HEAD: this follow-up commit's SHA (primary close-out
-  is `6eff137`; the follow-up pinning this anchor IS this commit
-  per S21-S25 self-reference precedent).
+- Workspace HEAD: this prompt-drafting commit's SHA (succeeds
+  the anchor-pinning follow-up `03cadd3` AND the post-close
+  LESSONS correction `c0458dc`; S28 Phase 0 will need to
+  tolerate ≥2 prompt-drafting commits between S26 close and S27
+  open per the S22-folded Workspace HEAD delta tolerance
+  pattern).
 - Repo HEAD: `2314f5e` (S26 Commit 1 final).
 - Canonical baseline: 964 tests (16-path invocation, unchanged
   from S25 close since S26 was doc-only).
