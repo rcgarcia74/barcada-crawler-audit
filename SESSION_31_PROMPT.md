@@ -172,15 +172,17 @@ Run in order. Halt and surface to operator on any mismatch.
 # (anchor-pinning follow-up). This prompt drafted as a follow-up
 # commit succeeding 67a9c40.
 git -C ~/crawler-audit rev-parse HEAD
-# Expect: the S31 prompt-drafting commit (succeeds 67a9c40 S30
-# anchor-pin follow-up, which itself succeeds 9d4691e S30 primary
-# close-out). OR a later commit if additional workspace doc edits
-# (incl. an anchor-pin follow-up of THIS commit, or further
-# prompt revisions) landed post-draft. If N commits ahead, verify
-# each prior commit's subject via `git log --oneline 67a9c40..HEAD`
-# against expected prompt-finalization / doc-edit patterns;
-# surface the SHA delta and request authorization to proceed if
-# anything is unexpected.
+# Expect: fb72f8f (S31 prompt reviewer-findings commit applying
+# 3 S-tier + 3 N-tier findings + 1 SESSION_LOG hygiene fold;
+# succeeds the S31 prompt-drafting commit 49a05ac, which itself
+# succeeds the S30 anchor-pin follow-up 67a9c40, which succeeds
+# the S30 primary close-out 9d4691e). OR a later commit if
+# additional workspace doc edits (incl. an anchor-pin follow-up
+# of THIS commit, or further prompt revisions) landed post-fixes.
+# If N commits ahead, verify each prior commit's subject via
+# `git log --oneline fb72f8f..HEAD` against expected prompt-
+# finalization / doc-edit patterns; surface the SHA delta and
+# request authorization to proceed if anything is unexpected.
 # (S20-S30 precedent: operator authorized continuation when 1-3
 # extra workspace commits were the strengthened prompts
 # themselves.)
