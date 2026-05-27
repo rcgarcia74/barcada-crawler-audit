@@ -11,16 +11,34 @@ Pair this with the latest entry in `SESSION_LOG.md`, with
 `BARCADA_CRAWLER_REMEDIATION_PLAN.md` to start a session cold and
 be productive within ~10 minutes.
 
-**Session 31 invocation prompt:** NOT YET DRAFTED at S30 close.
-S30 was Candidate K-b-exec (operator-driven execution of the
-S29 K-b smoke script against live Azure); zero code commits and
-no in-flight scope. Per S20-S29 precedent, the next-session
-prompt is operator-commissioned between sessions — not always-on
-close-out work. If the operator wants to commission an S31
-prompt, draft it post-close referencing this template + the
-S30 SESSION_LOG.md entry + the new S30-folded LESSONS section
-(posture-validation note for operator-smoke vs CI test
-tradeoffs).
+**Session 31 invocation prompt:** drafted post-S30-close at
+`~/crawler-audit/SESSION_31_PROMPT.md` (1654 lines; mirrors the
+S20-S30 7-phase structure). Operator-commissioned at S30 close
+per the "create the handoff docs and ensure completeness"
+request. Folds:
+(1) K-b-exec closure (Candidate REMOVED from S31 candidate list;
+S30 trace recorded in SESSION_LOG.md);
+(2) S30-folded LESSONS section "Operator-smoke posture (K-b) can
+close mock-vs-prod divergence risk in one execution; permanent
+CI test (K-a) is then optional rather than required" into Phase 2
+"CRITICAL hygiene" note + Candidate K-a's OPTIONAL designation +
+new Q-K-a.0 carve-out justification gate;
+(3) S30 close-out anchors `9d4691e` (primary) + `67a9c40` (anchor-
+pin) into Step 0.1; **repo anchor unchanged at `af6f1d4`** (S30
+had zero code commits);
+(4) Tag-variance disposition: 13 tags expected (includes 2 new
+operator-side stage1 tags `workstream-stage1-prestaged-flags-end`
++ `workstream-stage1-step3-end` accepted in-class with eval_data
+commit tolerance);
+(5) Empirical Phase 1 prerequisite check pattern for Candidate A
+re-validated at S30 close (unchanged from S29: 0 parquets, 0
+plist, no AI/ML responses);
+(6) S30-validated state for ADLSCostJournal public API
+(empirically matches DummyBlobBackend against real Azure;
+referenced in Phase 0 Step 0.9 invariants).
+Apply reviewer-feedback hygiene per the prompt's "Reviewer-
+feedback hygiene" section if any pre-S31-open reviewer findings
+surface.
 
 Anchors for Session 31 cold start:
 - Workspace HEAD: `9d4691e` (S30 primary close-out commit;
