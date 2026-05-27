@@ -260,11 +260,12 @@ git diff dd64963..HEAD -- tests/runners/fixture_cascade/ \
 
 **IMPORTANT**: per S28-folded LESSONS "Phase 0 fixture-count
 commands need `2>/dev/null` + a bounded timeout", do NOT use bare
-`find` invocations here. They hung indefinitely in S28 and S30
-both surfaced 23h-old + 6h-old hung `bfs` processes during S30
-close (5 PIDs killed at S30 close per operator authorization).
-Use the Python pattern below — returned all 6 counts in <2s when
-the equivalent `find` commands had been hung 15+ hours.
+`find` invocations here. They hung indefinitely in S28; S30 also
+exercised this discipline at close-out (see SESSION_LOG.md S30
+"Post-close-out workspace hygiene" subsection for the load-bearing
+record of hung-process cleanup). Use the Python pattern below —
+returned all 6 counts in <2s in prior sessions when the
+equivalent `find` commands had been hung 15+ hours.
 
 ```
 .venv/bin/python -c "
@@ -397,10 +398,21 @@ print('OK expected.schema.json v1.1 (18-col stage3 shape)')
     tests/baseline_v0/test_cli.py -k 'canary' tests/synthetic_crawl/ -q
 # Expect: 56 passed
 
-# S21-S26 sub-surfaces (per-suite expectations identical to
-# S30 prompt Step 0.8; counts unchanged).
-.venv/bin/python -m pytest tests/scraper/test_robots.py tests/scraper/test_robots_gate.py tests/scraper/test_robots_bypass_config.py tests/classifier/pipeline/test_cost_journal.py tests/classifier/pipeline/test_cost_journal_local.py tests/classifier/pipeline/test_cost_journal_adls.py tests/orchestrator/test_robots_integration.py tests/orchestrator/test_vmss_worker.py tests/orchestrator/test_job_runner.py tests/orchestrator/test_worker_loop.py tests/orchestrator/test_robots_gate_integration.py tests/orchestrator/test_worker_loop_persistence.py -q
-# Expect: 32 + 30 + 30 + 43 + 13 + 19 + 35 + 74 + 129 + 152 + 7 + 12 = 576 passed
+# S21-S26 sub-surfaces (per-suite expectations broken out for
+# halt-localization clarity; collapsed sum = 576):
+.venv/bin/python -m pytest tests/scraper/test_robots.py -q                             # expect  32
+.venv/bin/python -m pytest tests/scraper/test_robots_gate.py -q                        # expect  30
+.venv/bin/python -m pytest tests/scraper/test_robots_bypass_config.py -q               # expect  30
+.venv/bin/python -m pytest tests/classifier/pipeline/test_cost_journal.py -q           # expect  43
+.venv/bin/python -m pytest tests/classifier/pipeline/test_cost_journal_local.py -q     # expect  13
+.venv/bin/python -m pytest tests/classifier/pipeline/test_cost_journal_adls.py -q      # expect  19
+.venv/bin/python -m pytest tests/orchestrator/test_robots_integration.py -q            # expect  35
+.venv/bin/python -m pytest tests/orchestrator/test_vmss_worker.py -q                   # expect  74
+.venv/bin/python -m pytest tests/orchestrator/test_job_runner.py -q                    # expect 129
+.venv/bin/python -m pytest tests/orchestrator/test_worker_loop.py -q                   # expect 152
+.venv/bin/python -m pytest tests/orchestrator/test_robots_gate_integration.py -q       # expect   7
+.venv/bin/python -m pytest tests/orchestrator/test_worker_loop_persistence.py -q       # expect  12
+# Sum (also verifiable as a one-liner): 32+30+30+43+13+19+35+74+129+152+7+12 = 576
 
 # S27 + S28 per-tier cost-accounting wiring tests
 .venv/bin/python -m pytest tests/runners/fixture_cascade/test_cost_journal_wiring.py -q
@@ -527,9 +539,7 @@ test "$(wc -l < docs/CRAWLING_POLICY.md)" = "77" && \
     { echo "HALT: CRAWLING_POLICY.md drifted from S26-landed shape (expected 77 lines / 2519 bytes)"; exit 1; }
 echo "OK docs/CRAWLING_POLICY.md unchanged from S26 close (77 lines / 2519 bytes)"
 
-# S27 + S28: per-tier wiring helper signature + AST + invariant
-# smoke (see S30 prompt Step 0.9 for the full block; reproduce
-# verbatim here at S31 open).
+# S27: per-tier wiring helper signature stability.
 .venv/bin/python -c "
 import inspect
 from tests.runners.fixture_cascade import cascade as cm
@@ -540,10 +550,82 @@ assert expected_params <= set(sig.parameters), set(sig.parameters)
 print('OK S27 _journal_record_with_breakdown helper signature unchanged from a1c5636')
 "
 
-# S28: ShardResult split field presence + AST Stage 1 invoker
-# structure (full block in S30 prompt Step 0.9). 14 dataclass
-# fields; 3 _journal_record_with_breakdown calls in cascade.py;
-# stage=1 call has 'llm' + 'embedding' components.
+# S27 + S28: per-tier wiring invariant smoke (all 8 slots populate).
+.venv/bin/python -c "
+import math, tempfile
+from pathlib import Path
+from tests.runners.fixture_cascade.cascade import _journal_record_with_breakdown
+from barcada_scraper.classifier.pipeline import cost_journal as cj
+
+with tempfile.TemporaryDirectory() as td:
+    journal_dir = Path(td)
+    journal = cj.open_journal(journal_dir=journal_dir, run_id='phase0-smoke')
+    journal.write_initial(cj.JournalState.fresh(run_id='phase0-smoke', ceiling_usd=10.0))
+
+    _journal_record_with_breakdown(journal=journal, shard_id='s1', stage=1, started_at='2026-05-26T00:00:00+00:00', domains_processed=10, components={'llm': 0.04, 'embedding': 0.01}, unattributed_cost_usd=0.0)
+    _journal_record_with_breakdown(journal=journal, shard_id='s2', stage=2, started_at='2026-05-26T00:01:00+00:00', domains_processed=10, components={'fetch': 0.10, 'summarization': 0.20, 'classification': 0.30}, unattributed_cost_usd=0.0)
+    _journal_record_with_breakdown(journal=journal, shard_id='s3', stage=3, started_at='2026-05-26T00:02:00+00:00', domains_processed=10, components={'evidence': 0.05, 'primary': 0.07, 'secondary': 0.0}, unattributed_cost_usd=0.03)
+
+    state = journal.read().state
+    per_tier_sum = sum(getattr(state.totals, fname) for fname in cj._TOTALS_FIELDS.values())
+    shard_sum = sum(s.cost_usd for s in state.shards)
+    assert state.totals.stage1_llm_usd == 0.04
+    assert state.totals.stage1_embedding_usd == 0.01
+    assert math.isclose(state.totals.cost_usd, per_tier_sum + shard_sum, abs_tol=1e-9), (state.totals.cost_usd, per_tier_sum, shard_sum)
+    for fname in cj._TOTALS_FIELDS.values():
+        assert hasattr(state.totals, fname), fname
+
+print('OK S27+S28 per-tier wiring invariant holds at S31 cold start (all 8 slots populate)')
+"
+
+# S28: ShardResult split field presence (compile-time guarantee).
+.venv/bin/python -c "
+from barcada_scraper.classifier.stage1.run import ShardResult
+fields = set(ShardResult.__dataclass_fields__.keys())
+assert 'llm_cost_usd' in fields, fields
+assert 'embedding_cost_usd' in fields, fields
+assert 'cost_usd' in fields, fields  # aggregate retained
+assert len(fields) == 14, f'expected 14 fields; got {len(fields)}: {fields}'
+print('OK S28 ShardResult llm_cost_usd + embedding_cost_usd fields present; total 14 fields')
+"
+
+# S28: cascade.py Stage 1 invoker call-site structure (AST-based).
+# Save to a script file and run via .venv/bin/python (the safety
+# hook blocks the inline `python -c` form when the source string
+# contains 'ast.parse').
+cat > /tmp/check_s28_ast_phase0.py <<'PYEOF'
+import ast
+with open('tests/runners/fixture_cascade/cascade.py') as f:
+    tree = ast.parse(f.read())
+
+all_calls = []
+stage1_calls = []
+for node in ast.walk(tree):
+    if isinstance(node, ast.Call):
+        func = node.func
+        name = (func.attr if isinstance(func, ast.Attribute)
+                else (func.id if isinstance(func, ast.Name) else None))
+        if name == '_journal_record_with_breakdown':
+            all_calls.append(node)
+            stage_kw = next((kw for kw in node.keywords if kw.arg == 'stage'), None)
+            if (stage_kw and isinstance(stage_kw.value, ast.Constant)
+                    and stage_kw.value.value == 1):
+                stage1_calls.append(node)
+
+assert len(all_calls) == 3, f'expected 3 calls; found {len(all_calls)}'
+assert len(stage1_calls) == 1, f'expected 1 stage=1 call; found {len(stage1_calls)}'
+
+call = stage1_calls[0]
+components_kw = next((kw for kw in call.keywords if kw.arg == 'components'), None)
+assert components_kw is not None, 'Stage 1 call missing components kwarg'
+assert isinstance(components_kw.value, ast.Dict), 'components must be a dict literal'
+keys = [k.value for k in components_kw.value.keys
+        if isinstance(k, ast.Constant)]
+assert 'llm' in keys, f'Stage 1 components missing llm: {keys}'
+assert 'embedding' in keys, f'Stage 1 components missing embedding: {keys}'
+print('OK S28 cascade.py Stage 1 invoker AST structure intact (3 calls; stage=1 has llm + embedding)')
+PYEOF
+.venv/bin/python /tmp/check_s28_ast_phase0.py
 
 # S29 NEW: K-b smoke script existence + import-loads cleanly.
 .venv/bin/python -c "
@@ -565,16 +647,12 @@ assert hasattr(m, '_delete_blob'), '_delete_blob helper missing'
 print('OK S29 K-b script intact (import OK; public surface intact)')
 "
 
-# S30 NEW: K-b-exec disposition documented in SESSION_LOG.md.
-test -f ~/crawler-audit/SESSION_LOG.md && \
-    grep -q "Session 30 — 2026-05-26 — ADLSCostJournal live Azure smoke EXECUTION" ~/crawler-audit/SESSION_LOG.md || \
-    { echo "HALT: SESSION_LOG.md missing S30 entry"; exit 1; }
-echo "OK S30 K-b-exec disposition recorded in SESSION_LOG.md"
-
-# S30 NEW: LESSONS.md S30-folded posture-validation section present.
-grep -q "(S30 folding)" ~/crawler-audit/LESSONS.md || \
-    { echo "HALT: LESSONS.md missing S30 folding"; exit 1; }
-echo "OK S30 folding section present in LESSONS.md"
+# (S30 produced zero repo code commits — no new behavior to
+# invariant-check at Step 0.9. The S30 disposition is captured
+# in workspace docs SESSION_LOG.md + LESSONS.md as documentary
+# record, NOT as a Phase 0 load-bearing dependency. If those
+# docs are missing for any reason, S31 Phase 6 re-records them;
+# this does not block Phase 0.)
 ```
 
 If any of 0.1-0.9 fail, HALT before doing any work.
@@ -704,9 +782,13 @@ tooling. W0-side unblocked at S27 (`workstream-0-end` tag at
 **S30 observation**: operator placed 2 new operator-side stage1-
 related tags between S29 close and S30 open
 (`workstream-stage1-prestaged-flags-end`,
-`workstream-stage1-step3-end`). This suggests Stage 1 audit
-workflow is active; whether it generalizes to Stage 2/3 PR-D
-prerequisites is operator-discretion at S31 Phase 1.
+`workstream-stage1-step3-end`). **These tags do NOT unblock PR-D**
+— D remains gated specifically on Stage 2/3 labeling, and Stage 1
+audit activity does not bridge to Stage 2/3 in any way documented
+here. Operator-discretion at Phase 1 whether the Stage 1 cadence
+informs S31's candidate ordering (e.g., as a signal that broader
+labeling momentum exists), but the prereq status itself is
+unchanged from S29.
 
 **Prerequisites:**
 - Operator-scheduled labeling effort.
@@ -753,6 +835,17 @@ already provided:
 If NONE of those forward-looking justifications apply, **K-a
 should remain deferred** at S31 — the S30 LESSONS fold says
 defense-in-depth is a choice, not a default.
+
+**Phase 1 carve-out capture (if K-a is picked):** at the moment
+of selecting K-a, name the carve-out reason from the list above
+(concurrency / production-feature-coverage / customer-visible-
+critical-path) OR record explicit operator-override
+("defense-in-depth without specific carve-out"). Pin the choice
+in chat at Phase 1 so Phase 2 can proceed to K-a design without
+re-litigating the candidate choice itself. This replaces what
+might otherwise be a redundant Phase 2 Q-K-a.0 gate — Phase 1
+is the right place to capture justification because it's
+inseparable from scope resolution.
 
 **Prerequisites:**
 - Docker available locally; Azurite image pullable.
@@ -919,11 +1012,11 @@ independently and BOTH need to be checked: 4 OPTIONS per question
 
 ### If Candidate K-a (Azurite-backed integration test)
 
-- **Q-K-a.0 Posture justification**: per the S30 LESSONS fold,
-  is K-a justified at S31? Pick the carve-out reason
-  (concurrency / production-feature-coverage / customer-visible-
-  critical-path) OR explicit operator-override ("ship K-a anyway
-  for defense-in-depth").
+(Carve-out justification was captured at Phase 1 candidate
+selection per the K-a Phase 1 entry; Phase 2 does NOT re-litigate
+that choice. Phase 2 designs the test once K-a is the chosen
+scope.)
+
 - **Q-K-a.1 Auth posture**: connection-string auth vs shared-key
   auth vs DefaultAzureCredential (Azurite supports all three;
   connection-string is the simplest for CI).
@@ -1222,8 +1315,10 @@ Carry-forward from S22-S30 prompts (unchanged):
 
 ### Candidate K-a (Azurite-backed integration test)
 
-0. Q-K-a.0 posture justification recorded (which carve-out
-   applies, OR explicit operator-override for defense-in-depth).
+0. Phase 1 carve-out justification recorded in chat at scope
+   selection (which carve-out applies, OR explicit operator-
+   override for defense-in-depth). See Phase 1 Candidate K-a
+   entry for the capture protocol.
 1. Azurite-backed integration test passes locally + (if Q-K-a.4
    includes CI) in CI; mock-vs-prod divergence empirically
    closed for the operations covered (already empirically

@@ -7203,6 +7203,33 @@ between S29 close and S30 open).
 
 Repo changes: NONE (0 commits). No tag placed.
 
+──────── Post-close-out workspace hygiene ──────────────────────
+
+Operator-authorized cleanup of 5 hung filesystem-traversal
+processes from prior sessions surfaced at S30 close (per the
+S28-folded LESSONS pattern "Phase 0 fixture-count commands need
+`2>/dev/null` + a bounded timeout"):
+
+- PIDs 21066 + 21085 (~23h20m elapsed): hung `bfs` searches for
+  `cassette.yaml` + `extract_hard_exclusions.json` from a prior
+  session — never reaped.
+- PIDs 20482 + 20486 (~6h29m elapsed): hung shell + `bfs` for
+  `canary_runs/*.parquet` from earlier today.
+- PID 77418 (~3h21m elapsed): hung `until [ -s ... ]; do sleep 1;
+  done` wait-loop from THIS S30 session's CLI-count retry. The
+  loop waited for a file that was never written because the
+  inner command wrote to a different temp path.
+
+All 5 killed via `pkill bfs` + `pkill -f` patterns (the safety
+hook required name-based kill rather than PID-based). 40 total
+processes terminated including cascaded children. Workspace and
+project working trees clean post-cleanup. **Confirms the S28
+LESSONS pattern operationally**: bare `find` invocations in
+shell-wrapped contexts hang and accumulate across sessions. The
+~23h-old PIDs were leftovers from a prior session that had never
+been reaped — strong evidence the Python `rglob()` pattern at
+Step 0.4 is the right discipline, not just defensive style.
+
 ──────── Spend ───────────────────────────────────────────────────
 
 - LLM: $0 (no model invocations during the K-b script run).
