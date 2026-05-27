@@ -1614,8 +1614,9 @@ LESSONS-folded discoveries from S22-S30 worth re-applying:
   default to K-b posture; escalate to K-a only when a defined
   carve-out applies (concurrency / production-feature-coverage /
   customer-visible-critical-path). For Candidate K-a at S31
-  specifically, this means the operator must justify the
-  carve-out at Q-K-a.0 before committing to ship K-a.
+  specifically, this means the operator must record the carve-out
+  at Phase 1 candidate selection (NOT at a Phase 2 gate — see
+  Phase 1 Candidate K-a entry for the capture protocol).
 
 ---
 
@@ -1692,7 +1693,8 @@ S13-30 pattern:
    smokes + Phase 3 per-commit checkpoint).
 8. ADLSCostJournal status: K-b SHIP closed S29; K-b EXEC closed
    S30 (trace matches DummyBlobBackend); K-a status per S31
-   scope choice (deferred OR shipped with Q-K-a.0 justification).
+   scope choice (deferred OR shipped with Phase 1 carve-out
+   justification recorded at scope selection).
 9. Any spend (LLM, infrastructure, cassette-capture).
 10. Robots.txt compliance log (if Candidate E expanded the
     cassette corpus).
@@ -1722,9 +1724,11 @@ into this prompt — S31 does not need a separate amendment file:
   new operator-side stage1 tags), Step 0.5 (Canonical S30-close
   baseline 970 pinned with 16-path invocation; 944 narrower for
   candidates that don't touch ADLS or robots_gate_integration),
-  Step 0.9 (S24+S25+S26+S27+S28+S29 stability PLUS new S30
-  workspace-doc invariants: SESSION_LOG.md S30 entry present;
-  LESSONS.md S30 folding section present).
+  Step 0.9 (S24+S25+S26+S27+S28+S29 stability checks unchanged;
+  S30 produced no repo behavior to invariant-check, so no new
+  Step 0.9 dependencies were added — workspace-doc grep checks
+  were considered and explicitly rejected per the established
+  S25-S29 behavior-check pattern).
 - **1 NEW LESSONS section from S30 close**:
   - "Operator-smoke posture (K-b) can close mock-vs-prod
     divergence risk in one execution; permanent CI test (K-a)
@@ -1732,10 +1736,11 @@ into this prompt — S31 does not need a separate amendment file:
     Phase 2 "CRITICAL Phase 2 hygiene from S30 LESSONS
     (posture-validation: K-b vs K-a)" (apply when sizing any
     new wrapper-class + external-service candidate) AND at
-    Phase 1 Candidate K-a's OPTIONAL designation AND at Phase 2
-    Q-K-a.0 (carve-out justification required before K-a ships)
-    AND at the Verify-before-asking section's LESSONS-folded-
-    discoveries list.
+    Phase 1 Candidate K-a's OPTIONAL designation AND at the
+    Phase 1 Candidate K-a carve-out capture paragraph
+    (justification required at scope selection, not as a Phase 2
+    gate) AND at the Verify-before-asking section's LESSONS-
+    folded-discoveries list.
 - **K-b-exec closure** folded into the carry-forward list at
   the top (Candidate K-b-exec REMOVED from S31 candidates;
   documented as closed at S30 in SESSION_LOG.md) AND Out-of-
