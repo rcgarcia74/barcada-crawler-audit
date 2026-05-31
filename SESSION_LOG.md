@@ -7300,3 +7300,188 @@ S30 narrower 14-path baseline: **944 passed / 0 failed / 0
 skipped** (unchanged from S27/S28/S29 close).
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+
+## Session 31 — 2026-05-30 — W A.0 W7 cassette corpus expansion (Candidate E)
+
+──────── Scope shipped ───────────────────────────────────────────
+
+Candidate E (cassette corpus expansion) per the S31 prompt Phase 1
+scope choice. Grew `tests/fixtures/synthetic_crawls/` from 20 → 25
+cassettes toward the plan's "~20-30 representative domains" upper
+bound (BARCADA_CRAWLER_REMEDIATION_PLAN.md §4 W7). **One code commit
+this session** — `06d67c4` (artifact-only; 10 new fixture files).
+
+Repo HEAD: `af6f1d4` (S30 close) → unchanged at S31 open (no
+tolerated operator-side commits surfaced in `af6f1d4..HEAD`) →
+`06d67c4` at S31 close.
+
+──────── Phase 0 cold-start verification ─────────────────────────
+
+All steps green at S31 open:
+- 0.1 ✓ Workspace HEAD `3d976a7` (2 prompt-doc commits ahead of
+  `fb72f8f`: `8edff82` Step 0.1 anchor-pin + `3d976a7` 2 R-tier
+  findings; both prompt-revision-class per the Step 0.1 tolerance).
+  Repo HEAD `af6f1d4` (exact; no eval_data commits since S30).
+- 0.2 ✓ 13 tags (unchanged from S30 close); `workstream-0-end`
+  at `a1c5636`.
+- 0.3 ✓ Driver-lock diff empty outside the 3 W5.X-authorized files.
+- 0.4 ✓ Fixture counts via Python rglob() pattern: html=222,
+  expected=202, meta=222, baseline=1213, cassettes=20,
+  exclusions=20.
+- 0.5 ✓ Canonical 970/0/0 in 77.39s.
+- 0.6 ✓ manifest.json (baseline-v0/0.1.0; 202 fixtures; driver_sha
+  prefix `521e363`); expected.schema.json v1.1.
+- 0.7 ✓ baseline_v0 CLI (3 subcommands) + synthetic_crawl CLI
+  (2 subcommands: record / replay).
+- 0.8 ✓ check=30; canary 23 + synthetic_crawl 33 = 56 (the
+  combined `-k 'canary'` command shows "23 passed, 48 deselected"
+  — a pytest `-k` global-filter quirk that deselects the
+  synthetic_crawl tests; verified separately 17+6+33=56, all
+  pass; NOT a regression); wiring=6; stage1 run 16 + cost_tracker
+  16 = 32.
+- 0.9 ✓ All S24/S25/S26/S27/S28/S29 public APIs unchanged;
+  CRAWLING_POLICY.md 77 lines / 2519 bytes; per-tier wiring
+  invariant (all 8 slots); ShardResult 14 fields; cascade.py
+  Stage 1 invoker AST intact; S29 K-b script import-loads cleanly.
+
+──────── Phase 1 scope resolution + Phase 2 design-gate ──────────
+
+Phase 1 empirical prereq audit for Candidate A (per S29 LESSONS):
+- 0 parquets on disk (across `$HOME` and project tree).
+- 0 barcada/canary plists in `~/Library/LaunchAgents/`.
+- No AI/ML responses or placeholder authorizations in workspace.
+Candidate A remains blocked — same state as S29/S30 close.
+
+Operator chose **Candidate E** at Phase 1. 1.TAG resolved to
+**defer** (per the Candidate E line in Phase 1 Sub-question 1.TAG).
+
+Phase 2 design gates:
+- Q-E.1 target count = **25 (+5 new)**.
+- Q-E.2 subset focus = **business-classification-interesting**.
+- Q-E.3 FP re-investigation = **keep-as-is** (existing 20 S20
+  cassettes UNTOUCHED; no locked-artifact modification — the
+  re-record/drop options would have touched S20 deliverables).
+- Q-SHARED.1 commit shape = **single bundled artifact commit**
+  (mirrors S20 `WA0.W7.cassettes-corpus-capture` 7f11879).
+
+Source-verified at S31 HEAD before recording: the 33
+synthetic_crawl tests are hermetic (tmp_path + hand-rolled
+cassettes); NO committed cassette is exercised by any test and NO
+committed test asserts the count of 20 → the cassette count lives
+only in the Phase 0 fixture-count check, so this addition is
+net-zero on test count.
+
+──────── Phase 3 implementation (1 commit: 06d67c4) ──────────────
+
+Operator-approved domain set: exact-5 lower-WAF-risk
+(mayoclinic.org / redcross.org / patagonia.com / deere.com /
+npr.org) with substitution authorized for any that block.
+
+Recorded via `python -m tools.synthetic_crawl record` (UA
+`barcada-synthetic-crawl/0.1 (+https://barcada.io)`).
+
+5 committed cassettes (200 OK real content; distinct industries):
+| Domain                | Industry            | Status | Body bytes |
+| --------------------- | ------------------- | ------ | ---------- |
+| patagonia.com         | apparel retail      | 200    | 14373      |
+| deere.com             | agri/heavy mfg      | 200    | 173225     |
+| ford.com              | automotive          | 200    | 1536533    |
+| pfizer.com            | pharmaceutical      | 200    | 92143      |
+| wholefoodsmarket.com  | grocery retail      | 200    | 161570     |
+
+Per-cassette verification (all 5):
+- robots.txt compliance gate PASSED (record exit 0).
+- Byte-identical replay determinism gate (S20 Q2.6): cassette SHA
+  stable across two replays; replay exits 0/0.
+- Sidecar shape identical to the 20-key python.org reference.
+- FP-curation log: `exclusion_reason` / `parser_rejection_reason`
+  / `upstream_rejection_reason` ALL EMPTY for all 5 (zero hard
+  exclusions, no WAF/SPA/parked flags) — cleaner than S20's
+  6-flagged set.
+
+Curation rejects (recorded, moved aside to /tmp, NOT committed):
+- mayoclinic.org, redcross.org, etsy.com → 403 Akamai/WAF
+  (370–776 B Access-Denied; WAF exemplar already covered by
+  stripe.com).
+- npr.org (×2), 3m.com → ReadTimeout (recorder auto-deletes the
+  cassette on RequestException).
+- basecamp.com (200) → SaaS overlaps existing shopify/stripe/twilio.
+- nps.gov (200) → government, not a business.
+
+10 new files (5 cassette.yaml + 5 extract_hard_exclusions.json),
+2.18 MB total. Largest cassette: ford.com at ~1.72 MB on disk
+(slightly above S20's 1.5 MB cloudflare.com ceiling; real
+automotive content). No src/ / tooling / .py changes.
+
+──────── Phase 4 pre-push gate ───────────────────────────────────
+
+All green: `ruff check .` (All checks passed!), `ruff format
+--check .` (353 files already formatted), vermin (Minimum required
+3.10), `validate_consistency.py` (0 errors / 0 warnings / PASS;
+no eval_data WIP halt needed). Pre-push hook re-ran all gates
+green on push.
+
+──────── Phase 5 push + tag ───────────────────────────────────────
+
+Pushed `af6f1d4..06d67c4` to `origin/main`. No tag placed per
+Phase 1 Sub-question 1.TAG = **defer** for Candidate E. Tag count
+remains 13.
+
+──────── Carry-forward candidates entering S32 ───────────────────
+
+1. **Candidate A barcada-drift** — still blocked (0 parquets;
+   launchd installer not yet run; no AI/ML responses).
+2. **Candidate D Phase 4 PR-D tooling** — operator territory;
+   labeling must begin.
+3. **Candidate E cassette corpus expansion** — now at 25; may
+   extend to the plan's 30 upper bound if desired (+5 more).
+4. **Candidate K-a Azurite-backed integration test** — OPTIONAL
+   (defense-in-depth; not on any critical path per S30 LESSONS).
+
+──────── Tags state at S31 close ─────────────────────────────────
+
+13 total (UNCHANGED from S30 close):
+- baseline-v0
+- pre-remediation-2026-05-19
+- workstream-0-week1-end / week2-end / week3-end / week4-1-5-end /
+  week4-end / week5-end / week7-end
+- workstream-0-end (a1c5636) / workstream-a-week1-end
+- workstream-stage1-prestaged-flags-end → `af6f1d4`
+- workstream-stage1-step3-end → `d4f06b8`
+
+**Canonical S31-close baseline for S32 Phase 0 Step 0.5
+(VERIFIED at HEAD `06d67c4`):**
+
+```
+.venv/bin/python -m pytest \
+    tests/scraper/test_fixture_conformance.py \
+    tests/runners/fixture_cascade/ \
+    tests/baseline_v0/ \
+    tests/synthetic_crawl/ \
+    tests/scraper/test_robots.py \
+    tests/scraper/test_robots_gate.py \
+    tests/scraper/test_robots_bypass_config.py \
+    tests/classifier/pipeline/test_cost_journal.py \
+    tests/classifier/pipeline/test_cost_journal_local.py \
+    tests/classifier/pipeline/test_cost_journal_adls.py \
+    tests/orchestrator/test_robots_integration.py \
+    tests/orchestrator/test_vmss_worker.py \
+    tests/orchestrator/test_job_runner.py \
+    tests/orchestrator/test_worker_loop.py \
+    tests/orchestrator/test_robots_gate_integration.py \
+    tests/orchestrator/test_worker_loop_persistence.py -q
+# Expected: 970 passed / 0 failed / 0 skipped
+# UNCHANGED from S30 close — cassettes are fixture-only and not
+# exercised by any test in the invocation.
+```
+
+S31 narrower 14-path baseline: **944 passed / 0 failed / 0
+skipped** (unchanged).
+
+**S32 Phase 0 Step 0.4 fixture-count forward note**: cassettes
+and exclusions BOTH advance 20 → 25 (html=222 / expected=202 /
+meta=222 / baseline=1213 unchanged). Update the Step 0.4
+assertions accordingly or S32 Phase 0 will HALT on the stale
+`== 20` checks.
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
