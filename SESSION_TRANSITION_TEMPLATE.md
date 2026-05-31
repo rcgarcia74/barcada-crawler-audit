@@ -21,10 +21,11 @@ repo HEAD anchor `06d67c4`, tag count `13`, canonical baseline
 `970`, and the cassette fixture-count `25`).
 
 Anchors for Session 32 cold start:
-- Workspace HEAD: the S31 close-out commit (this edit's commit) +
-  1-2 anchor-pin follow-ups. S32 Phase 0 Step 0.1 MUST anchor
-  workspace expectation to the S31 close-out SHA OR a later
-  anchor-pin/prompt-drafting follow-up. Per S21-S31 LESSONS
+- Workspace HEAD: `e1e7ade` (S31 primary close-out) + this
+  anchor-pin follow-up (+ any later prompt-drafting commit).
+  S32 Phase 0 Step 0.1 MUST anchor workspace expectation to
+  `e1e7ade` OR a later anchor-pin/prompt-drafting follow-up.
+  Per S21-S31 LESSONS
   pattern "Workspace HEAD delta tolerance": tolerate N additional
   audit-correction / prompt-drafting commits between sessions;
   verify each is consistent with that pattern before continuing.
@@ -159,10 +160,10 @@ commit `06d67c4`. No src/ / tooling / .py changes.
   (SESSION_LOG.md + SESSION_TRANSITION_TEMPLATE.md + LESSONS.md)
   + 1-2 anchor-pin follow-ups (pinning the actual close-out SHA
   into this template's Anchors section for S32).
-- **Last commit SHA at Session 31 CLOSE: the anchor-pin follow-up
-  succeeding the primary close-out**. S32 Phase 0 Step 0.1 MUST
-  anchor workspace expectation to that SHA OR the primary
-  close-out. Per S21-S31 LESSONS pattern: tolerate N additional
+- **Last commit SHA at Session 31 CLOSE: this anchor-pin follow-up
+  succeeding the primary close-out `e1e7ade`**. S32 Phase 0 Step
+  0.1 MUST anchor workspace expectation to this SHA OR `e1e7ade`.
+  Per S21-S31 LESSONS pattern: tolerate N additional
   prompt-drafting / audit-correction commits between sessions.
 - Branch sync with `origin/main`: 0 ahead / 0 behind expected
   after Session 31 close push.
