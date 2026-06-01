@@ -11,15 +11,17 @@ Pair this with the latest entry in `SESSION_LOG.md`, with
 `BARCADA_CRAWLER_REMEDIATION_PLAN.md` to start a session cold and
 be productive within ~10 minutes.
 
-**Session 34 invocation prompt:** NOT yet drafted at S33 close.
-Per S20→S33 precedent, prompt-drafting is operator-commissioned
-between sessions; operator decides whether to commission an S34
-prompt or scope one at S34 open. A drafted prompt should mirror the
-S20-S33 7-phase structure and pin: repo HEAD anchor `f1cdce8`, tag
-count `13`, canonical baseline `970`, Phase 0 Step 0.4
-`cassette_count == 30` / `exclusions_count == 30`, and a Step 0.9
-check that the 5 S31 + 5 S32 cassette dirs exist AND the S33 Azurite
-test file is present.
+**Session 34 invocation prompt:** DRAFTED at S33 close
+(operator-commissioned) at `~/crawler-audit/SESSION_34_PROMPT.md`.
+It mirrors the S20-S33 7-phase structure and pins: repo HEAD anchor
+`f1cdce8`, workspace HEAD anchor `dc21714`, tag count `13`,
+canonical baseline `970`, Phase 0 Step 0.4
+`cassette_count == 30` / `exclusions_count == 30`, a Step 0.9 check
+that the 5 S31 + 5 S32 cassette dirs exist AND the S33 Azurite test
+file + its `live` marker + the baked `--skipApiVersionCheck` flag
+are present, and the near-empty-warm-queue Phase 1 handling. Re-read
+it on S34 open; walk any reviewer flags per its "Reviewer-feedback
+hygiene" section before mutating it.
 
 **IMPORTANT — S34 also opens with a near-empty warm-candidate
 queue.** With K-a now CLOSED (S33), the remaining carry-forwards are
