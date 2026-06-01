@@ -32,12 +32,12 @@ Phase 1 exactly as S33 did (the "empty warm-candidate queue"
 condition + the budget trade-off of a no-ship resolution).
 
 Anchors for Session 34 cold start:
-- Workspace HEAD: the S33 primary close-out commit (SESSION_LOG.md
-  + SESSION_TRANSITION_TEMPLATE.md + LESSONS.md) + 1-2 anchor-pin
-  follow-ups pinning the close-out SHA into this section. S34
-  Phase 0 Step 0.1 MUST anchor workspace expectation to the S33
-  close-out SHA OR a later prompt-revision follow-up. Per the
-  S21-S33 LESSONS pattern "Workspace HEAD delta tolerance":
+- Workspace HEAD: `83e188a` (S33 primary close-out: SESSION_LOG.md
+  + SESSION_TRANSITION_TEMPLATE.md + LESSONS.md) + THIS anchor-pin
+  follow-up succeeding it (+ any later prompt-revision commits). S34
+  Phase 0 Step 0.1 MUST anchor workspace expectation to `83e188a`
+  OR this anchor-pin follow-up OR a later prompt-revision follow-up.
+  Per the S21-S33 LESSONS pattern "Workspace HEAD delta tolerance":
   tolerate N additional prompt-drafting / audit-correction commits
   between sessions; verify each is consistent with that pattern
   before continuing.
@@ -189,12 +189,12 @@ pyproject.toml). No `src/` changes.
   (SESSION_LOG.md + SESSION_TRANSITION_TEMPLATE.md + LESSONS.md)
   + 1-2 anchor-pin follow-ups (pinning the actual close-out SHA
   into this template's Anchors section for S34).
-- **Last commit SHA at Session 33 CLOSE: the anchor-pin follow-up
-  succeeding the primary close-out (SHA pinned by that follow-up).**
-  S34 Phase 0 Step 0.1 MUST anchor workspace expectation to the S33
-  close-out SHA OR a later follow-up. Per S21-S33 LESSONS pattern:
-  tolerate N additional prompt-drafting / audit-correction commits
-  between sessions.
+- **Last commit SHA at Session 33 CLOSE: this anchor-pin follow-up
+  succeeding the primary close-out `83e188a`.** S34 Phase 0 Step
+  0.1 MUST anchor workspace expectation to `83e188a` OR this
+  anchor-pin follow-up OR a later follow-up. Per S21-S33 LESSONS
+  pattern: tolerate N additional prompt-drafting / audit-correction
+  commits between sessions.
 - Branch sync with `origin/main`: 0 ahead / 0 behind expected
   after Session 33 close push.
 
