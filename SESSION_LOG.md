@@ -7480,8 +7480,33 @@ skipped** (unchanged).
 
 **S32 Phase 0 Step 0.4 fixture-count forward note**: cassettes
 and exclusions BOTH advance 20 → 25 (html=222 / expected=202 /
-meta=222 / baseline=1213 unchanged). Update the Step 0.4
-assertions accordingly or S32 Phase 0 will HALT on the stale
-`== 20` checks.
+meta=222 / baseline=1213 unchanged). S32 Phase 0 Step 0.4 MUST
+assert `cassette_count == 25` and `exclusions_count == 25` (NOT
+20) or S32 Phase 0 will HALT on the stale `== 20` checks.
+
+──────── LESSONS folded at S31 close (incl. post-close fold) ──────
+
+Three `(S31 folding)` sections in LESSONS.md (post-close fold-in
+added the latter two per operator feedback):
+1. **"Live-HTTP corpus curation: record broad, curate by content
+   — never pre-trust a domain list"** (primary close-out fold) —
+   record-broad/curate-by-content workflow; mv-aside cleanup
+   gotcha; fixture-only commits are net-zero on the test count.
+2. **"Recorder writes-before-validates produces a reject-cleanup
+   tax"** (post-close fold) — `record()` writes the cassette dir
+   BEFORE validating usefulness; WAF-403 writes a full dir,
+   ReadTimeout leaves an empty dir; a reject-before-write
+   recorder design would close both. Recorder-hygiene observation
+   only — no S31 code fix (Candidate E was corpus, not tooling).
+3. **"Recording yield on business-interesting public homepages is
+   ~40%"** (post-close fold) — 5 shipped / 13 candidates ≈ 38%
+   when WAF risk is not pre-filtered; budget a ~2.5×N candidate
+   pool for +N cassettes; rebalance toward nonprofit/media/edu
+   to offset S31's commerce skew.
+
+Note: the three S30-carry-forward observations (execution-only
+session shape, test-collection invariance under operator commits,
+in-class eval_data tag tolerance) did NOT reproduce at S31 and
+remain carry-forward unless S32 reproduces them.
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.

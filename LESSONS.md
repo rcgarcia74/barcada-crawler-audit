@@ -2636,5 +2636,68 @@ S20 1.5 MB ceiling), pfizer.com (92143 B), wholefoodsmarket.com
 off-scope 200s; all 5 kept cassettes replay byte-identically
 with empty exclusion reasons; canonical suite 970/0/0 unchanged.
 
+## Recorder writes-before-validates produces a reject-cleanup tax (S31 folding)
+
+`tools/synthetic_crawl/recorder.py:record()` validates AFTER it
+writes. The robots gate runs first, but once robots allows, the
+function `mkdir`s `<cassette-root>/<domain>/`, opens the vcrpy
+cassette, fetches, and writes the cassette + sidecar to disk
+BEFORE any check on the response's usefulness. Two failure modes
+therefore leave artifacts on disk that the caller must clean up:
+
+- **WAF/403 writes a full cassette dir.** A 403 Access-Denied
+  page is still a valid HTTP response, so vcrpy records it and
+  the sidecar is computed over the denial HTML. The cassette dir
+  is fully written and must be `mv`-aside during curation. S31
+  hit this on mayoclinic.org, redcross.org, etsy.com (370-776 B
+  denial pages).
+- **ReadTimeout leaves a partial/empty dir.** On
+  `RequestException` the recorder `unlink()`s the cassette file
+  (exit 2) but does NOT remove the `<domain>/` dir it `mkdir`'d,
+  so an empty dir lingers. S31 hit this on npr.org (×2) and
+  3m.com.
+
+Both are post-write rejection patterns — the "reject-cleanup
+tax." A **reject-before-write recorder design** (validate
+`status == 200` + a minimum-content-bytes floor + a
+non-WAF-signature check BEFORE writing the cassette + sidecar, and
+clean up the `mkdir`'d dir on every non-success path) would close
+both. This is a recorder-hygiene observation only — NOT a code
+fix this session (S31 Candidate E was corpus expansion, not
+tooling). If a future session opens `tools/synthetic_crawl/` for
+tooling work, fold this into the recorder's exit-path handling.
+
+**Empirical anchor**: S31 left 8 reject artifacts under `/tmp`
+after `mv`-aside (5 WAF/timeout + npr-empty + 2 off-scope);
+`rm -rf` and `shutil.rmtree` were both blocked by the env safety
+hook, so cleanup used `mv` (rename) — see the cleanup-gotcha bullet
+in [[Live-HTTP corpus curation]] above.
+
+## Recording yield on business-interesting public homepages is ~40% (S31 folding)
+
+S31 shipped 5 cassettes from a pool of 13 candidate domains: 5
+committed + 8 rejected (3 WAF-403, 3 ReadTimeout, 2 off-scope
+200s). That is a ~38% yield (call it ~40%) when WAF/anti-bot risk
+is NOT pre-filtered. The rejects skew toward heavily-branded
+consumer verticals (healthcare/retail/logistics behind Akamai/
+Cloudflare); the survivors skewed commerce-heavy (apparel /
+agri-mfg / automotive / pharma / grocery).
+
+Forward-applicable sizing rule for future Candidate E work: to add
+**N** cassettes, budget a candidate pool of **~2.5×N** domains and
+the live-HTTP latency of recording all of them. Pre-filtering for
+WAF before adding a domain to the record list (e.g., a `curl -I`
+HEAD with the synthetic-crawl UA and a 200-and-not-challenge
+check) would raise the yield and shrink the pool toward ~1.2×N,
+at the cost of added tooling complexity — defer unless a session
+explicitly scopes recorder tooling. If S32 continues Candidate E
+to the plan's 30 upper bound (+5), rebalance the candidate pool
+toward nonprofit / media / education domains (lower WAF incidence)
+to offset S31's commerce skew.
+
+**Empirical anchor**: S31 pool = {patagonia, deere, ford, pfizer,
+wholefoodsmarket} committed; {mayoclinic, redcross, etsy} WAF-403;
+{npr×2, 3m} timeout; {basecamp, nps.gov} off-scope. 5/13 ≈ 38%.
+
 
 

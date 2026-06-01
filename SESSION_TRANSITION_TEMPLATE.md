@@ -11,14 +11,17 @@ Pair this with the latest entry in `SESSION_LOG.md`, with
 `BARCADA_CRAWLER_REMEDIATION_PLAN.md` to start a session cold and
 be productive within ~10 minutes.
 
-**Session 32 invocation prompt:** NOT yet drafted at S31 close. Per
-the S20→S31 precedent, next-session prompt-drafting is operator-
-commissioned between sessions, not always-on close-out work. The
-operator may commission an `SESSION_32_PROMPT.md` draft, or scope
-S32 cold at session open using this template + the S31 prompt's
-7-phase structure as the skeleton (update workspace HEAD anchor,
+**Session 32 invocation prompt:** DRAFTED at S31 post-close
+(operator-commissioned) at `~/crawler-audit/SESSION_32_PROMPT.md`
+(v1; 1247 lines; mirrors the S20-S31 7-phase structure). Pins
 repo HEAD anchor `06d67c4`, tag count `13`, canonical baseline
-`970`, and the cassette fixture-count `25`).
+`970`, Phase 0 Step 0.4 `cassette_count == 25` /
+`exclusions_count == 25`, and a new Step 0.9 check that the 5
+S31 cassette dirs exist. Candidate set: A (blocked), D (gated on
+labeling), E-continuation (25 → 30; rebalance toward nonprofit/
+media/education per the S31 ~40%-yield LESSONS), K-a (OPTIONAL).
+Operator will review v1 → v2 per the standard amendment cycle
+before invocation.
 
 Anchors for Session 32 cold start:
 - Workspace HEAD: `e1e7ade` (S31 primary close-out) + this
@@ -40,11 +43,14 @@ Anchors for Session 32 cold start:
 - Narrower baseline (for candidates that don't exercise ADLS
   test paths): **944 tests** (14-path; 970 minus 19
   cost_journal_adls minus 7 robots_gate_integration). Unchanged.
-- **Fixture-count change at S31**: `tests/fixtures/synthetic_crawls/`
-  grew 20 → 25 cassettes (+5 sidecars). S32 Phase 0 Step 0.4
-  MUST assert `cassettes == 25` and `exclusions == 25` (NOT 20)
-  or it will HALT on the stale check. html=222 / expected=202 /
-  meta=222 / baseline=1213 unchanged.
+- **Fixture-count change at S31 (FLAGGED — S32 Phase 0 Step 0.4
+  assertion target)**: `tests/fixtures/synthetic_crawls/` grew
+  20 → 25 cassettes (+5 sidecars). The S32 Phase 0 Step 0.4 Python
+  rglob() check MUST assert **`cassette_count == 25`** and
+  **`exclusions_count == 25`** (NOT 20) — these are the exact
+  variable names in the Step 0.4 block; leaving them at `== 20`
+  HALTs S32 Phase 0 falsely. html=222 / expected=202 / meta=222 /
+  baseline=1213 unchanged.
 - Primary recommended scope: none — no carry-forward is on a
   critical path. K-a (Azurite-backed CI test) remains OPTIONAL
   (defense-in-depth only per the S30 posture-validation LESSONS
@@ -480,9 +486,10 @@ exercise the ADLS test paths):
 - 944 (S27-S31-equivalent narrower; canonical 16-path minus 19
   cost_journal_adls minus 7 robots_gate_integration)
 
-**Fixture-count assertions for S32 Phase 0 Step 0.4**: html=222,
-expected=202, meta=222, baseline=1213, **cassettes=25,
-exclusions=25** (WAS 20/20 through S30; S31 added 5).
+**Fixture-count assertions for S32 Phase 0 Step 0.4**: html_count=222,
+expected_count=202, meta_count=222, baseline_count=1213,
+**`cassette_count == 25`, `exclusions_count == 25`** (WAS 20/20
+through S30; S31 added 5).
 
 Choose at Phase 0 Step 0.5 per Candidate selection.
 
