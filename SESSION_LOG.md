@@ -7746,7 +7746,9 @@ permanent, automated, Docker-backed integration test that exercises
 `ADLSCostJournal`'s full 5-step ETag-conflict matrix against the
 REAL `_AzureBlobBackend` (real azure-storage-blob 12.28.0 SDK) over
 a live Azurite blob emulator — closing carry-forward K-a as
-defense-in-depth CI coverage for the **concurrency carve-out**.
+**live-on-demand** (`-m live`, Docker-gated) defense-in-depth
+coverage for the **concurrency carve-out** — NOT default-CI coverage
+(the test is skip-by-default and absent from the canonical 16-path).
 **One code commit** — `f1cdce8` (1 new test file + a 3-line
 pyproject marker registration). First S33-shape engineering ship
 after an empty-warm-candidate-queue Phase 1.
@@ -7851,6 +7853,16 @@ try/finally teardown worked exactly as required (no leaked
 container). Fixed test-side with Azurite's documented
 `--skipApiVersionCheck` flag (the SDK api_version lives in locked
 production code, so the emulator is the correct seam). Re-run: green.
+**The flag is BAKED INTO the fixture's `docker run` args (line 176
+of the committed file at `f1cdce8`), NOT a one-off shell flag — so
+the test is fully self-reproducing on a clean `-m live` run.**
+Confirmed at S33 close via a from-no-container `-m live` invocation:
+fixture self-started Azurite with the flag → `1 passed in 3.17s` →
+no orphan. Because `--skipApiVersionCheck` disables version
+validation entirely (not a pinned version), future azure-storage-blob
+upgrades cannot reintroduce the skew; and a container that fails to
+start SKIPS (never silently passes). **No latent version-skew gap
+for S34.**
 
 Verification: live test `1 passed in 2.54s` (post-format); marker
 registered (passes `--strict-markers`; no PytestUnknownMarkWarning);
@@ -7884,7 +7896,13 @@ Pushed `cfa0ec1..f1cdce8` to `origin/main`. No tag placed per
 3. **Candidate E cassette corpus expansion** — EXHAUSTED at 30; no
    further +N without a plan-bound revision.
 4. **Candidate K-a Azurite-backed CI test** — **CLOSED at S33**
-   (`f1cdce8`). The permanent CI safety net now exists.
+   (`f1cdce8`). A **live-on-demand** net now exists — the test is
+   `@pytest.mark.live` + skip-by-default and is NOT in the canonical
+   16-path (Q-K-a.4 = Option 1). It guards `cost_journal_adls.py`
+   only when run under `-m live` in a Docker-capable environment,
+   NOT on the default test run. S34 must not over-trust it as
+   default-CI coverage; wiring it into a CI pipeline (`-m live` +
+   Docker in the runner) is a separate, un-done step.
 
 ──────── Tags state at S33 close ─────────────────────────────────
 

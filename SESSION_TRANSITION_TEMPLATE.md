@@ -70,8 +70,10 @@ Anchors for Session 34 cold start:
 (292 LOC; 1 `@pytest.mark.live` test) exercising ADLSCostJournal's
 full 5-step ETag-conflict matrix against the REAL `_AzureBlobBackend`
 (real azure-storage-blob 12.28.0 SDK) over a live Azurite blob
-emulator in Docker. Closes the carry-forward K-a as permanent
-defense-in-depth CI coverage for the concurrency carve-out. Single
+emulator in Docker. Closes the carry-forward K-a as **live-on-demand**
+(`-m live`, Docker-gated) defense-in-depth coverage for the
+concurrency carve-out — NOT default-CI coverage (the test is
+skip-by-default and absent from the canonical 16-path). Single
 commit `f1cdce8` (test file + a 3-line `live`-marker registration in
 pyproject.toml). No `src/` changes.
 
@@ -260,12 +262,16 @@ Session 34 starts cold by:
    whether to commission an S34 prompt between sessions or scope
    one at S34 open.
 
-6. **Azurite-backed CI test (K-a)** — CLOSED at S33. The permanent
-   CI safety net for `cost_journal_adls.py` now exists. NOTE for CI
-   wiring: the test needs Docker + the Azurite image available in
-   the runner, and it skips (does not fail) when they are absent;
-   register the `live` marker in the CI invocation (`-m live`) if a
-   pipeline should exercise it.
+6. **Azurite-backed CI test (K-a)** — CLOSED at S33, but as a
+   **live-on-demand** net, NOT default-CI. The test is
+   `@pytest.mark.live` + skip-by-default and is NOT in the canonical
+   16-path, so it guards `cost_journal_adls.py` only when explicitly
+   run under `-m live` in a Docker-capable environment. Wiring it
+   into an actual CI pipeline is a separate, **un-done** step: the
+   test needs Docker + the Azurite image in the runner, and it skips
+   (does not fail) when they are absent; the pipeline must invoke
+   `-m live` for it to fire. Do not over-trust it as automatic
+   churn protection until that wiring exists.
 
 ---
 
@@ -376,10 +382,22 @@ In this order:
     S30. Trace clean; behavior matches `DummyBlobBackend`.
 
 12. **Azurite-backed CI test for ADLSCostJournal** (Candidate
-    K-a) — **CLOSED S33** (`f1cdce8`). Permanent automated CI
-    coverage of the 5-step ETag matrix against real Azurite now
-    exists; the live test verifies the real `_AzureBlobBackend`
-    matches the in-memory `DummyBlobBackend`.
+    K-a) — **CLOSED S33** (`f1cdce8`). An automated 5-step-ETag-matrix
+    test against real Azurite now exists and verifies the real
+    `_AzureBlobBackend` matches the in-memory `DummyBlobBackend` —
+    but it is **live-on-demand** (`@pytest.mark.live`, skip-by-default,
+    absent from the canonical 16-path), so it only fires under
+    `-m live` in a Docker-capable environment. Default CI/test runs
+    do NOT exercise it; pipeline wiring (`-m live` + Docker) is a
+    separate un-done step. **Self-reproducing**: the
+    `--skipApiVersionCheck` flag (which absorbs the SDK-vs-Azurite
+    x-ms-version skew) is baked into the fixture's `docker run` args,
+    NOT a manual flag — confirmed at S33 close by a clean
+    from-no-container `-m live` run (`1 passed`). Disabling version
+    validation entirely (vs pinning) means future azure-storage-blob
+    upgrades cannot reintroduce the skew, and a failed container
+    start SKIPS rather than silently passing — so there is NO latent
+    version-skew gap for S34.
 
 13. **Recorder reject-before-write / min-content-bytes floor +
     is_waf_challenge "Client Challenge" signature** — parser/
