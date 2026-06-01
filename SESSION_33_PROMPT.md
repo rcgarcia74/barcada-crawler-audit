@@ -45,9 +45,12 @@ Carry-forward candidates entering S33:
   closed the mock-vs-prod divergence risk K-a would have
   permanently protected against. K-a is defense-in-depth ONLY; NOT
   on any critical path. Operator may still choose it if a permanent
-  CI safety net is desired for `cost_journal_adls.py` churn. **This
-  is the only self-contained code candidate available at S33** (A is
-  blocked; D is operator-led; E is exhausted).
+  CI safety net is desired for `cost_journal_adls.py` churn. K-a
+  is the only S33 candidate that doesn't depend on external
+  prereqs (A blocked, D operator-led, E exhausted), but per the
+  S30 LESSONS posture-validation note "self-contained" is not by
+  itself sufficient reason to ship — see Phase 1 for the carve-out
+  justification requirement.
 
 - **Cassette corpus expansion (Candidate E) — EXHAUSTED.** S32 grew
   the corpus to 30, the plan's stated upper bound (§4 W7
