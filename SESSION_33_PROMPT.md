@@ -404,6 +404,14 @@ print('OK expected.schema.json v1.1 (18-col stage3 shape)')
 
 ### Step 0.9 — S25-S30 invariants + S31 & S32 cassette-dir presence
 
+**First-run note**: the `/tmp/check_*.py` helper scripts in this
+step (the S28 AST check + the S29 smoke-import check) use the
+file-tool staging pattern per the S32 asymmetric-hook fold — the
+env hook blocks the inline `python -c` form when the source string
+contains `ast.parse` (S28) or references the smoke script's secrets
+surface (S32). If either script fails to stage or execute, HALT
+before proceeding.
+
 ```
 # Verify the S25-S30 deliverables match what landed at each
 # session's close, AND that the 5 S31 + 5 S32 cassette dirs exist.
@@ -567,21 +575,43 @@ In this order:
    landed during Candidate E continuation (1 artifact-only commit
    `cfa0ec1`). Documents the high-yield curation-DOWN-to-cap, the
    khanacademy WAF reject, the reuters robots-exclusion, the 4-media
-   front, and the 2 LESSONS folds.
+   front, and the LESSONS folds (2 at close + 1 post-close addendum
+   = 3 total).
 
-3. **`~/crawler-audit/LESSONS.md`** — the 3 `(S32 folding)`
-   sections (locate via `grep -n '^## .*(S32 folding)' LESSONS.md`):
-   - "Recording yield is category-driven, not pool-size-driven"
-   - "is_waf_challenge misses the 'Client Challenge' interstitial"
-   - "Reject-cassette cleanup is a two-step asymmetric pattern"
-     (CC `mv`-asides during session [load-bearing for fixture
-     counts]; operator-`!` deletes at close; hook blocks
-     `rm`/`rmtree`/`find -delete`).
-   Plus the 3 `(S31 folding)` sections if any future cassette work
-   is contemplated (requires a plan-ceiling revision first).
+3. **`~/crawler-audit/LESSONS.md`** — re-read LESSONS sections
+   relevant to the chosen candidate:
+   - **If Candidate A**: S29 prereq-audit fold + S22-S32
+     "Plan-vs-reality at Phase 2" + S29 LOC additive-overhead-floor
+     + AI/ML decision gating patterns.
+   - **If Candidate K-a**: S30 posture-validation fold
+     (operator-smoke closes mock-vs-prod; permanent CI optional)
+     + S24/S29/S30 public-API-only testing pattern.
+   - **If Candidate D**: minimal LESSONS dependency; rely on
+     operator labeling design.
+   - **Only if the operator elects plan-amendment to reopen E**:
+     the 3 S32 cassette folds AND the 3 S31 cassette folds
+     (locate via `grep -n '^## .*(S3[12] folding)' LESSONS.md`).
+   **Mandatory regardless of candidate**: the asymmetric reject-
+   cleanup pattern (S32 folding) — informs the env-hook constraint
+   on `rm -rf`/`find -delete` for any session, not just cassette
+   work.
 
-4. **`~/crawler-audit/BARCADA_CRAWLER_REMEDIATION_PLAN.md`** §
-   chosen-scope section. Plan is READ-ONLY.
+4. **`~/crawler-audit/BARCADA_CRAWLER_REMEDIATION_PLAN.md`** —
+   chosen-scope section per candidate:
+   - **If Candidate D**: §11 Risk Register (Stage 2/3 labeling
+     gates PR-D/E/F/G).
+   - **If Candidate K-a**: no dedicated plan section — K-a is
+     W A.2 defense-in-depth governed by the S30 LESSONS posture-
+     validation note, not the remediation plan; read the K-a
+     sources at item 6 instead.
+   - **If plan-amendment to reopen E**: §4 W7 (the "~20-30"
+     ceiling is the line that must be raised before any cassette
+     work).
+   Plan is READ-ONLY by default; the only exception is the
+   plan-amendment session shape, which has explicit operator
+   authorization to edit.
+   (Candidate A's plan anchor is `CLASSIFICATION_ADJACENT_PLAN.md`
+   §Item 8 — listed at item 5.)
 
 5. **`~/crawler-audit/CLASSIFICATION_ADJACENT_PLAN.md`** §Item 8
    — only if Candidate A (barcada-drift) is chosen.
@@ -599,13 +629,13 @@ section above (A blocked / D operator-led / E exhausted / K-a
 optional). S33 may have no clearly-actionable engineering scope
 without operator action. Then operator picks one candidate.
 
-### Two invocation shapes (S33 is the first session entering with an empty warm-candidate queue)
+### Three invocation shapes (S33 is the first session entering with an empty warm-candidate queue)
 
 Every session S19→S32 entered with at least one naturally-warm
 candidate. S33 does not (A blocked, D operator-led, E exhausted,
 K-a optional-only). The operator's scope decision can arrive in
-either of two shapes; this prompt supports BOTH — do not presuppose
-one:
+one of three shapes; this prompt supports ALL THREE — do not
+presuppose one:
 
 - **Decided before invocation (cleaner).** The operator names the
   candidate when commissioning S33. Phase 1 then CONFIRMS rather
@@ -683,8 +713,12 @@ media; ~2.5×N for commerce/consumer).
 
 **OPTIONAL** — the S30 K-b operator-smoke empirically closed the
 mock-vs-prod divergence risk K-a would have permanently protected
-against. Defense-in-depth only; NOT on any critical path. **The
-only self-contained code candidate available at S33.**
+against. Defense-in-depth only; NOT on any critical path. K-a is
+the only S33 candidate that doesn't depend on external prereqs
+(canary_runs parquets / operator labeling / plan-amendment), but
+whether to elect it depends on the carve-out justification per the
+S30 LESSONS posture-validation note; "self-contained" is not by
+itself sufficient reason to ship.
 
 **Operator should pick K-a only if** a forward-looking reason
 applies: `cost_journal_adls.py` will see frequent churn;
