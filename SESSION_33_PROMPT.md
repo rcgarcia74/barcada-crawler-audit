@@ -569,10 +569,14 @@ In this order:
    khanacademy WAF reject, the reuters robots-exclusion, the 4-media
    front, and the 2 LESSONS folds.
 
-3. **`~/crawler-audit/LESSONS.md`** — the 2 `(S32 folding)`
+3. **`~/crawler-audit/LESSONS.md`** — the 3 `(S32 folding)`
    sections (locate via `grep -n '^## .*(S32 folding)' LESSONS.md`):
    - "Recording yield is category-driven, not pool-size-driven"
    - "is_waf_challenge misses the 'Client Challenge' interstitial"
+   - "Reject-cassette cleanup is a two-step asymmetric pattern"
+     (CC `mv`-asides during session [load-bearing for fixture
+     counts]; operator-`!` deletes at close; hook blocks
+     `rm`/`rmtree`/`find -delete`).
    Plus the 3 `(S31 folding)` sections if any future cassette work
    is contemplated (requires a plan-ceiling revision first).
 
@@ -594,6 +598,44 @@ In this order:
 section above (A blocked / D operator-led / E exhausted / K-a
 optional). S33 may have no clearly-actionable engineering scope
 without operator action. Then operator picks one candidate.
+
+### Two invocation shapes (S33 is the first session entering with an empty warm-candidate queue)
+
+Every session S19→S32 entered with at least one naturally-warm
+candidate. S33 does not (A blocked, D operator-led, E exhausted,
+K-a optional-only). The operator's scope decision can arrive in
+either of two shapes; this prompt supports BOTH — do not presuppose
+one:
+
+- **Decided before invocation (cleaner).** The operator names the
+  candidate when commissioning S33. Phase 1 then CONFIRMS rather
+  than elicits: skip the candidate-choice AskUserQuestion; still
+  re-run the empirical prereq audit (for A: parquets + plist +
+  AI/ML; for K-a: capture the carve-out + Docker/Azurite
+  availability); proceed to that candidate's Phase 2 gate. If the
+  named choice is "reopen E", see the plan-amendment shape below.
+
+- **Decided at Phase 1 (more flexible).** S33 opens, Phase 0
+  verifies state, Phase 1 surfaces the empty-queue condition
+  explicitly and elicits the decision in-session via
+  AskUserQuestion. **Context-budget caveat**: a Phase 1 that
+  resolves to "plan amendment needed" or "no actionable scope" is
+  a session that does NOT ship engineering — it spends budget on
+  scope-resolution only. Surface that trade-off in the same
+  AskUserQuestion so the operator chooses with eyes open; if the
+  resolution is "nothing actionable", close at Phase 6 with the
+  decision recorded (a legitimate no-ship outcome, not a failure).
+
+- **Plan-amendment session shape (if the operator wants to reopen
+  E).** Reopening Candidate E requires first raising the §4 W7
+  "~20-30" ceiling in `BARCADA_CRAWLER_REMEDIATION_PLAN.md`, which
+  is READ-ONLY by default. That plan edit is itself the Phase 2/3
+  deliverable for such a session (explicit operator authorization
+  to edit the plan; document in SESSION_LOG.md per the remediation-
+  plan-read-only LESSONS). Only AFTER the ceiling is amended +
+  committed may a subsequent recording sub-surface proceed under
+  the proven S31/S32 mechanics. Do NOT record any cassette under
+  the current 30 ceiling.
 
 ### Candidate A — `barcada-drift` (depends on AI/ML alignment + ≥2 parquets)
 
@@ -1183,8 +1225,9 @@ plus the S32 disposition have been folded directly into this prompt
   unchanged), Step 0.4 (cassettes/exclusions 25 → **30**), Step 0.5
   (canonical 970), Step 0.9 (added the S32 +5 cassette-dir presence
   check; 10 dirs total).
-- **2 NEW LESSONS sections from S32** ("Recording yield is
-  category-driven"; "is_waf_challenge misses 'Client Challenge'")
+- **3 NEW LESSONS sections from S32** ("Recording yield is
+  category-driven"; "is_waf_challenge misses 'Client Challenge'";
+  "Reject-cassette cleanup is a two-step asymmetric pattern")
   referenced in the Verify-before-asking LESSONS list.
 - **Candidate E EXHAUSTED** (30 reached) folded into the
   carry-forward list + Phase 1 + Phase 2 (no E template; requires

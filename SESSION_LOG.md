@@ -7721,6 +7721,16 @@ Two `(S32 folding)` sections in LESSONS.md:
    extending the S31 curate-by-content lesson; parser-hygiene
    observation (no code fix — Candidate E was corpus, not tooling).
 
+POST-CLOSE ADDENDUM (operator feedback after the close-out push): a
+THIRD `(S32 folding)` section was added —
+**"Reject-cassette cleanup is a two-step asymmetric pattern"**: the
+env safety hook blocks `rm`/`rmtree`/`find -delete` from CC but
+allows `mv`; the correct lifecycle is CC `mv`-asides rejects to
+`/tmp` DURING the session (load-bearing — else they inflate the
+Phase 0 fixture count) + operator `! rm -rf` at close. Also folded
+into the S33 prompt's Verify-before-asking LESSONS list. (LESSONS.md
+now carries 3 `(S32 folding)` sections, not the 2 listed above.)
+
 Carry-forward non-reproduction: the S30→S31 carry-forward
 observations did not recur at S32 (S32 had its own single-candidate
 shape; no operator eval_data commits between S31 close and S32 open).

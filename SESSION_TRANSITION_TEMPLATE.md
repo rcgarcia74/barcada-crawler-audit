@@ -297,9 +297,10 @@ In this order:
    continuation narrative; per-cassette determinism + sidecar
    verification; high-yield curation-DOWN-to-cap; the khanacademy
    WAF reject + reuters robots-exclusion.
-3. **`LESSONS.md`** — the 2 new "S32 folding" sections
+3. **`LESSONS.md`** — the 3 new "S32 folding" sections
    (category-driven recording yield; is_waf_challenge "Client
-   Challenge" signature gap) PLUS the 3 "S31 folding" sections.
+   Challenge" signature gap; reject-cassette two-step asymmetric
+   cleanup pattern) PLUS the 3 "S31 folding" sections.
 4. **`BARCADA_CRAWLER_REMEDIATION_PLAN.md`** — chosen-scope
    section per Session 33 candidate choice. Plan is READ-ONLY.
 5. **`tools/synthetic_crawl/recorder.py` + `cli.py`** — only if a
