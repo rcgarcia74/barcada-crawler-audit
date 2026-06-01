@@ -1,9 +1,9 @@
-# Session Transition Template — Handoff from Session 32 → Session 33
+# Session Transition Template — Handoff from Session 33 → Session 34
 
 This file is the handoff document filled out at the end of one Claude
 Code session for the next session to read first. Overwritten at each
 transition (use git history to recover prior handoffs). Sessions 1-11
-are summarized in SESSION_LOG.md; Sessions 12-32 are in the most
+are summarized in SESSION_LOG.md; Sessions 12-33 are in the most
 recent SESSION_LOG.md entries.
 
 Pair this with the latest entry in `SESSION_LOG.md`, with
@@ -11,93 +11,102 @@ Pair this with the latest entry in `SESSION_LOG.md`, with
 `BARCADA_CRAWLER_REMEDIATION_PLAN.md` to start a session cold and
 be productive within ~10 minutes.
 
-**Session 33 invocation prompt:** NOT yet drafted at S32 close.
-Per S20→S32 precedent, prompt-drafting is operator-commissioned
-between sessions; operator decides whether to commission an S33
-prompt or scope one at S33 open. A drafted prompt should mirror the
-S20-S32 7-phase structure and pin: repo HEAD anchor `cfa0ec1`, tag
+**Session 34 invocation prompt:** NOT yet drafted at S33 close.
+Per S20→S33 precedent, prompt-drafting is operator-commissioned
+between sessions; operator decides whether to commission an S34
+prompt or scope one at S34 open. A drafted prompt should mirror the
+S20-S33 7-phase structure and pin: repo HEAD anchor `f1cdce8`, tag
 count `13`, canonical baseline `970`, Phase 0 Step 0.4
 `cassette_count == 30` / `exclusions_count == 30`, and a Step 0.9
-check that the 5 S31 + 5 S32 cassette dirs exist. Candidate set:
-A (blocked), D (gated on labeling), **E (EXHAUSTED at the plan's
-30 upper bound)**, K-a (OPTIONAL).
+check that the 5 S31 + 5 S32 cassette dirs exist AND the S33 Azurite
+test file is present.
 
-Anchors for Session 33 cold start:
-- Workspace HEAD: `4e89e08` (S32 primary close-out: SESSION_LOG.md
-  + SESSION_TRANSITION_TEMPLATE.md + LESSONS.md) + this anchor-pin
-  follow-up pinning the close-out SHA into this section.
-  S33 Phase 0 Step 0.1 MUST anchor workspace expectation to
-  `4e89e08` OR this anchor-pin follow-up OR a later
-  prompt-revision follow-up. Per S21-S32 LESSONS
-  pattern "Workspace HEAD delta tolerance": tolerate N additional
-  prompt-drafting / audit-correction commits between sessions;
-  verify each is consistent with that pattern before continuing.
-- Repo HEAD: `cfa0ec1` (S32 Candidate E continuation:
-  WA0.W7.cassettes-corpus-expansion; +5 nonprofit/media/education
-  cassettes; 25 → 30). Tolerated delta: operator-side eval_data
-  labeling commits between S32 close and S33 open (Sessions 8-32
-  precedent) — verify each is strictly `eval_data/*` via
-  `git show --stat`.
-- Canonical baseline: **970 tests** (16-path invocation;
-  UNCHANGED from S27-S32 close — cassette additions are
-  fixture-only and not exercised by any test in the invocation).
-- Narrower baseline (for candidates that don't exercise ADLS
-  test paths): **944 tests** (14-path; 970 minus 19
-  cost_journal_adls minus 7 robots_gate_integration). Unchanged.
-- **Fixture-count change at S32 (FLAGGED — S33 Phase 0 Step 0.4
-  assertion target)**: `tests/fixtures/synthetic_crawls/` grew
-  25 → 30 cassettes (+5 sidecars). The S33 Phase 0 Step 0.4 Python
-  rglob() check MUST assert **`cassette_count == 30`** and
-  **`exclusions_count == 30`** (NOT 25) — these are the exact
-  variable names in the Step 0.4 block; leaving them at `== 25`
-  HALTs S33 Phase 0 falsely. html=222 / expected=202 / meta=222 /
-  baseline=1213 unchanged.
+**IMPORTANT — S34 also opens with a near-empty warm-candidate
+queue.** With K-a now CLOSED (S33), the remaining carry-forwards are
+A (blocked), D (operator-led labeling), and E (EXHAUSTED — needs a
+plan-bound revision to reopen). NONE is on a critical path and NONE
+is self-contained the way K-a was. S34 may have no actionable
+engineering scope unless the operator unblocks A, begins D labeling,
+or authorizes a plan amendment to reopen E. Surface this at S34
+Phase 1 exactly as S33 did (the "empty warm-candidate queue"
+condition + the budget trade-off of a no-ship resolution).
+
+Anchors for Session 34 cold start:
+- Workspace HEAD: the S33 primary close-out commit (SESSION_LOG.md
+  + SESSION_TRANSITION_TEMPLATE.md + LESSONS.md) + 1-2 anchor-pin
+  follow-ups pinning the close-out SHA into this section. S34
+  Phase 0 Step 0.1 MUST anchor workspace expectation to the S33
+  close-out SHA OR a later prompt-revision follow-up. Per the
+  S21-S33 LESSONS pattern "Workspace HEAD delta tolerance":
+  tolerate N additional prompt-drafting / audit-correction commits
+  between sessions; verify each is consistent with that pattern
+  before continuing.
+- Repo HEAD: `f1cdce8` (S33 Candidate K-a:
+  WA2.W8.adls-azurite-ci-test; +1 Azurite-backed live test + a
+  3-line `live`-marker registration in pyproject.toml). Tolerated
+  delta: operator-side eval_data labeling commits between S33 close
+  and S34 open (Sessions 8-33 precedent) — verify each is strictly
+  `eval_data/*` via `git show --stat`.
+- Canonical baseline: **970 tests** (16-path invocation; UNCHANGED
+  from S27-S33 close). The S33 Azurite test is `@pytest.mark.live`
+  + skip-by-default and is NOT in the canonical invocation — it does
+  not affect the 970 headline.
+- Narrower baseline (for candidates that don't exercise ADLS test
+  paths): **944 tests** (14-path; 970 minus 19 cost_journal_adls
+  minus 7 robots_gate_integration). Unchanged.
+- Fixture counts (S34 Phase 0 Step 0.4): html=222 / expected=202 /
+  meta=222 / baseline=1213 / **`cassette_count == 30`** /
+  **`exclusions_count == 30`** — UNCHANGED from S33 (K-a was
+  test-code, not a cassette; no fixture change at S33).
 - Primary recommended scope: none — no carry-forward is on a
-  critical path. Candidate E is now EXHAUSTED (plan upper bound 30
-  reached). K-a (Azurite-backed CI test) remains OPTIONAL
-  (defense-in-depth only per the S30 posture-validation LESSONS
-  fold).
-- Carry-forward candidates: A (barcada-drift; blocked on
-  parquets + AI/ML), D (Phase 4 PR-D tooling; operator-led
-  labeling not yet begun), **E (EXHAUSTED at 30 — no further +N
-  without a plan-bound revision)**, K-a (Azurite-backed permanent
-  CI test; OPTIONAL).
+  critical path; none is self-contained now that K-a is closed.
+- Carry-forward candidates: A (barcada-drift; blocked on parquets +
+  AI/ML), D (Phase 4 PR-D tooling; operator-led labeling not yet
+  begun), E (EXHAUSTED at 30 — no further +N without a plan-bound
+  revision). **K-a is CLOSED (S33).**
 
-**S32 Candidate E continuation SHIPPED** — cassette corpus expanded
-25 → 30 with 5 nonprofit/media/education domains (propublica.org,
-apnews.com, c-span.org [media], eff.org [nonprofit], harvard.edu
-[education]), each 200-OK real content, robots-gated,
-byte-identical-replay verified, sidecar-shape-valid, zero exclusion
-flags. Single bundled artifact commit `cfa0ec1`. No src/ / tooling /
-.py changes. **Candidate E is now exhausted at the plan's 30 upper
-bound.**
+**S33 Candidate K-a SHIPPED** — added
+`tests/classifier/pipeline/test_cost_journal_adls_azurite.py`
+(292 LOC; 1 `@pytest.mark.live` test) exercising ADLSCostJournal's
+full 5-step ETag-conflict matrix against the REAL `_AzureBlobBackend`
+(real azure-storage-blob 12.28.0 SDK) over a live Azurite blob
+emulator in Docker. Closes the carry-forward K-a as permanent
+defense-in-depth CI coverage for the concurrency carve-out. Single
+commit `f1cdce8` (test file + a 3-line `live`-marker registration in
+pyproject.toml). No `src/` changes.
 
 ---
 
 ## Handoff metadata
 
-- Outgoing session number: 32
+- Outgoing session number: 33
 - Closing date: 2026-06-01
-- Outgoing session scope: Cassette corpus expansion continuation
-  (S32 Candidate E; 25 → 30). 1 artifact-only code commit
-  (`cfa0ec1`); 10 new fixture files (5 cassette.yaml + 5
-  extract_hard_exclusions.json sidecars), 2,739,094 bytes. LLM
-  spend: $0. Infrastructure: $0 (live HTTP GETs to public homepages
-  + robots.txt; no paid service).
-- Reason for transition: S32 single-candidate scope completed
-  cleanly; Candidate E shipped end-to-end Phase 0 → Phase 6 in a
-  single context window with no HALTs. No in-flight sub-surface.
+- Outgoing session scope: ADLSCostJournal Azurite-backed CI test
+  (S33 Candidate K-a). 1 code commit (`f1cdce8`); 1 new test file +
+  a 3-line pyproject marker registration. LLM spend: $0.
+  Infrastructure: $0 (local Docker + local Azurite emulator; no paid
+  Azure service touched). Docker Desktop was started locally
+  (`open -a Docker`) and the Azurite image (267 MB) pulled — both
+  remain on the operator's machine for re-runs.
+- Reason for transition: S33 single-candidate scope completed
+  cleanly; Candidate K-a shipped end-to-end Phase 0 → Phase 6 in a
+  single context window with no HALTs (one mid-implementation
+  test-failure on an Azure/Azurite version skew, fixed via
+  `--skipApiVersionCheck`; the failure validated the fixture's
+  unconditional teardown — no orphaned container). No in-flight
+  sub-surface.
 
 ---
 
 ## Repository state — `/Users/administrator/projects/barcada-scraper/`
 
 - Branch: `main`
-- Last commit SHA: `cfa0ec1` (WA0.W7.cassettes-corpus-expansion:
-  +5 nonprofit/media/education cassettes (S32 Candidate E; 25 → 30)).
+- Last commit SHA: `f1cdce8` (WA2.W8.adls-azurite-ci-test:
+  tests/classifier/pipeline/test_cost_journal_adls_azurite.py
+  (S33 Candidate K-a)).
 - Branch sync with `origin/main`: 0 ahead / 0 behind (pushed at
-  S32 close).
-- Tags (13 total; UNCHANGED from S30/S31 close):
+  S33 close).
+- Tags (13 total; UNCHANGED from S30/S31/S32 close):
   - `pre-remediation-2026-05-19` at `3cbb9b3`
   - `workstream-0-week1-end` at `4f9d23f`
   - `workstream-0-week2-end` at `e5d2f91`
@@ -113,147 +122,162 @@ bound.**
     (operator-side eval_data tag)
   - `workstream-stage1-step3-end` at `d4f06b8` (operator-side
     eval_data tag)
-- Pre-push gate state at HEAD `cfa0ec1`: VERIFIED GREEN at S32
-  close (ruff check "All checks passed!" + ruff format 353 files
-  + vermin 3.10 + validate_consistency 0 errors / 0 warnings).
-  The pre-push hook also re-ran all gates green on push.
-- Pre-S32 unstaged operator territory (Sessions 8-32 precedent):
+  - NOTE: `workstream-a-week2-end` was OFFERED at S33 (K-a as the
+    final W A.2 code milestone) but the operator DEFERRED it. If a
+    future session declares W A.2 closed, that annotated tag remains
+    appropriate.
+- Pre-push gate state at HEAD `f1cdce8`: VERIFIED GREEN at S33
+  close (ruff check "All checks passed!" + ruff format 354 files +
+  vermin 3.10 + validate_consistency 0 errors / 0 warnings; 532
+  stage1 rows OK). The pre-push hook also re-ran all gates green on
+  push.
+- Pre-S33 unstaged operator territory (Sessions 8-33 precedent):
   `eval_data/*` operator-WIP (`eval_data/stage1_labels.jsonl`
-  modified at S32 open/close) + `eval_data/audits/` (untracked)
+  modified at S33 open/close) + `eval_data/audits/` (untracked)
   + `.claude/scheduled_tasks.lock` (untracked) — all present at
-  S32 open and left unstaged; verify via `git status` at S33 open.
-  Repo HEAD was exactly `06d67c4` at S32 open (no tolerated
-  operator-side eval_data COMMIT in `06d67c4..HEAD`).
+  S33 open and left unstaged; verify via `git status` at S34 open.
+  Repo HEAD was exactly `cfa0ec1` at S33 open (no tolerated
+  operator-side eval_data COMMIT in `cfa0ec1..HEAD`).
 - Corpus: 222 .html fixtures (unchanged from S17 close).
 - 202 expected.json files (unchanged).
 - 222 meta.json files (unchanged).
-- **30 synthetic_crawl cassettes** (20 S20 + 5 S31 + 5 S32) + 30
-  extract_hard_exclusions sidecars. WAS 25/25 at S31 close.
-- MODIFIED Session 32 (1 artifact-only commit `cfa0ec1`):
-    - `tests/fixtures/synthetic_crawls/propublica.org/` (NEW)
-    - `tests/fixtures/synthetic_crawls/apnews.com/` (NEW)
-    - `tests/fixtures/synthetic_crawls/c-span.org/` (NEW)
-    - `tests/fixtures/synthetic_crawls/eff.org/` (NEW)
-    - `tests/fixtures/synthetic_crawls/harvard.edu/` (NEW)
-    - No `src/` changes. No test-suite changes. No tooling
-      changes. No `.py` changes.
-- (Unchanged from S31 close, all locked):
+- 30 synthetic_crawl cassettes (20 S20 + 5 S31 + 5 S32) + 30
+  extract_hard_exclusions sidecars (UNCHANGED — K-a added no
+  cassettes).
+- MODIFIED Session 33 (1 commit `f1cdce8`):
+    - `tests/classifier/pipeline/test_cost_journal_adls_azurite.py`
+      (NEW; 292 LOC; 1 `@pytest.mark.live` test + module-scoped
+      Azurite fixture + docker/readiness helpers).
+    - `pyproject.toml` (M; registered the `live` marker under
+      `[tool.pytest.ini_options]`, 3 lines).
+    - No `src/` changes. No cassette changes. No driver changes.
+- (Unchanged from S32 close, all locked):
     - All S21-S29 deliverables.
-    - The original 20 S20 cassettes at `7f11879` (UNTOUCHED;
-      Q-E.3 = keep-as-is at S31 + S32).
-    - The 5 S31 cassettes at `06d67c4` (UNTOUCHED).
-    - `cost_journal_adls.py` (S25 full backend at `835a531`).
+    - The original 20 S20 cassettes at `7f11879` (UNTOUCHED).
+    - The 5 S31 cassettes at `06d67c4` + 5 S32 cassettes at
+      `cfa0ec1` (UNTOUCHED).
+    - `cost_journal_adls.py` (S25 full backend at `835a531`;
+      EMPIRICALLY validated at S30 via the K-b smoke AND at S33 via
+      the Azurite live test).
     - `docs/CRAWLING_POLICY.md` (S26 doc at `2314f5e`; 77 lines /
       2519 bytes).
     - S27+S28 deliverables; S29 K-b script at `75a3937`.
-- Combined test suite at HEAD `cfa0ec1`:
+- Combined test suite at HEAD `f1cdce8`:
     - **970 passed / 0 failed / 0 skipped** with the canonical
-      16-path invocation (UNCHANGED — cassettes are fixture-only).
+      16-path invocation (UNCHANGED — the Azurite test is
+      live-marked + absent from the invocation).
     - **944 passed / 0 failed / 0 skipped** with the narrower
       14-path invocation (unchanged).
+    - **1 passed** for the OUT-OF-BAND live test
+      (`-m live tests/classifier/pipeline/test_cost_journal_adls_azurite.py`;
+      needs Docker + the Azurite image, else SKIPS).
     - **Stage 1 test counts**: 32 (16 test_run_cascade + 16
-      test_cost_tracker) — unchanged. Outside the canonical
-      16-path invocation.
+      test_cost_tracker) — unchanged. Outside the canonical 16-path.
 
 ---
 
 ## Workspace state — `/Users/administrator/crawler-audit/`
 
 - Branch: `main`
-- Last commit SHA at Session 32 start: `db79fe5` ("S32 prompt v2:
-  reviewer-findings application"; succeeds `2b7f2e4` anchor-pin,
-  which succeeds `b5f6bc5` S32 prompt draft). At S32 Phase 0 Step
-  0.1 the 2 commits ahead of `b5f6bc5` were tolerated under the
+- Last commit SHA at Session 33 start: `67431db` ("S33 prompt v2.1:
+  M-3 Scope-section K-a framing softened"; succeeds 1881e70 /
+  b713503 / ca17535 — all S33 prompt drafting + reviewer-findings +
+  S32 post-close feedback, atop `8f13c03`). At S33 Phase 0 Step 0.1
+  the 4 commits ahead of `8f13c03` were tolerated under the
   "Workspace HEAD delta tolerance" pattern (prompt-only edits).
-- Session 32 close-out workspace commits: 1 primary close-out
+- Session 33 close-out workspace commits: 1 primary close-out
   (SESSION_LOG.md + SESSION_TRANSITION_TEMPLATE.md + LESSONS.md)
   + 1-2 anchor-pin follow-ups (pinning the actual close-out SHA
-  into this template's Anchors section for S33).
-- **Last commit SHA at Session 32 CLOSE: this anchor-pin follow-up
-  succeeding the primary close-out `4e89e08`**. S33 Phase 0 Step
-  0.1 MUST anchor workspace expectation to `4e89e08` OR this
-  anchor-pin follow-up. Per S21-S32 LESSONS pattern: tolerate N
-  additional prompt-drafting / audit-correction commits between
-  sessions.
+  into this template's Anchors section for S34).
+- **Last commit SHA at Session 33 CLOSE: the anchor-pin follow-up
+  succeeding the primary close-out (SHA pinned by that follow-up).**
+  S34 Phase 0 Step 0.1 MUST anchor workspace expectation to the S33
+  close-out SHA OR a later follow-up. Per S21-S33 LESSONS pattern:
+  tolerate N additional prompt-drafting / audit-correction commits
+  between sessions.
 - Branch sync with `origin/main`: 0 ahead / 0 behind expected
-  after Session 32 close push.
+  after Session 33 close push.
 
 ---
 
-## Session 33 execution order (enforce strict sequence)
+## Session 34 execution order (enforce strict sequence)
 
 Same N-phase shape applies regardless of scope choice (Phase 0
 cold-start verify → Phase 1 scope → Phase 2 design-gate → Phase 3
 impl → Phase 4 pre-push → Phase 5 push+tag → Phase 6 close-out).
 Halt-on-mismatch at every phase; never bypass `--no-verify`.
 
-Session 33 starts cold by:
+Session 34 starts cold by:
 
 1. Reading this template (current handoff state).
-2. Reading the SESSION_LOG.md Session 32 entry (cassette-expansion
-   continuation narrative; per-cassette verification; the
-   high-yield curation-DOWN-to-cap result; the khanacademy WAF
-   reject).
-3. Reading LESSONS.md additions Session 32 landed (2 new sections,
-   "S32 folding" suffix: category-driven recording yield;
-   is_waf_challenge "Client Challenge" signature gap).
+2. Reading the SESSION_LOG.md Session 33 entry (K-a Azurite-test
+   narrative; the empty-warm-candidate-queue Phase 1; the version-
+   skew finding + `--skipApiVersionCheck` fix; the unconditional-
+   teardown validation).
+3. Reading LESSONS.md additions Session 33 landed (1 new section,
+   "S33 folding" suffix: live-emulator fixture teardown + SDK-vs-
+   emulator version skew + the carve-out/baseline-re-pin meta-pattern).
 4. Reading the relevant section of BARCADA_CRAWLER_
-   REMEDIATION_PLAN.md for the chosen Session 33 scope.
-5. Reading the Session 33 prompt if one has been drafted, OR
-   commissioning a fresh draft at S33 open.
-6. Running Phase 0 cold-start verification (mirror the S32 prompt's
+   REMEDIATION_PLAN.md for the chosen Session 34 scope.
+5. Reading the Session 34 prompt if one has been drafted, OR
+   commissioning a fresh draft at S34 open.
+6. Running Phase 0 cold-start verification (mirror the S33 prompt's
    9-step shape, updating workspace HEAD anchor, repo HEAD anchor
-   `cfa0ec1`, tag count `13`, canonical baseline `970`, and the
-   **cassette fixture-count `30` / exclusions `30`**).
+   `f1cdce8`, tag count `13`, canonical baseline `970`, cassette
+   fixture-count `30` / exclusions `30`, AND a Step 0.9 presence
+   check for the S33 Azurite test file).
 
 ---
 
-## Outstanding operator-input requests entering Session 33
+## Outstanding operator-input requests entering Session 34
 
-1. **Session 33 scope choice** — pick from the carry-forwards in
-   "Notes for Session 33" below. **Candidate E is now EXHAUSTED**
-   (the plan's 30 upper bound is reached); no further cassette
-   expansion without an explicit plan-bound revision. None of
-   A/D/K-a is on a critical path.
+1. **Session 34 scope choice** — pick from the carry-forwards in
+   "Notes for Session 34" below. **K-a is CLOSED (S33).** Candidate
+   E is EXHAUSTED (30 upper bound). None of A/D is on a critical
+   path; both need operator action to become actionable. S34 may be
+   a no-ship scope-resolution session — surface that at Phase 1.
 
 2. **Eval_data labeling continuity** — operator-WIP edits to
-   `eval_data/*` continue across sessions (Sessions 8-32
-   precedent). At S32 open the repo HEAD was exactly `06d67c4`
-   (no new operator-side eval_data COMMIT since S31 close),
+   `eval_data/*` continue across sessions (Sessions 8-33
+   precedent). At S33 open the repo HEAD was exactly `cfa0ec1`
+   (no new operator-side eval_data COMMIT since S32 close),
    with `eval_data/stage1_labels.jsonl` WIP + `eval_data/audits/`
    untracked.
 
-3. **barcada-drift AI/ML alignment** — unchanged from S21-S32
+3. **barcada-drift AI/ML alignment** — unchanged from S21-S33
    handoffs. 4 AI/ML team decisions need pre-resolution OR
    placeholders, plus 2+ canary_runs parquet files.
 
 4. **launchd kit installation** — unchanged. Operator should run
    `scripts/launchd/install_canary_schedule.sh` when ready to
    enable the weekly Saturday canary job. Required prerequisite
-   for Candidate A. **As of S32 close, NOT yet installed**
-   (verified via `~/Library/LaunchAgents/` check during S32
+   for Candidate A. **As of S33 close, NOT yet installed**
+   (verified via `~/Library/LaunchAgents/` check during S33
    Phase 1 prerequisite audit: 0 barcada/canary plists; 0
    canary_runs parquets on disk).
 
-5. **Session 33 prompt draft commissioning** — operator decides
-   whether to commission an S33 prompt between sessions or scope
-   one at S33 open.
+5. **Session 34 prompt draft commissioning** — operator decides
+   whether to commission an S34 prompt between sessions or scope
+   one at S34 open.
 
-6. **Live Azure smoke for ADLSCostJournal** — CLOSED at S30
-   end-to-end. K-a Azurite-backed permanent CI test remains
-   OPTIONAL defense-in-depth.
+6. **Azurite-backed CI test (K-a)** — CLOSED at S33. The permanent
+   CI safety net for `cost_journal_adls.py` now exists. NOTE for CI
+   wiring: the test needs Docker + the Azurite image available in
+   the runner, and it skips (does not fail) when they are absent;
+   register the `live` marker in the CI invocation (`-m live`) if a
+   pipeline should exercise it.
 
 ---
 
-## Notes for Session 33
+## Notes for Session 34
 
-Suggested S33 scope candidates (operator picks at S33 open):
+Suggested S34 scope candidates (operator picks at S34 open):
 
 ### Candidate A (carry-forward): `barcada-drift` skeleton
 
 Unchanged. Per CLASSIFICATION_ADJACENT_PLAN.md §Item 8. Consumes
 `canary_runs/<date>.parquet` artifacts. **Blocked**: 2+ parquet
-files needed AND 4 AI/ML decisions (or placeholders). As of S32
+files needed AND 4 AI/ML decisions (or placeholders). As of S33
 close: launchd installer not yet run; 0 canary_runs parquets on
 disk; no AI/ML responses in workspace. Estimated ~300 LOC logic +
 ~70-100 LOC overhead floor ≈ ~370-400 LOC delivered.
@@ -271,61 +295,61 @@ The cassette corpus reached the plan's **30 upper bound** at S32
 (`tests/fixtures/synthetic_crawls/` = 20 S20 + 5 S31 + 5 S32). The
 plan §4 W7 cites "~20-30 representative domains"; 30 is the stated
 ceiling. **No further +N is available without an explicit
-plan-bound revision.** If the operator wants more cassettes in a
-future session, that requires a Phase 2 (or plan) decision to
-raise the bound first. Recording mechanics remain proven (S31+S32);
-the S32 LESSONS refine pool-sizing to be category-driven.
+plan-bound revision.** If the operator wants more cassettes, that
+requires a Phase 2 (or plan) decision to raise the bound first.
+Recording mechanics remain proven (S31+S32); the S32 LESSONS refine
+pool-sizing to be category-driven.
 
-### Candidate K-a (carry-forward; OPTIONAL since S30)
+### Candidate K-a (CLOSED at S33)
 
-Per the S30-folded posture-validation LESSONS note: the K-b
-operator-smoke (executed S30, trace clean) empirically closed the
-mock-vs-prod divergence risk that K-a would have permanently
-protected against. K-a is defense-in-depth only. Cost: ~50-100
-LOC logic + ~70-100 LOC overhead floor ≈ ~120-200 LOC delivered
-+ Docker setup + a 17th canonical path. No critical-path
-justification at S33 open.
+SHIPPED at `f1cdce8` — the Azurite-backed live integration test now
+exists. Not a carry-forward. If future churn in `cost_journal_adls.py`
+warrants broader live coverage (e.g., lease/SAS paths beyond the
+5-step ETag matrix), that would be a NEW candidate, scoped fresh.
 
 ---
 
-## Required reading (Session 33 first 10 minutes)
+## Required reading (Session 34 first 10 minutes)
 
 In this order:
 
 1. **This template** (current handoff state).
-2. **`SESSION_LOG.md`** Session 32 entry — cassette-expansion
-   continuation narrative; per-cassette determinism + sidecar
-   verification; high-yield curation-DOWN-to-cap; the khanacademy
-   WAF reject + reuters robots-exclusion.
-3. **`LESSONS.md`** — the 3 new "S32 folding" sections
-   (category-driven recording yield; is_waf_challenge "Client
-   Challenge" signature gap; reject-cassette two-step asymmetric
-   cleanup pattern) PLUS the 3 "S31 folding" sections.
+2. **`SESSION_LOG.md`** Session 33 entry — K-a Azurite-test
+   narrative; the empty-warm-candidate-queue Phase 1; the
+   version-skew finding + `--skipApiVersionCheck` fix; the
+   unconditional-teardown validation; the carve-out + baseline re-pin.
+3. **`LESSONS.md`** — the new "S33 folding" section (live-emulator
+   fixture teardown + SDK-vs-emulator version skew + the
+   carve-out/baseline-re-pin meta-pattern) PLUS the 3 "S32 folding"
+   and 3 "S31 folding" sections if a live-HTTP or live-service scope
+   is chosen.
 4. **`BARCADA_CRAWLER_REMEDIATION_PLAN.md`** — chosen-scope
-   section per Session 33 candidate choice. Plan is READ-ONLY.
-5. **`tools/synthetic_crawl/recorder.py` + `cli.py`** — only if a
-   future session raises the cassette bound (E is otherwise
-   exhausted); record/replay mechanics; single `--domain` per
-   invocation; robots gate; sidecar writer.
-6. **`CLASSIFICATION_ADJACENT_PLAN.md`** §Item 8 — only if
+   section per Session 34 candidate choice. Plan is READ-ONLY
+   (exception: a plan-amendment session to reopen E, with explicit
+   operator authorization).
+5. **`CLASSIFICATION_ADJACENT_PLAN.md`** §Item 8 — only if
    Candidate A is chosen.
+6. **`tools/synthetic_crawl/recorder.py` + `cli.py`** — only if a
+   future session raises the cassette bound (E is otherwise
+   exhausted).
 7. **`src/barcada_scraper/classifier/pipeline/cost_journal_adls.py`**
-   + **`scripts/smoke_test_adls_cost_journal.py`** — only if
-   Candidate K-a is chosen.
+   + **`tests/classifier/pipeline/test_cost_journal_adls_azurite.py`**
+   + **`scripts/smoke_test_adls_cost_journal.py`** — only if a new
+   ADLS-surface scope is chosen.
 
 ---
 
-## Outstanding items carried forward to Session 33+
+## Outstanding items carried forward to Session 34+
 
 1. **Per-tier cost-accounting wiring** — CLOSED end-to-end S28.
    All 8 `_TOTALS_FIELDS` slots wired. Unchanged.
 
 2. **`barcada-drift` CLI** — §Item 8; 4 AI/ML decisions + 2+
-   parquets outstanding. Re-verified empirically at S32 Phase 1:
+   parquets outstanding. Re-verified empirically at S33 Phase 1:
    0 canary_runs parquets, 0 plist, no AI/ML responses.
 
-3. **Cassette corpus expansion** — **EXHAUSTED at 30** (S32 hit
-   the plan upper bound). No further +N without a plan revision.
+3. **Cassette corpus expansion** — EXHAUSTED at 30 (S32 hit the
+   plan upper bound). No further +N without a plan revision.
 
 4. **Cassette-FP investigation** — archive.org + hashicorp.com
    (SaaS/SPA-shell `empty_page`) + stripe.com (WAF) flagged in
@@ -352,7 +376,10 @@ In this order:
     S30. Trace clean; behavior matches `DummyBlobBackend`.
 
 12. **Azurite-backed CI test for ADLSCostJournal** (Candidate
-    K-a) — carry-forward; OPTIONAL (defense-in-depth only).
+    K-a) — **CLOSED S33** (`f1cdce8`). Permanent automated CI
+    coverage of the 5-step ETag matrix against real Azurite now
+    exists; the live test verifies the real `_AzureBlobBackend`
+    matches the in-memory `DummyBlobBackend`.
 
 13. **Recorder reject-before-write / min-content-bytes floor +
     is_waf_challenge "Client Challenge" signature** — parser/
@@ -362,13 +389,14 @@ In this order:
 
 ---
 
-## Locked artifact reminders for Session 33
+## Locked artifact reminders for Session 34
 
-Carry-forward from Sessions 8-32. **NEW S32 lock**: the 5 new
-cassette dirs under `tests/fixtures/synthetic_crawls/`
-(propublica.org / apnews.com / c-span.org / eff.org / harvard.edu)
-at `cfa0ec1` (artifact-only fixtures; do NOT re-record or delete
-without Phase 2 authorization).
+Carry-forward from Sessions 8-33. **NEW S33 lock**:
+`tests/classifier/pipeline/test_cost_journal_adls_azurite.py` at
+`f1cdce8` (292 LOC; 1 `@pytest.mark.live` test + module-scoped
+Azurite fixture) AND the `live` marker registration in
+`pyproject.toml` `[tool.pytest.ini_options]`. Do NOT modify without
+Phase 2 authorization.
 
 - `eval_data/` — labeling-workstream territory. Operator-WIP
   edits across sessions are expected. Pre-push validate_
@@ -386,7 +414,7 @@ without Phase 2 authorization).
   eval_data-only commits. Treat as operator-domain markers.
 - `tests/runners/fixture_cascade/` — W4.1.5 driver area; locked
   at `dd64963` except via W5.X-prefix commits (S27 at `a1c5636`,
-  S28 at `9afde57` + `ae9e627` — all LOCKED). S29-S32 did NOT
+  S28 at `9afde57` + `ae9e627` — all LOCKED). S29-S33 did NOT
   touch this surface.
 - `tests/fixtures/baseline-v0/` snapshot — locked at `9e9a1fb`.
 - `tools/baseline_v0/` (check.py, generate.py, determinism.py,
@@ -404,7 +432,7 @@ without Phase 2 authorization).
   `ba87e7e`. `src/barcada_scraper/scraper/robots_bypass_config.py`
   — S22; locked at `381ee89`. Plus their test files.
 - `src/barcada_scraper/classifier/pipeline/cost_journal.py` —
-  S22-extended at `1d9404e`. S27-S32 consumed the public API
+  S22-extended at `1d9404e`. S27-S33 consumed the public API
   without modification.
 - `src/barcada_scraper/classifier/pipeline/cost_journal_local.py`
   — production local-FS backend; locked.
@@ -412,10 +440,14 @@ without Phase 2 authorization).
   — full backend at S25 SHA `835a531`. Public API:
   `ADLSCostJournal(journal_dir, run_id, credential=None,
   blob_backend=None)` with read / write_initial / try_update /
-  exists / path. Locked. EMPIRICALLY VALIDATED at S30 against
-  real Azure via the K-b script.
+  exists / path. Locked. EMPIRICALLY VALIDATED at S30 (K-b live
+  smoke) AND at S33 (Azurite live integration test). The S33 test
+  injects the production `_AzureBlobBackend` via the public
+  `blob_backend=` seam; it did NOT modify the module.
 - `tests/classifier/pipeline/test_cost_journal_adls.py` — 19
-  tests locked at `835a531`. Includes `DummyBlobBackend`.
+  in-memory tests locked at `835a531`. Includes `DummyBlobBackend`.
+- `tests/classifier/pipeline/test_cost_journal_adls_azurite.py` —
+  S33 live test locked at `f1cdce8` (see NEW S33 lock above).
 - `docs/CRAWLING_POLICY.md` — S26 SHA `2314f5e` (77 lines /
   2.52 KB). Changes require Phase 2 design-gate authorization.
 - `src/barcada_scraper/orchestrator/robots_integration.py` — S23;
@@ -447,17 +479,21 @@ without Phase 2 authorization).
 - S29 LOCK: `scripts/smoke_test_adls_cost_journal.py` at
   `75a3937` (220 LOC). LOCKED — modifications require Phase 2
   authorization.
+- `pyproject.toml` — NOT a locked artifact, but the S33 `live`
+  marker registration under `[tool.pytest.ini_options]` is
+  load-bearing for the Azurite test's `-m live` selection; do not
+  remove it.
 - Production code under `src/barcada_scraper/` — locked unless
   Phase 2 design-gate explicitly authorizes a specific module.
   S21+S22+S23+S24+S25+S28 authorized the modules listed in prior
-  handoffs. S26 + S27 + S29 + S30 + S31 + **S32** added NO new
-  src/ authorizations (S31 + S32 were fixture-only).
+  handoffs. S26 + S27 + S29 + S30 + S31 + S32 + **S33** added NO
+  new src/ authorizations (S33 was a test-only ship).
 - All `.claude/rules/*.md` and `CLAUDE.md` — operator preferences;
   honored every commit.
 
 ---
 
-## Combined-suite-at-Session-33-open baseline
+## Combined-suite-at-Session-34-open baseline
 
 Canonical (16 paths):
 
@@ -482,40 +518,48 @@ Canonical (16 paths):
 # Expected: 970 passed / 0 failed / 0 skipped
 ```
 
-Sub-totals identical to S27-S32 close: 210 conformance + 52 driver
+Sub-totals identical to S27-S33 close: 210 conformance + 52 driver
 + 99 baseline_v0 + 33 synthetic_crawl + 32 robots + 30 robots_gate
 + 30 robots_bypass_config + 43 cost_journal + 13 cost_journal_local
 + 19 cost_journal_adls + 35 robots_integration + 74 vmss_worker +
 129 job_runner + 152 worker_loop + 7 robots_gate_integration + 12
-worker_loop_persistence = 970. (S31's + S32's cassette additions
-are fixture-only; the 33 synthetic_crawl tests are hermetic and do
-not exercise committed cassettes — the canonical count is
-unchanged.)
+worker_loop_persistence = 970. (The S33 Azurite test is live-marked
++ skip-by-default and is NOT in this invocation; the canonical count
+is unchanged.)
+
+OUT-OF-BAND live test (NOT in the canonical count; needs Docker +
+the Azurite image, else SKIPS):
+
+```
+.venv/bin/python -m pytest \
+    tests/classifier/pipeline/test_cost_journal_adls_azurite.py -m live
+# Expected: 1 passed
+```
 
 Cumulative-test-count gate: the count NEVER decreases between
 commit boundaries.
 
-Narrower baselines (still valid for S33 candidates that don't
+Narrower baselines (still valid for S34 candidates that don't
 exercise the ADLS test paths):
 - 480 (S22 headline suite; no orchestrator/, no journal)
 - 538 (S22 headline + journal-suite)
-- 944 (S27-S32-equivalent narrower; canonical 16-path minus 19
+- 944 (S27-S33-equivalent narrower; canonical 16-path minus 19
   cost_journal_adls minus 7 robots_gate_integration)
 
-**Fixture-count assertions for S33 Phase 0 Step 0.4**: html_count=222,
+**Fixture-count assertions for S34 Phase 0 Step 0.4**: html_count=222,
 expected_count=202, meta_count=222, baseline_count=1213,
-**`cassette_count == 30`, `exclusions_count == 30`** (WAS 25/25
-at S31 close; S32 added 5).
+**`cassette_count == 30`, `exclusions_count == 30`** (UNCHANGED from
+S33 — K-a added no cassettes).
 
 Choose at Phase 0 Step 0.5 per Candidate selection.
 
 ---
 
-## Pre-push gate at Session 33 open
+## Pre-push gate at Session 34 open
 
 ```
 .venv/bin/ruff check .                                   # All checks passed!
-.venv/bin/ruff format --check .                          # 353+ files OK
+.venv/bin/ruff format --check .                          # 354+ files OK
 git ls-files '*.py' | xargs .venv/bin/vermin --target=3.10
                                                          # Minimum required 3.10
 .venv/bin/python eval_data/scripts/validate_consistency.py
@@ -524,24 +568,24 @@ git ls-files '*.py' | xargs .venv/bin/vermin --target=3.10
 
 Note on gate 4: validate_consistency runs against working-tree
 state; if operator-WIP in eval_data introduces a schema violation
-between S32 close and S33 open, the gate will block even though
-no S33 commit touches eval_data. Per LESSONS: surface to operator
+between S33 close and S34 open, the gate will block even though
+no S34 commit touches eval_data. Per LESSONS: surface to operator
 with the row+detail, propose operator-fix or stash-and-restore;
 do NOT auto-fix.
 
-S32 ran the gate clean at Phase 4 (0 errors / 0 warnings / PASS;
+S33 ran the gate clean at Phase 4 (0 errors / 0 warnings / PASS;
 532 stage1 rows OK), including the pre-push hook re-run on push.
 The S28 transient "1 error" curiosity did NOT reproduce in
-S29/S30/S31/S32. LESSONS-worthy if it reproduces in S33+.
+S29/S30/S31/S32/S33. LESSONS-worthy if it reproduces in S34+.
 
 ---
 
 ## Context-window awareness
 
-Session 32 ran Phase 0 → Phase 6 in a single context window with
-1 artifact-only commit (15 live-HTTP recordings + curation-down-to-5
-+ 1 commit + Phase 6 close-out), within budget. Session 33 budget
-per chosen candidate:
+Session 33 ran Phase 0 → Phase 6 in a single context window with
+1 test-only commit (Phase 0 verify + Docker/Azurite setup + 1 test
+file + 1 mid-impl version-skew fix + Phase 6 close-out), within
+budget. Session 34 budget per chosen candidate:
 
 - Candidate A (barcada-drift): only if launchd job has run ≥2
   times AND AI/ML decisions ready. ~370-400 LOC delivered (per
@@ -549,59 +593,55 @@ per chosen candidate:
 - Candidate D (Phase 4 PR-D tooling): operator-led; tooling only.
 - Candidate E: EXHAUSTED at 30; not available without a plan-bound
   revision.
-- Candidate K-a (Azurite-backed integration test): ~120-200 LOC
-  delivered + Docker setup. OPTIONAL; no critical-path
-  justification.
+- (K-a is CLOSED — not a candidate.)
 
-Strategies (unchanged from S20-S32 prompts):
+Strategies (unchanged from S20-S33 prompts):
 - Use Edit over Write for small additions.
 - Delegate multi-file design-of-record analysis to Explore.
+- For any live-service-backed test (Azurite/LocalStack/DB
+  container), default to the S33 fixture shape: unconditional
+  try/finally teardown + idempotent self-healing pre-clean +
+  skip-if-unavailable; expect an SDK-vs-emulator version-skew flag
+  may be needed; keep the test off the canonical headline (live
+  marker, skip-by-default) unless a deliberate decision adds it.
 - For any live-HTTP corpus work, RECORD BROAD then CURATE BY
-  CONTENT (S31/S32 pattern): expect 403/WAF + ReadTimeout rejects;
-  keep only 200-OK real-content cassettes; verify byte-identical
-  replay + sidecar shape + empty exclusion reasons before commit.
-  Per the S32 fold: size the pool to the category mix (~1.1×N for
-  low-WAF .edu/foundation/public-affairs-media; ~2.5×N for
-  commerce/consumer); inspect title+visible-text, not just sidecar
-  flags (is_waf_challenge missed khanacademy's "Client Challenge").
+  CONTENT (S31/S32 pattern); size the pool to the category mix.
 - Source-verify line numbers per Phase 3 commit (S23 LESSONS).
-- Test against public API surface only (S24 LESSONS; S29/S30
-  extensions).
+- Test against public API surface only (S24 LESSONS; S29/S30/S33
+  extensions — the S33 live test used the public `blob_backend=`
+  seam to inject the production backend).
 - Source-verify facts behind option-set design BEFORE
-  AskUserQuestion drafts (S25 LESSONS; S28/S29/S31/S32 demonstrated).
+  AskUserQuestion drafts (S25 LESSONS; S28-S33 demonstrated).
 - Grep for same-shape tests outside the allowlist at Phase 0
   (S25 LESSONS).
 - At Phase 2, count Q-* option sets; tier or split if >4 options
   (S26 LESSONS).
 - Phase 0 fixture-count commands use the Python `rglob()` pattern,
   NOT bare `find` (S28 post-close LESSONS).
-- For new wrapper-class + external-service surfaces, default to
-  operator-smoke (K-b) posture, not permanent CI (K-a) — S30
-  LESSONS.
 
 Self-monitor cadence:
 - Report estimated context usage at ~30%, ~60%.
-- If usage crosses ~70% before chosen S33 scope closes,
+- If usage crosses ~70% before chosen S34 scope closes,
   transition per "no mid-commit-batch transitions".
 
 ---
 
 ## Reporting in chat at session close
 
-Same pattern as Sessions 13-32:
+Same pattern as Sessions 13-33:
 
-1. Commit SHA(s) of each Session 33 sub-surface.
+1. Commit SHA(s) of each Session 34 sub-surface.
 2. Sub-surfaces landed.
-3. Test count delta: 970 baseline → S33 close.
+3. Test count delta: 970 baseline → S34 close.
 4. Driver suite count (52/52 expected unless realigned).
 5. Files touched per surface.
 6. Tag dispositions (Workstream 0 closed at S27; W A.1 closed at
-   S22's workstream-a-week1-end; W A.2 milestones depend on
-   completion).
+   S22's workstream-a-week1-end; W A.2 final-milestone tag
+   `workstream-a-week2-end` OFFERED+DEFERRED at S33).
 7. Carry-forward dispositions.
 8. Any spend (LLM, infrastructure).
 9. Any new LESSONS patterns to fold in.
 
 ---
 
-End of Session 32 handoff template. Refill at Session 33 close.
+End of Session 33 handoff template. Refill at Session 34 close.

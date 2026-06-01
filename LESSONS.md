@@ -2805,3 +2805,63 @@ that.
 during-session (tree held at exactly 30 cassettes for the commit);
 operator ran `! rm -rf /tmp/s32_rejects` at close (CC's `rm -rf` and
 `find -delete` both hook-blocked).
+
+## A live-emulator fixture must tear down on setup-phase failure, and SDK-vs-emulator version skew is real (S33 folding)
+
+When a test drives a real SDK against a containerized emulator
+(S33: ADLSCostJournal's real `_AzureBlobBackend` against Azurite in
+Docker), two failure modes bite that an in-memory dummy never shows.
+
+**1. Teardown must be unconditional across the WHOLE setup, not
+post-yield.** A pytest fixture that does `docker run` then `yield`
+then cleanup leaks the container if anything between `docker run`
+and `yield` raises (a readiness-timeout, a port bind error). The
+post-yield cleanup is skipped because the generator never reached
+the yield. Wrap the entire setup+yield in `try/finally` (or register
+`request.addfinalizer` immediately after the container is created),
+gated on a `started` flag so cleanup only runs when the container
+actually came up. Add an idempotent `docker rm -f <fixed-name>`
+pre-clean before start so a leak from a prior crashed run self-heals
+rather than colliding on the name/port.
+
+  **Empirical anchor**: S33's first run FAILED mid-matrix (see #2);
+  the post-failure `docker ps -a --filter name=...` was EMPTY — the
+  try/finally teardown worked exactly as the operator's pre-impl
+  feedback required. A naive teardown-after-yield would have orphaned
+  a container on port 10000 and broken the next run.
+
+**2. The SDK can advertise an `x-ms-version` the emulator doesn't
+whitelist.** azure-storage-blob 12.28.0 sent `x-ms-version:
+2026-02-06`; the pulled Azurite build rejected it with
+`InvalidHeaderValue`. The SDK's api_version is pinned inside the
+LOCKED production `_AzureBlobBackend`, so the fix belongs on the
+emulator side: pass Azurite's documented `--skipApiVersionCheck`
+flag. The ETag 409/412 semantics under test are unaffected by the
+flag — it only relaxes version negotiation, which is exactly the
+divergence-irrelevant axis. When an integration test against an
+emulator fails on a header/version mismatch, prefer the emulator-
+side compatibility flag over touching locked SDK-config code.
+
+**3. Meta-pattern — a "self-contained" optional candidate still
+needs a named carve-out to ship.** Per the S30 posture-validation
+note, K-a being the only prereq-free S33 candidate is NOT by itself
+a reason to ship a permanent CI test. The operator supplied the
+carve-out ("concurrency coverage") AND re-pinned the Phase 1
+baseline to **970 (Option 1)** — marking the new test
+`@pytest.mark.live` + skip-by-default rather than adding a 17th
+canonical path — so the canonical headline stayed stable and the
+cumulative-test-count gate held at 970 with the live test verified
+out-of-band.
+
+**Why it matters**: a future session adding any live-service-backed
+test (Azurite, LocalStack, a DB container) should default to the
+unconditional-teardown + self-healing-pre-clean + skip-if-unavailable
+shape, expect a version-skew flag may be needed, and keep the test
+off the canonical headline (live marker, skip-by-default) unless a
+deliberate decision adds it to the invocation.
+
+**Empirical anchor**: S33 `f1cdce8` —
+`tests/classifier/pipeline/test_cost_journal_adls_azurite.py`
+(292 LOC; 1 live test) + a 3-line `live`-marker registration in
+pyproject.toml; canonical 16-path held at 970; live test
+`1 passed in 2.54s` against the Azurite 267 MB image.

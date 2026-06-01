@@ -7736,3 +7736,222 @@ observations did not recur at S32 (S32 had its own single-candidate
 shape; no operator eval_data commits between S31 close and S32 open).
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+
+## Session 33 — 2026-06-01 — ADLSCostJournal Azurite-backed CI test (Candidate K-a)
+
+──────── Scope shipped ───────────────────────────────────────────
+
+Candidate K-a per the S33 prompt Phase 1 scope choice. Added a
+permanent, automated, Docker-backed integration test that exercises
+`ADLSCostJournal`'s full 5-step ETag-conflict matrix against the
+REAL `_AzureBlobBackend` (real azure-storage-blob 12.28.0 SDK) over
+a live Azurite blob emulator — closing carry-forward K-a as
+defense-in-depth CI coverage for the **concurrency carve-out**.
+**One code commit** — `f1cdce8` (1 new test file + a 3-line
+pyproject marker registration). First S33-shape engineering ship
+after an empty-warm-candidate-queue Phase 1.
+
+Repo HEAD: `cfa0ec1` (S32 close) → exact at S33 open (no tolerated
+operator-side commits in `cfa0ec1..HEAD`) → `f1cdce8` at S33 close.
+
+──────── Phase 0 cold-start verification ─────────────────────────
+
+All steps green at S33 open:
+- 0.1 ✓ Workspace HEAD `67431db` (4 prompt-doc commits ahead of
+  `8f13c03`: ca17535/b713503/1881e70/67431db — all S33 prompt
+  drafting + reviewer-findings + S32 post-close feedback;
+  prompt-revision-class per the Step 0.1 tolerance). Repo HEAD
+  `cfa0ec1` (exact; no eval_data commits since S32).
+- 0.2 ✓ 13 tags (unchanged); `workstream-0-end` at `a1c5636`.
+- 0.3 ✓ Driver-lock diff empty outside the 3 W5.X-authorized files.
+- 0.4 ✓ Fixture counts via Python rglob(): html=222, expected=202,
+  meta=222, baseline=1213, **cassettes=30, exclusions=30** (the S32
+  +5 advance asserted correctly).
+- 0.5 ✓ Canonical 970/0/0 in 74.73s.
+- 0.6 ✓ manifest.json (baseline-v0/0.1.0; 202 fixtures; driver_sha
+  prefix `521e363`); expected.schema.json v1.1 (18-col stage3).
+- 0.7 ✓ baseline_v0 CLI (3 subcommands) + synthetic_crawl CLI (2).
+- 0.8 ✓ check=30; canary 17 + cli-canary 6 + synthetic_crawl 33 =
+  56; S21-S26 sub-surfaces sum 576; wiring=6; stage1 run 16 +
+  cost_tracker 16 = 32.
+- 0.9 ✓ All S24-S29 public APIs unchanged; CRAWLING_POLICY.md
+  77 lines / 2519 bytes; per-tier wiring invariant (all 8 slots);
+  ShardResult 14 fields; cascade.py Stage 1 invoker AST intact;
+  S29 K-b script import-loads cleanly; the 5 S31 + 5 S32 cassette
+  dirs all present (10 total).
+
+──────── Phase 1 scope resolution (empty warm-candidate queue) ───
+
+S33 was the first session to open with NO naturally-warm candidate
+(A blocked, D operator-led, E exhausted, K-a optional). Empirical
+prereq re-audit at Phase 1:
+- Candidate A: 0 `canary_runs/*.parquet` (the one parquet on disk is
+  an unrelated stage2-pages canary in ~/Downloads); no
+  barcada/canary/drift plist in `~/Library/LaunchAgents/`; no AI/ML
+  responses → **still BLOCKED** (unchanged S29-S32).
+- Candidate K-a: Docker daemon was DOWN at audit ("Cannot connect to
+  the Docker daemon"); Docker Desktop present → started via
+  `open -a Docker` (daemon up in ~3s, Server 23.0.5); Azurite image
+  pulled (267 MB) → both K-a prereqs satisfied.
+
+Operator chose **Candidate K-a** (the "Decided at Phase 1" shape).
+- **Carve-out (pinned)**: concurrency coverage — production ETag-
+  conflict/409/412 paths the K-b smoke covered once, now pinned in CI.
+- **1.TAG** = defer (no tag at S33 close).
+- **Phase 1 baseline RE-PIN (operator)**: baseline stays **970
+  (Option 1)**, superseding the prompt's recommended K-a **17-path
+  (Option 2)**. This resolves Q-K-a.4 = Option 1 downstream (test is
+  live-marked + skip-by-default, NOT a 17th canonical path).
+
+──────── Phase 2 design-gate ─────────────────────────────────────
+
+Source-verified `cost_journal_adls.py` + the existing 19-test
+in-memory suite + the K-b smoke before drafting options:
+- Q-K-a.1 = **shared-key** (AzureNamedKeyCredential over Azurite's
+  public dev account; mirrors the smoke script's AZURE_STORAGE_KEY
+  path; reuses the production `_AzureBlobBackend` unchanged).
+- Q-K-a.2 = **full 5-step ETag matrix** (matches the carve-out).
+- Q-K-a.3 = **new file** (`test_cost_journal_adls_azurite.py`; keeps
+  the 19-test in-memory suite hermetic).
+- Q-K-a.4 = **Option 1** (live marker + skip-by-default; per the
+  Phase 1 re-pin) — NOT a 17th path.
+- Q-K-a.5 = **fixture auto-start + skip-if-unavailable**.
+- Q-SHARED.1 = **single commit**.
+
+Operator robustness feedback (applied): the Azurite container
+teardown must be robust to a setup-phase failure — use try/finally
+(or a finalizer), NOT teardown-after-yield that a pre-yield raise
+skips, else a failed concurrency assertion orphans a container on
+port 10000 and breaks the next run.
+
+──────── Phase 3 implementation (1 commit: f1cdce8) ──────────────
+
+`tests/classifier/pipeline/test_cost_journal_adls_azurite.py`
+(292 LOC): one `@pytest.mark.live` test + a module-scoped
+`azurite_blob_endpoint` fixture + docker/readiness helpers. The
+fixture: idempotent `docker rm -f` pre-clean (self-heals a leaked
+container) → `docker run -d --rm --name barcada-azurite-katest
+-p 10000:10000 ... azurite-blob --blobHost 0.0.0.0
+--skipApiVersionCheck` → readiness poll (HTTP-any = up; timeout →
+skip) → yield → **unconditional `try/finally` teardown**. Skips
+cleanly when Docker / the image is unavailable. The test injects a
+REAL `_AzureBlobBackend` (production class) pointed at Azurite and
+walks write_initial → re-write_initial (JournalAlreadyExistsError,
+real 409/412) → read (state+etag) → try_update fresh-etag (True,
+etag advances) → try_update stale-etag (False).
+
+`pyproject.toml`: registered the `live` marker under
+`[tool.pytest.ini_options]` (3 lines).
+
+**Mid-implementation finding** (validated the operator's robustness
+ask): first run FAILED with Azure `InvalidHeaderValue` — the SDK
+advertises x-ms-version `2026-02-06`, newer than this Azurite build
+whitelists. The orphan-check after that failure was **empty** — the
+try/finally teardown worked exactly as required (no leaked
+container). Fixed test-side with Azurite's documented
+`--skipApiVersionCheck` flag (the SDK api_version lives in locked
+production code, so the emulator is the correct seam). Re-run: green.
+
+Verification: live test `1 passed in 2.54s` (post-format); marker
+registered (passes `--strict-markers`; no PytestUnknownMarkWarning);
+`-m live` selects it; canonical 16-path **970/0/0** (unchanged — new
+file is live-marked + absent from the 16-path); existing
+`test_cost_journal_adls.py` in-memory suite unchanged (19); driver
+suite 52/52; ruff check + format clean on touched files; new-file
+LOC 292 via `wc -l`; no `src/` changes. 12-row claim→reality
+verification table all ✓ before commit.
+
+──────── Phase 4 pre-push gate ───────────────────────────────────
+
+All green: `ruff check .` (All checks passed!), `ruff format
+--check .` (354 files already formatted), vermin (Minimum required
+3.10), `validate_consistency.py` (532 stage1 rows OK; cross-stage
+PASS; 0 errors / 0 warnings; no eval_data WIP halt needed). Pre-push
+hook re-ran all gates green on push.
+
+──────── Phase 5 push + tag ───────────────────────────────────────
+
+Pushed `cfa0ec1..f1cdce8` to `origin/main`. No tag placed per
+1.TAG = **defer**. Tag count remains 13. (W A.2 final-milestone tag
+`workstream-a-week2-end` was OFFERED but the operator deferred it.)
+
+──────── Carry-forward candidates entering S34 ───────────────────
+
+1. **Candidate A barcada-drift** — still blocked (0 parquets;
+   launchd installer not yet run; no AI/ML responses).
+2. **Candidate D Phase 4 PR-D tooling** — operator territory;
+   labeling must begin.
+3. **Candidate E cassette corpus expansion** — EXHAUSTED at 30; no
+   further +N without a plan-bound revision.
+4. **Candidate K-a Azurite-backed CI test** — **CLOSED at S33**
+   (`f1cdce8`). The permanent CI safety net now exists.
+
+──────── Tags state at S33 close ─────────────────────────────────
+
+13 total (UNCHANGED from S30/S31/S32 close):
+- baseline-v0 / pre-remediation-2026-05-19
+- workstream-0-week1-end / week2-end / week3-end / week4-1-5-end /
+  week4-end / week5-end / week7-end
+- workstream-0-end (a1c5636) / workstream-a-week1-end
+- workstream-stage1-prestaged-flags-end → `af6f1d4`
+- workstream-stage1-step3-end → `d4f06b8`
+
+**Canonical S33-close baseline for S34 Phase 0 Step 0.5
+(VERIFIED at HEAD `f1cdce8`):**
+
+```
+.venv/bin/python -m pytest \
+    tests/scraper/test_fixture_conformance.py \
+    tests/runners/fixture_cascade/ \
+    tests/baseline_v0/ \
+    tests/synthetic_crawl/ \
+    tests/scraper/test_robots.py \
+    tests/scraper/test_robots_gate.py \
+    tests/scraper/test_robots_bypass_config.py \
+    tests/classifier/pipeline/test_cost_journal.py \
+    tests/classifier/pipeline/test_cost_journal_local.py \
+    tests/classifier/pipeline/test_cost_journal_adls.py \
+    tests/orchestrator/test_robots_integration.py \
+    tests/orchestrator/test_vmss_worker.py \
+    tests/orchestrator/test_job_runner.py \
+    tests/orchestrator/test_worker_loop.py \
+    tests/orchestrator/test_robots_gate_integration.py \
+    tests/orchestrator/test_worker_loop_persistence.py -q
+# Expected: 970 passed / 0 failed / 0 skipped
+# UNCHANGED from S27-S33 close. The S33 Azurite test is live-marked
+# + skip-by-default and is NOT in this invocation; the canonical
+# headline is unaffected.
+```
+
+S33 narrower 14-path baseline: **944** (unchanged).
+
+**The new live test is verified OUT-OF-BAND** (not in the canonical
+count):
+```
+.venv/bin/python -m pytest \
+    tests/classifier/pipeline/test_cost_journal_adls_azurite.py -m live
+# Expected: 1 passed (needs Docker + the Azurite image; else SKIPS)
+```
+
+**S34 Phase 0 Step 0.4 fixture-count forward note**: UNCHANGED from
+S33 — html=222 / expected=202 / meta=222 / baseline=1213 /
+**`cassette_count == 30`** / **`exclusions_count == 30`**. (No
+fixture change at S33; K-a is test-code, not a cassette.)
+
+──────── LESSONS folded at S33 close ─────────────────────────────
+
+One new `(S33 folding)` section in LESSONS.md:
+**"A live-emulator fixture must tear down on setup-phase failure,
+and the SDK-vs-emulator version skew is real"** — combines two
+S33 findings: (1) the unconditional-teardown contract (try/finally
+wrapping setup, NOT post-yield), empirically validated when the
+first run failed mid-matrix yet left no orphaned container; (2) the
+azure-storage-blob `x-ms-version` outran the Azurite whitelist,
+needing the emulator-side `--skipApiVersionCheck` because the SDK
+api_version lives in locked production code. Also notes the meta-
+pattern: a "self-contained" optional candidate (K-a) still needs a
+named carve-out to ship per the S30 posture note — the operator
+supplied "concurrency coverage" and re-pinned the baseline to 970
+(Option 1), keeping the canonical headline stable.
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
