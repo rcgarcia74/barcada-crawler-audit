@@ -2699,5 +2699,68 @@ to offset S31's commerce skew.
 wholefoodsmarket} committed; {mayoclinic, redcross, etsy} WAF-403;
 {npr×2, 3m} timeout; {basecamp, nps.gov} off-scope. 5/13 ≈ 38%.
 
+## Recording yield is category-driven, not pool-size-driven (S32 folding)
 
+S31 folded a "~40% yield → budget ~2.5×N pool" rule from a
+commerce-heavy candidate set. S32 tested the S31 rebalance
+hypothesis directly by recording a nonprofit/media/education pool
+and got a **~93% yield (14 of 15 recorded as 200-OK real content)**
+— more than double S31's ~40%. The single content reject was an
+anti-bot WAF interstitial (khanacademy.org); the single pre-record
+exclusion was a robots-disallow (reuters.com). The .edu and
+software-foundation homepages were uniformly clean; the riskier
+picks were the consumer-facing media sites, and even those mostly
+cleared.
 
+Forward-applicable refinement of the S31 sizing rule:
+- **The dominant yield lever is category selection, not pool
+  size.** Low-WAF verticals — `.edu`, software/standards
+  foundations (apache/eff/creativecommons/linuxfoundation/
+  wikimedia), public-affairs media (c-span/pbs/propublica/apnews) —
+  yield ~90%+. Heavily-branded consumer verticals (healthcare,
+  retail, logistics behind Akamai/Cloudflare) yield ~40%.
+- **Size the pool to the category mix**: ~1.1×N for low-WAF
+  categories; reserve the S31 ~2.5×N budget for commerce/consumer
+  verticals.
+- **High yield inverts the curation task**: with a hard corpus cap
+  (the plan's 30 upper bound), the work becomes curate-DOWN-to-cap
+  (keep N of many valid) rather than curate-UP-from-rejects. Decide
+  the keep-composition (category balance) deliberately and
+  mv-aside the valid-but-not-kept extras; do NOT exceed the plan
+  bound just because yield was high.
+
+**Empirical anchor**: S32 commit `cfa0ec1`; 15 recorded, 5 kept
+(propublica/apnews/c-span media, eff nonprofit, harvard education),
+10 mv-aside (1 WAF khanacademy + 9 valid-not-kept); reuters
+robots-excluded pre-record. 14/15 ≈ 93%.
+
+## is_waf_challenge misses the "Client Challenge" interstitial (S32 folding)
+
+khanacademy.org recorded a 200 OK at 3,036 bytes with an
+all-empty `extract_hard_exclusions.json` sidecar
+(`exclusion_reason == ""`, no `is_*` flag set) — yet the page was
+an Akamai/Imperva-style **"Client Challenge"** anti-bot
+interstitial (`<title>Client Challenge</title>`; body =
+"JavaScript is disabled in your browser. Please enable JavaScript
+to proceed."). The parser's `is_waf_challenge` signal did not
+match this signature, so by-flag curation would have kept a
+junk cassette.
+
+Title/visible-text inspection caught it — a concrete extension of
+the S31 [[Live-HTTP corpus curation]] "curate by content, not by
+flag" rule. Two forward-applicable takeaways:
+- **Always inspect title + visible-text length, not just the
+  sidecar flags**, when curating recorded cassettes. A suspiciously
+  small byte count (3 KB vs the 50 KB–2 MB of real homepages) is a
+  fast first-pass tell.
+- **Parser-signal gap (observation only, no S32 code fix)**: if a
+  future session opens `src/barcada_scraper/scraper/parser.py` or
+  `tools/synthetic_crawl/` for tooling, consider adding a
+  "Client Challenge" / "enable JavaScript to proceed" title+body
+  signature to `is_waf_challenge` (or a min-content-bytes floor at
+  record time, which also closes the S31 writes-before-validates
+  reject-cleanup tax).
+
+**Empirical anchor**: S32 khanacademy.org cassette mv-aside to
+/tmp/s32_rejects; 3,036 B HTML / 303 B visible text; title
+"Client Challenge".

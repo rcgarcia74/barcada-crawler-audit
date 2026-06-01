@@ -7510,3 +7510,219 @@ in-class eval_data tag tolerance) did NOT reproduce at S31 and
 remain carry-forward unless S32 reproduces them.
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+
+---
+
+## Session 32 — 2026-06-01 — W A.0 W7 cassette corpus expansion continuation (Candidate E; 25 → 30)
+
+──────── Scope shipped ───────────────────────────────────────────
+
+Candidate E continuation per the S32 prompt Phase 1 scope choice.
+Grew `tests/fixtures/synthetic_crawls/` from 25 → 30 cassettes,
+hitting the plan's "~20-30 representative domains" UPPER bound
+(BARCADA_CRAWLER_REMEDIATION_PLAN.md §4 W7). **Candidate E is now
+exhausted.** Rebalanced S31's commerce skew toward
+nonprofit/media/education. **One code commit** — `cfa0ec1`
+(artifact-only; 10 new fixture files).
+
+Repo HEAD: `06d67c4` (S31 close) → exact at S32 open (no tolerated
+operator-side commits in `06d67c4..HEAD`) → `cfa0ec1` at S32 close.
+
+──────── Phase 0 cold-start verification ─────────────────────────
+
+All steps green at S32 open:
+- 0.1 ✓ Workspace HEAD `db79fe5` (2 prompt-doc commits ahead of
+  `b5f6bc5`: `2b7f2e4` anchor-pin + `db79fe5` "S32 prompt v2:
+  reviewer-findings"; both prompt-revision-class per the Step 0.1
+  tolerance). Repo HEAD `06d67c4` (exact; no eval_data commits
+  since S31).
+- 0.2 ✓ 13 tags (unchanged); `workstream-0-end` at `a1c5636`.
+- 0.3 ✓ Driver-lock diff empty outside the 3 W5.X-authorized files.
+- 0.4 ✓ Fixture counts via Python rglob(): html=222, expected=202,
+  meta=222, baseline=1213, cassettes=25, exclusions=25.
+- 0.5 ✓ Canonical 970/0/0 in 77.13s.
+- 0.6 ✓ manifest.json (baseline-v0/0.1.0; 202 fixtures; driver_sha
+  prefix `521e363`); expected.schema.json v1.1 (18-col stage3).
+- 0.7 ✓ baseline_v0 CLI (3 subcommands) + synthetic_crawl CLI (2).
+- 0.8 ✓ check=30; canary 17 + cli-canary 6 + synthetic_crawl 33 =
+  56; S21-S26 sub-surfaces sum 576; wiring=6; stage1 run 16 +
+  cost_tracker 16 = 32.
+- 0.9 ✓ All S24-S29 public APIs unchanged; CRAWLING_POLICY.md
+  77 lines / 2519 bytes; per-tier wiring invariant (all 8 slots);
+  ShardResult 14 fields; cascade.py Stage 1 invoker AST intact;
+  S29 K-b script import-loads cleanly; the 5 S31 cassette dirs
+  present (patagonia/deere/ford/pfizer/wholefoodsmarket).
+
+──────── Phase 1 scope resolution + Phase 2 design-gate ──────────
+
+Phase 1 empirical prereq audit for Candidate A (per S29 LESSONS):
+- 0 `canary_runs/*.parquet` on disk (one unrelated stage2-pages
+  canary parquet in ~/Downloads, NOT a drift artifact).
+- No barcada/canary/drift plist in `~/Library/LaunchAgents/`.
+- No AI/ML responses or placeholder authorizations in workspace.
+Candidate A remains blocked — same state as S29/S30/S31 close.
+
+Operator chose **Candidate E continuation** at Phase 1. 1.TAG
+resolved to **defer** (per the Candidate E line in 1.TAG).
+
+Phase 2 design gates:
+- Q-E.1 target count = **30 (+5; plan upper bound — E exhausted)**.
+- Q-E.2 subset focus = **nonprofit/media/education** (rebalance).
+- Q-E.3 FP re-investigation = **keep-as-is** (archive.org +
+  hashicorp.com `empty_page` flags are correct; no S20-locked
+  artifact touched).
+- Q-E.4 pool sizing = **~2.5×N record-broad** (no curl -I
+  pre-filter; the hybrid was offered and declined — HEAD does not
+  reliably catch WAFs that 200 on HEAD / 403 on GET).
+- Q-SHARED.1 commit shape = **single bundled artifact commit**
+  (S20/S31 precedent).
+
+Interactive candidate-pool refinement (operator-driven, pre-record):
+- (1a) recording-order pin: **media first**, do not reshape the
+  pool for the media-balance concern.
+- khanacademy.org promoted from reserve to a primary
+  education/nonprofit boundary pick, swapping out **yale.edu**
+  (most signal-redundant with harvard.edu).
+- Expanded to a **4-media front**: reuters.com + apnews.com added;
+  **reuters.com robots-DISALLOWED** the synthetic-crawl UA → out;
+  **c-span.org** substituted (robots-ALLOW) to restore 4 media.
+- Final 15-candidate pool, all robots-gates verified ALLOW
+  (robots.txt fetched only; no homepage fetch) before "proceed
+  to recording".
+
+──────── Phase 3 implementation (1 commit: cfa0ec1) ──────────────
+
+Recorded via `python -m tools.synthetic_crawl record` (UA
+`barcada-synthetic-crawl/0.1 (+https://barcada.io)`), media-first.
+15 candidates recorded; operator specified the final **5 keepers**;
+**10 mv-aside** to /tmp (NOT committed).
+
+5 committed cassettes (200 OK real content; 3 media / 1 nonprofit
+/ 1 education):
+| Domain          | Category   | Status | cassette.yaml B |
+| --------------- | ---------- | ------ | --------------- |
+| propublica.org  | media      | 200    | 187,221         |
+| apnews.com      | media      | 200    | 2,177,105       |
+| c-span.org      | media      | 200    | 127,887         |
+| eff.org         | nonprofit  | 200    | 66,172          |
+| harvard.edu     | education  | 200    | 177,884         |
+
+Per-cassette verification (all 5):
+- robots.txt compliance gate PASSED.
+- Byte-identical replay determinism (S20 Q2.6): cassette SHA stable
+  across two replays; replay exits 0/0.
+- Sidecar shape == the 20-key reference (565 B each).
+- FP-curation log: `exclusion_reason` / `parser_rejection_reason`
+  / `upstream_rejection_reason` ALL EMPTY; no is_* flag set.
+
+Curation rejects (recorded, mv-aside to /tmp/s32_rejects, NOT
+committed):
+- khanacademy.org (200, 3,036 B) → "Client Challenge" WAF/anti-bot
+  interstitial; `is_waf_challenge` did NOT flag it — caught by
+  title/content inspection (S31 curate-by-content lesson).
+- 9 valid 200-OK not kept (corpus cap is 30): pbs.org, apache.org,
+  wikimedia.org, creativecommons.org, linuxfoundation.org,
+  berkeley.edu, caltech.edu, cmu.edu, gatech.edu.
+reuters.com excluded pre-record (robots-DISALLOW).
+
+10 new files (5 cassette.yaml + 5 extract_hard_exclusions.json),
+2,739,094 bytes total. Largest: apnews.com ~2.18 MB cassette.yaml
+(real news content). No src/ / tooling / .py changes; ruff N/A.
+
+Fixture-only → net-zero on the test count (the 33 synthetic_crawl
+tests are hermetic; no committed cassette is exercised by any test;
+net-new tests = 0). Combined 16-path suite: 970/0/0 (unchanged).
+
+──────── Phase 4 pre-push gate ───────────────────────────────────
+
+All green: `ruff check .` (All checks passed!), `ruff format
+--check .` (353 files already formatted), vermin (Minimum required
+3.10), `validate_consistency.py` (532 stage1 rows OK; cross-stage
+PASS; 0 errors / 0 warnings; no eval_data WIP halt needed). Pre-push
+hook re-ran all gates green on push.
+
+──────── Phase 5 push + tag ───────────────────────────────────────
+
+Pushed `06d67c4..cfa0ec1` to `origin/main`. No tag placed per
+1.TAG = **defer** for Candidate E. Tag count remains 13.
+
+──────── Carry-forward candidates entering S33 ───────────────────
+
+1. **Candidate A barcada-drift** — still blocked (0 parquets;
+   launchd installer not yet run; no AI/ML responses).
+2. **Candidate D Phase 4 PR-D tooling** — operator territory;
+   labeling must begin.
+3. **Candidate E cassette corpus expansion** — **EXHAUSTED at 30**
+   (plan upper bound reached). No further +N without an explicit
+   plan-bound revision.
+4. **Candidate K-a Azurite-backed integration test** — OPTIONAL
+   (defense-in-depth; not on any critical path per S30 LESSONS).
+
+──────── Tags state at S32 close ─────────────────────────────────
+
+13 total (UNCHANGED from S31 close):
+- baseline-v0 / pre-remediation-2026-05-19
+- workstream-0-week1-end / week2-end / week3-end / week4-1-5-end /
+  week4-end / week5-end / week7-end
+- workstream-0-end (a1c5636) / workstream-a-week1-end
+- workstream-stage1-prestaged-flags-end → `af6f1d4`
+- workstream-stage1-step3-end → `d4f06b8`
+
+**Canonical S32-close baseline for S33 Phase 0 Step 0.5
+(VERIFIED at HEAD `cfa0ec1`):**
+
+```
+.venv/bin/python -m pytest \
+    tests/scraper/test_fixture_conformance.py \
+    tests/runners/fixture_cascade/ \
+    tests/baseline_v0/ \
+    tests/synthetic_crawl/ \
+    tests/scraper/test_robots.py \
+    tests/scraper/test_robots_gate.py \
+    tests/scraper/test_robots_bypass_config.py \
+    tests/classifier/pipeline/test_cost_journal.py \
+    tests/classifier/pipeline/test_cost_journal_local.py \
+    tests/classifier/pipeline/test_cost_journal_adls.py \
+    tests/orchestrator/test_robots_integration.py \
+    tests/orchestrator/test_vmss_worker.py \
+    tests/orchestrator/test_job_runner.py \
+    tests/orchestrator/test_worker_loop.py \
+    tests/orchestrator/test_robots_gate_integration.py \
+    tests/orchestrator/test_worker_loop_persistence.py -q
+# Expected: 970 passed / 0 failed / 0 skipped
+# UNCHANGED from S27-S32 close — cassettes are fixture-only and not
+# exercised by any test in the invocation.
+```
+
+S32 narrower 14-path baseline: **944** (unchanged).
+
+**S33 Phase 0 Step 0.4 fixture-count forward note**: cassettes and
+exclusions BOTH advance 25 → 30 (html=222 / expected=202 /
+meta=222 / baseline=1213 unchanged). S33 Phase 0 Step 0.4 MUST
+assert `cassette_count == 30` and `exclusions_count == 30` (NOT
+25) or S33 Phase 0 will HALT on the stale `== 25` checks. The 5
+S31 cassette dirs PLUS the 5 S32 dirs
+(propublica/apnews/c-span/eff/harvard) must all be present.
+
+──────── LESSONS folded at S32 close ─────────────────────────────
+
+Two `(S32 folding)` sections in LESSONS.md:
+1. **"Recording yield is category-driven, not pool-size-driven"** —
+   S32's nonprofit/media/education pool yielded 14/15 ≈ 93% vs
+   S31's commerce ~40%; the rebalance hypothesis validated. Low-WAF
+   verticals (.edu, software foundations, public-affairs media)
+   need only ~1.1×N pool, not ~2.5×N; reserve ~2.5×N for
+   commerce/consumer verticals. High yield flips the task from
+   curate-UP to curate-DOWN-to-cap.
+2. **"is_waf_challenge misses the 'Client Challenge' interstitial"** —
+   khanacademy.org returned 200 / 3,036 B with empty exclusion
+   flags but was an Akamai/Imperva "Client Challenge" anti-bot page;
+   title/visible-text inspection caught it. Concrete signature gap
+   extending the S31 curate-by-content lesson; parser-hygiene
+   observation (no code fix — Candidate E was corpus, not tooling).
+
+Carry-forward non-reproduction: the S30→S31 carry-forward
+observations did not recur at S32 (S32 had its own single-candidate
+shape; no operator eval_data commits between S31 close and S32 open).
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
