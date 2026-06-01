@@ -160,13 +160,14 @@ Run in order. Halt and surface to operator on any mismatch.
 # "Recording yield ~40%" + the SESSION_LOG cross-reference + the
 # Step 0.4 variable-name pin) + this prompt-drafting commit.
 git -C ~/crawler-audit rev-parse HEAD
-# Expect: the S32 prompt-drafting commit (succeeds the S31
-# post-close LESSONS-fold commit, which succeeds the anchor-pin
-# 8c80c26, which succeeds the primary close-out e1e7ade). OR a
-# later commit if additional workspace doc edits (incl. an
-# anchor-pin follow-up of THIS commit, or further prompt
-# revisions) landed post-fixes. If N commits ahead, verify each
-# prior commit's subject via `git log --oneline <this-sha>..HEAD`
+# Expect: b5f6bc5 (S31 post-close: folds the 2 S31-folding LESSONS
+# sections + the SESSION_LOG cross-reference + the Step 0.4
+# variable-name pins + this S32 prompt draft; succeeds the
+# anchor-pin 8c80c26, which succeeds the primary close-out
+# e1e7ade) OR this anchor-pin follow-up of b5f6bc5 OR a later
+# commit if additional workspace doc edits / further prompt
+# revisions landed post-fixes. If N commits ahead, verify each
+# prior commit's subject via `git log --oneline b5f6bc5..HEAD`
 # against expected prompt-finalization / doc-edit patterns;
 # surface the SHA delta and request authorization if anything is
 # unexpected. (S20-S31 precedent: operator authorized continuation

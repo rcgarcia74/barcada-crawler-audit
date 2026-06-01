@@ -24,10 +24,11 @@ Operator will review v1 → v2 per the standard amendment cycle
 before invocation.
 
 Anchors for Session 32 cold start:
-- Workspace HEAD: `e1e7ade` (S31 primary close-out) + this
-  anchor-pin follow-up (+ any later prompt-drafting commit).
+- Workspace HEAD: `b5f6bc5` (S31 post-close fold + S32 prompt
+  draft; succeeds the anchor-pin `8c80c26`, which succeeds the
+  primary close-out `e1e7ade`) + this anchor-pin follow-up.
   S32 Phase 0 Step 0.1 MUST anchor workspace expectation to
-  `e1e7ade` OR a later anchor-pin/prompt-drafting follow-up.
+  `b5f6bc5` OR a later anchor-pin/prompt-revision follow-up.
   Per S21-S31 LESSONS
   pattern "Workspace HEAD delta tolerance": tolerate N additional
   audit-correction / prompt-drafting commits between sessions;
