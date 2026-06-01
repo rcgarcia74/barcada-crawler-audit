@@ -173,6 +173,11 @@ git -C ~/crawler-audit rev-parse HEAD
 # unexpected. (S20-S31 precedent: operator authorized continuation
 # when 1-3 extra workspace commits were the strengthened prompts
 # themselves.)
+# (NB: b5f6bc5 consolidated the post-close LESSONS fold + the
+# SESSION_LOG/template var-name pins + this prompt draft into a
+# single commit — an explicit departure from the S20-S31 atomic-
+# per-purpose pattern, accepted as one operator-commissioned
+# post-close unit; the 2b7f2e4 anchor-pin is the only follow-up.)
 
 # Repo at Session 31 final state:
 git -C /Users/administrator/projects/barcada-scraper rev-parse HEAD
@@ -485,11 +490,43 @@ assert len(fields) == 14, f'{len(fields)}: {fields}'
 print('OK S28 ShardResult 14 fields present')
 "
 
-# S28: cascade.py Stage 1 invoker AST structure. Save to a file
-# and run via .venv/bin/python (the safety hook blocks the inline
-# `python -c` form when the source string contains 'ast.parse').
-# (See S31 prompt Step 0.9 for the /tmp/check_s28_ast_phase0.py
-# script body — reuse it verbatim.)
+# S28: cascade.py Stage 1 invoker call-site structure (AST-based).
+# Save to a script file and run via .venv/bin/python (the safety
+# hook blocks the inline `python -c` form when the source string
+# contains 'ast.parse').
+cat > /tmp/check_s28_ast_phase0.py <<'PYEOF'
+import ast
+with open('tests/runners/fixture_cascade/cascade.py') as f:
+    tree = ast.parse(f.read())
+
+all_calls = []
+stage1_calls = []
+for node in ast.walk(tree):
+    if isinstance(node, ast.Call):
+        func = node.func
+        name = (func.attr if isinstance(func, ast.Attribute)
+                else (func.id if isinstance(func, ast.Name) else None))
+        if name == '_journal_record_with_breakdown':
+            all_calls.append(node)
+            stage_kw = next((kw for kw in node.keywords if kw.arg == 'stage'), None)
+            if (stage_kw and isinstance(stage_kw.value, ast.Constant)
+                    and stage_kw.value.value == 1):
+                stage1_calls.append(node)
+
+assert len(all_calls) == 3, f'expected 3 calls; found {len(all_calls)}'
+assert len(stage1_calls) == 1, f'expected 1 stage=1 call; found {len(stage1_calls)}'
+
+call = stage1_calls[0]
+components_kw = next((kw for kw in call.keywords if kw.arg == 'components'), None)
+assert components_kw is not None, 'Stage 1 call missing components kwarg'
+assert isinstance(components_kw.value, ast.Dict), 'components must be a dict literal'
+keys = [k.value for k in components_kw.value.keys
+        if isinstance(k, ast.Constant)]
+assert 'llm' in keys, f'Stage 1 components missing llm: {keys}'
+assert 'embedding' in keys, f'Stage 1 components missing embedding: {keys}'
+print('OK S28 cascade.py Stage 1 invoker AST structure intact (3 calls; stage=1 has llm + embedding)')
+PYEOF
+.venv/bin/python /tmp/check_s28_ast_phase0.py
 
 # S29: K-b smoke script existence + import-loads cleanly.
 .venv/bin/python -c "
@@ -609,7 +646,8 @@ representative domains" — current 25 leaves room for **+5** to
 hit the upper bound.
 
 **Prerequisites:**
-- Decision on the +5 target count (30) vs a smaller bump.
+- Decision on the target count (30 upper bound / smaller bump /
+  stay at 25).
 - Per S31-folded LESSONS, budget a candidate pool of **~2.5×N**
   domains (so ~12-13 candidates for +5) when WAF risk is not
   pre-filtered, and **rebalance toward nonprofit / media /
@@ -719,6 +757,8 @@ apply.)
   (Recommended — rebalances S31's commerce skew + lower WAF
   incidence) vs more business-classification-interesting vs
   bot-blocked/WAF vs non-English/international.
+  (4 options — at the per-question cap; if a finer split is
+  wanted, tier or sequence two AskUserQuestion calls.)
 - **Q-E.3 FP re-investigation** (still carry-forward): re-record
   archive.org + hashicorp.com under a different UA OR drop them OR
   keep as-is (Recommended — touches NO S20-locked artifact). NB:
@@ -742,6 +782,10 @@ apply.)
   16-path, OR add a 17th path.
 - **Q-K-a.5 Azurite lifecycle**: fixture auto-start vs operator-
   started on a fixed port vs CI-environment-only.
+
+(5 Q-K-a gates → split into 2 sequential AskUserQuestion calls
+(e.g., Q-K-a.1–.3 then Q-K-a.4–.5); both the 4-options-per-
+question and 4-questions-per-call caps apply.)
 
 ### Shared sub-questions (all candidates)
 
