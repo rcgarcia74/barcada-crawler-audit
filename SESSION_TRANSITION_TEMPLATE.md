@@ -23,11 +23,12 @@ A (blocked), D (gated on labeling), **E (EXHAUSTED at the plan's
 30 upper bound)**, K-a (OPTIONAL).
 
 Anchors for Session 33 cold start:
-- Workspace HEAD: the S32 close-out commit (SESSION_LOG.md +
-  SESSION_TRANSITION_TEMPLATE.md + LESSONS.md) + 1-2 anchor-pin
-  follow-ups pinning the actual close-out SHA into this section.
-  S33 Phase 0 Step 0.1 MUST anchor workspace expectation to that
-  SHA OR a later prompt-revision follow-up. Per S21-S32 LESSONS
+- Workspace HEAD: `4e89e08` (S32 primary close-out: SESSION_LOG.md
+  + SESSION_TRANSITION_TEMPLATE.md + LESSONS.md) + this anchor-pin
+  follow-up pinning the close-out SHA into this section.
+  S33 Phase 0 Step 0.1 MUST anchor workspace expectation to
+  `4e89e08` OR this anchor-pin follow-up OR a later
+  prompt-revision follow-up. Per S21-S32 LESSONS
   pattern "Workspace HEAD delta tolerance": tolerate N additional
   prompt-drafting / audit-correction commits between sessions;
   verify each is consistent with that pattern before continuing.
@@ -168,11 +169,12 @@ bound.**
   (SESSION_LOG.md + SESSION_TRANSITION_TEMPLATE.md + LESSONS.md)
   + 1-2 anchor-pin follow-ups (pinning the actual close-out SHA
   into this template's Anchors section for S33).
-- **Last commit SHA at Session 32 CLOSE: the anchor-pin follow-up
-  succeeding the primary close-out**. S33 Phase 0 Step 0.1 MUST
-  anchor workspace expectation to that SHA OR the primary
-  close-out. Per S21-S32 LESSONS pattern: tolerate N additional
-  prompt-drafting / audit-correction commits between sessions.
+- **Last commit SHA at Session 32 CLOSE: this anchor-pin follow-up
+  succeeding the primary close-out `4e89e08`**. S33 Phase 0 Step
+  0.1 MUST anchor workspace expectation to `4e89e08` OR this
+  anchor-pin follow-up. Per S21-S32 LESSONS pattern: tolerate N
+  additional prompt-drafting / audit-correction commits between
+  sessions.
 - Branch sync with `origin/main`: 0 ahead / 0 behind expected
   after Session 32 close push.
 
