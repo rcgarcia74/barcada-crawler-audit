@@ -11,15 +11,20 @@ Pair this with the latest entry in `SESSION_LOG.md`, with
 `BARCADA_CRAWLER_REMEDIATION_PLAN.md` to start a session cold and
 be productive within ~10 minutes.
 
-**Session 35 invocation prompt:** NOT yet drafted at S34 close.
-Per S20→S34 precedent, prompt-drafting is operator-commissioned
-between sessions. If commissioned, mirror the S34 7-phase structure
-and pin: repo HEAD anchor `eba6585`, workspace HEAD anchor (the S34
-close-out commit + its anchor-pin follow-up), tag count `13`,
+**Session 35 invocation prompt:** DRAFTED at S34 close
+(operator-commissioned) at `~/crawler-audit/SESSION_35_PROMPT.md`.
+Mirrors the S20-S34 7-phase structure and pins: repo HEAD anchor
+`eba6585`, workspace HEAD anchor (the S34 close-out `a6eef0f` +
+`27bd60b` anchor-pin + the prompt-drafting follow-up), tag count `13`,
 canonical baseline `970`, Phase 0 Step 0.4
 `cassette_count == 30` / `exclusions_count == 30`, and a Step 0.9
-presence check for BOTH the S33 Azurite test AND the NEW S34
-deliverables (`live-integration.yml` + the concurrency race test).
+presence + POSTURE check (`check_s35_deliverables.py`) for the S31/S32
+cassettes, the S33 Azurite primitive test, AND the NEW S34
+deliverables (`live-integration.yml` — asserting it stays OFF push/PR —
++ the concurrency race test on port 10001). Both new Phase 0 checks
+were validated green at S34 close against `eba6585`. Re-read the prompt
+on S35 open; walk any reviewer flags per its "Reviewer-feedback
+hygiene" section before mutating it.
 
 **IMPORTANT — S35 again opens with a near-empty warm-candidate
 queue.** S34 shipped the K-a CI wiring + the multi-writer concurrency
