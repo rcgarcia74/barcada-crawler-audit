@@ -2865,3 +2865,46 @@ deliberate decision adds it to the invocation.
 (292 LOC; 1 live test) + a 3-line `live`-marker registration in
 pyproject.toml; canonical 16-path held at 970; live test
 `1 passed in 2.54s` against the Azurite 267 MB image.
+
+## A carve-out claim must be verified against the test BODY, not its name/marker (S34 folding)
+
+A carve-out justifies shipping a permanent / external-service-backed
+test by naming a behavior it covers (concurrency, idempotency,
+failover, a specific error mapping). That claim is only as good as the
+test's BODY — and the body is exactly what a reviewer skips when the
+marker, the docstring headline, and the file name all already say the
+right word.
+
+**Empirical anchor**: S33 shipped the K-a Azurite test under the
+carve-out "concurrency coverage". The test is real and passes, but its
+body is single-process and SEQUENTIAL — it hand-stages a stale ETag and
+asserts `try_update(stale) -> False`. That pins the ETag *primitive*,
+not contention. Production, however, is **multiple-writer**: one shared
+per-run blob `run_<run_id>.json` is CAS-updated via
+`cost_journal.update_with_retry` from
+`classifier/cli.py::_record_shard_completion` (×6 call-sites), the
+orchestrator worker loop, and the robots-bypass audit path. The
+retry-loop exists *because* those writers race. So the carve-out named
+concurrency the test never exercised. The overstatement survived S33
+close and into the S34 prompt unchallenged — it surfaced only when S34
+read the body against the production writer model before CI-wiring it.
+
+S34 resolved it (Path B): built the actual race test (N=12 concurrent
+`update_with_retry` writers appending distinct shards to one blob,
+asserting no lost updates) and verified its teeth with a negative
+control (`retry_delays_ms=()` → 1 shard persisted, 11
+`JournalConcurrencyError`), then CI-wired both.
+
+**Why it matters / how to apply (forward to S35+):**
+- When you WRITE a carve-out, point it at the specific test body lines
+  that exercise the named behavior. If you can't, narrow the wording to
+  what the body actually does (e.g. "ETag-mapping primitive", not
+  "concurrency").
+- When you INHERIT a carve-out (CI-wiring an existing test, citing prior
+  coverage), re-verify the body against the production usage model
+  before trusting the claim. "The marker says `live`" / "the docstring
+  says concurrency" is not evidence.
+- For concurrency specifically: a single-process sequential test of the
+  conflict *primitive* is necessary but not sufficient — add a
+  multi-writer race with a no-lost-update assertion and a negative
+  control proving the assertion has teeth.

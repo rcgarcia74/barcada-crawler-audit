@@ -7973,3 +7973,127 @@ supplied "concurrency coverage" and re-pinned the baseline to 970
 (Option 1), keeping the canonical headline stable.
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+
+## Session 34 — 2026-06-02 — K-a CI wiring + multi-writer concurrency race test (NEW candidate)
+
+**Scope chosen (Phase 1):** S34 opened with the empty warm-candidate
+queue exactly as flagged (A blocked — re-audited: 0 `canary_runs`
+parquets, no launchd plist, no AI/ML decisions; D operator-led; E
+exhausted at 30; K-a closed). Operator picked a NEW candidate: **wire
+the S33 K-a Azurite live test into CI**. Phase 2 gates: Q-CI.1 trigger
+= `workflow_dispatch` + nightly `schedule` (cron `0 6 * * *`); Q-CI.2
+placement = new dedicated workflow file; Q-SHARED.1 = single commit;
+1.TAG = defer.
+
+**Phase 3 HALT → Path B (scope expansion).** Before committing the
+CI-only change, source-verified the carve-out: S33's carve-out names
+"concurrency coverage", but the K-a test
+(`test_cost_journal_adls_azurite.py`) is single-process and SEQUENTIAL
+— it pins the ETag PRIMITIVE (hand-staged stale ETag → `try_update`
+False), not contention. Production is **multiple-writer**: one shared
+per-run blob `run_<run_id>.json` is CAS-updated via
+`cost_journal.update_with_retry` from `classifier/cli.py::_record_shard_completion`
+(×6 call-sites) + `orchestrator/worker_loop` + `orchestrator/robots_integration`.
+HALTED and surfaced. Operator chose **Path B**: build the real race
+test first, then CI-wire both.
+
+**What landed — `eba6585`** (2 files, 425 insertions; one commit):
+1. `tests/classifier/pipeline/test_cost_journal_adls_azurite_concurrency.py`
+   (337 LOC, NEW sibling — the S33 file is locked). 1 `@pytest.mark.live`
+   test: 12 threads append distinct `ShardRecord`s to ONE shared blob
+   simultaneously (threading.Barrier release; each its own
+   `ADLSCostJournal` / real `_AzureBlobBackend` / BlobClient) via
+   `update_with_retry`, asserting **no lost updates** (12 shards persist;
+   `completed_shard_ids` set-equality; cost sum; no `JournalConcurrencyError`).
+   Threads, not processes: contention is server-side (Azurite enforces the
+   ETag precondition; the GIL does not serialize the HTTP writes).
+   Generous per-writer-staggered retry budget (6·N) guarantees convergence
+   and breaks the thundering herd. Own module-scoped Azurite fixture on a
+   DISTINCT port (10001) + name (`barcada-azurite-racetest`) so it coexists
+   with the S33 fixture under one `-m live` run; same proven shape
+   (skip-if-unavailable / self-healing `docker rm -f` pre-clean /
+   unconditional try-finally teardown / baked `--skipApiVersionCheck`).
+2. `.github/workflows/live-integration.yml` (88 LOC, NEW). Selects
+   `-m live` across `tests/classifier/pipeline/` so BOTH live tests run.
+   `workflow_dispatch` + nightly cron; NOT push/PR (live-on-demand, NOT
+   default-CI). Job: ubuntu-latest, py3.13 single version, `-e ".[dev,ops]"`,
+   pre-pull the Azurite image, run, then a **skip-robust count-agnostic
+   guard** that FAILS the job if any live test SKIPPED or none passed.
+
+**Teeth verified (negative control, out-of-band).** Same 12-writer race
+with `retry_delays_ms=()` (no CAS retry): only **1 shard persisted, 11
+`JournalConcurrencyError`** — proving the contention is real and the
+test's no-lost-update asserts would fire if convergence broke. With the
+retry budget, all 12 converge.
+
+**Phase 0 verification (all green at `f1cdce8`):** 970 canonical;
+fixtures 222/202/222/1213/30/30; 13 tags; driver lock empty; all S25-S33
+public-API + wiring + AST invariants; CRAWLING_POLICY.md 77/2519; S31+S32
+cassettes (10) + S33 Azurite deliverable + live marker present.
+
+**Spend:** none. Local Docker + the already-pulled Azurite image; no LLM,
+no cloud infra.
+
+──────── Tags state at S34 close ─────────────────────────────────
+
+13 total (UNCHANGED; 1.TAG = defer). `workstream-a-week2-end` remains
+OFFERED-but-DEFERRED (W A.2 not declared closed at S34 despite the CI
+wiring landing).
+
+**Canonical S34-close baseline for S35 Phase 0 Step 0.5
+(VERIFIED at HEAD `eba6585`):**
+
+```
+.venv/bin/python -m pytest \
+    tests/scraper/test_fixture_conformance.py \
+    tests/runners/fixture_cascade/ \
+    tests/baseline_v0/ \
+    tests/synthetic_crawl/ \
+    tests/scraper/test_robots.py \
+    tests/scraper/test_robots_gate.py \
+    tests/scraper/test_robots_bypass_config.py \
+    tests/classifier/pipeline/test_cost_journal.py \
+    tests/classifier/pipeline/test_cost_journal_local.py \
+    tests/classifier/pipeline/test_cost_journal_adls.py \
+    tests/orchestrator/test_robots_integration.py \
+    tests/orchestrator/test_vmss_worker.py \
+    tests/orchestrator/test_job_runner.py \
+    tests/orchestrator/test_worker_loop.py \
+    tests/orchestrator/test_robots_gate_integration.py \
+    tests/orchestrator/test_worker_loop_persistence.py -q
+# Expected: 970 passed / 0 failed / 0 skipped
+# UNCHANGED from S27-S34 close. BOTH Azurite tests are live-marked +
+# skip-by-default and are NOT in this invocation.
+```
+
+S34 narrower 14-path baseline: **944** (unchanged).
+
+**The TWO live tests are verified OUT-OF-BAND** (not in the canonical
+count; now select the whole dir so future live tests are picked up):
+```
+.venv/bin/python -m pytest -m live tests/classifier/pipeline/
+# Expected: 2 passed, 209 deselected (needs Docker + the Azurite image;
+# else SKIPS). CI (live-integration.yml) runs exactly this + a guard
+# that fails on any skip.
+```
+
+**S35 Phase 0 Step 0.4 fixture-count forward note**: UNCHANGED —
+html=222 / expected=202 / meta=222 / baseline=1213 /
+**`cassette_count == 30`** / **`exclusions_count == 30`**. (No fixture
+change at S34; the deliverable is test code + a CI workflow.)
+
+**S35 Phase 0 Step 0.9 forward note**: add a presence check for the
+NEW S34 deliverables — `live-integration.yml` (workflow_dispatch +
+schedule; NOT push/PR) and
+`test_cost_journal_adls_azurite_concurrency.py` (`@pytest.mark.live`).
+
+──────── LESSONS folded at S34 close ─────────────────────────────
+
+One new `(S34 folding)` section in LESSONS.md: **"A carve-out claim
+must be verified against the test BODY, not its name/marker."** S33
+asserted "concurrency coverage" against a sequential single-process
+test; the overstatement survived until S34 read the body against the
+production writer model. Verify carve-out ↔ coverage when the carve-out
+is WRITTEN, and re-verify when CI-wiring an existing test.
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
