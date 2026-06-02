@@ -8097,3 +8097,151 @@ production writer model. Verify carve-out ↔ coverage when the carve-out
 is WRITTEN, and re-verify when CI-wiring an existing test.
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+
+## Session 35 — 2026-06-02 — Fresh live ADLS coverage: parquet ShardWriter via adlfs (NEW candidate)
+
+**Scope chosen (Phase 1):** S35 opened with the empty warm-candidate
+queue exactly as flagged (A blocked — re-audited: 0 `canary_runs`
+parquets, no launchd plist, no AI/ML decisions; D operator-led; E
+exhausted at 30; S34 candidate closed). Operator commissioned a NEW
+candidate: **fresh live ADLS coverage, survey-first** — carve-out
+decided at Phase 2 from source, not pre-assumed.
+
+**Phase 2 source-verify survey (the key finding).** S33/S34 cover ONLY
+the cost-journal write path, which uses the `azure-storage-blob` SDK
+directly (`_AzureBlobBackend`, `AzureNamedKeyCredential`). Every OTHER
+ADLS write surface goes through a **completely separate stack**:
+`fsspec.url_to_fs` → `adlfs.AzureBlobFileSystem` → `pyarrow`. Enumerated
+surfaces: (1) cost journal [covered]; (2) **scraper parquet shard output**
+`output/parquet_writer.py::ShardWriter`/`PartitionedShardWriter` [adlfs,
+uncovered]; (3) Stage-2 `page_storage._write_pages_via_fsspec` [adlfs,
+uncovered]; (4) `prompt_logger` [adlfs, uncovered]; (5) orchestrator
+result-upload/stop-flag/shard-split [adlfs, mostly control]. The entire
+fsspec/adlfs stack had ZERO live coverage. **Largest uncovered write
+surface = the parquet `ShardWriter` family** — the scraper's DEFAULT
+output path (`scraper/cli.py` default `--output-format=parquet`), with
+33 hermetic tests (`test_parquet_writer.py`) that run EXCLUSIVELY on
+`file://` LocalFileSystem and whose docstring explicitly disclaims blob
+validation ("identical for abfss:// URLs via adlfs"). Auth is shared-key
+(no lease/SAS): the Azurite connection string embeds the AccountKey —
+precedence #2 of `storage_options_from_env`. Anti-trap honored: did NOT
+scope toward lease/SAS (source showed prod's adlfs path uses connection
+string / managed identity, never a lease).
+
+**Phase 2 gates (operator-confirmed):** Q-carve-out = ShardWriter
+(largest uncovered); Q-write-path = ShardWriter single-file
+atomic-rename path only; Q-SHARED.1 = single commit; 1.TAG = defer.
+
+**Build-time validation spike (before writing the test).** Stood up
+Azurite on port 10002 and drove the REAL `ShardWriter` through adlfs
+with the Azurite connection string: resolved `AzureBlobFileSystem`, wrote
+5 records, read them back through a FRESH adlfs handle, `_tmp` gone — no
+SDK↔emulator version skew (the container's `--skipApiVersionCheck` flag
+absorbs it). One adlfs gotcha caught + fixed: `makedirs(container,
+exist_ok=True)` is a SILENT NO-OP for a bare container path; `mkdir`
+actually issues create_container (first test run failed
+`ContainerNotFound` until switched to mkdir + FileExistsError catch).
+
+**What landed — `f80ccdc`** (1 file, 309 LOC; one commit):
+`tests/classifier/pipeline/test_parquet_writer_adls_azurite.py` — 1
+`@pytest.mark.live` test
+(`test_shardwriter_roundtrips_parquet_on_live_azurite`). The body
+constructs the production `ShardWriter` over an `abfss://` URL against
+Azurite via adlfs (shared-key), writes 5 records, closes — driving
+`parquet_writer.py` `fs.open('wb')` [122] → `ParquetWriter.write_table`
+[123] → atomic `fs.mv` tmp→final [221] — then reads `data.parquet` back
+through a FRESH adlfs handle and asserts the rows round-trip + the `_tmp`
+artifact is gone. Own module-scoped Azurite fixture on a DISTINCT port
+(10002) + name (`barcada-azurite-parquet`) so all THREE live fixtures
+coexist under one `-m live` run; same proven shape (skip-if-unavailable /
+self-healing pre-clean / unconditional try-finally teardown / baked
+`--skipApiVersionCheck`). Auto-joins `live-integration.yml`'s `-m live
+tests/classifier/pipeline/` selection — NO workflow edit needed.
+
+**Teeth verified (negative control, out-of-band).** The body asserts the
+resolved fs is `AzureBlobFileSystem` AND that `final_path` is
+blob-relative. Ran the same assertions against a `file://` URL (the
+silent-local-fallback failure mode): NC1 → `AssertionError`
+(LocalFileSystem ≠ AzureBlobFileSystem); NC2 → `final_path` is an
+absolute `/tmp/...` path → blob-relative assertion fails. Both controls
+bite; the test cannot pass against local disk.
+
+**Phase 0 verification (all green at `eba6585`):** 970 canonical;
+fixtures 222/202/222/1213/30/30; 13 tags; driver lock empty; all S25-S34
+public-API + wiring + AST invariants; CRAWLING_POLICY.md 77/2519; S31+S32
+cassettes (10) + S33 Azurite primitive + S34 race test + S34 CI workflow
+present (posture intact).
+
+**Phase 4 pre-push gate (green):** `ruff check .` clean; `ruff format
+--check .` 356 files OK; vermin min 3.10; `validate_consistency.py` 0
+errors / 0 warnings (eval_data WIP did not trip the halt protocol).
+
+**Spend:** none. Local Docker + the already-pulled Azurite image; no LLM,
+no cloud infra.
+
+──────── Tags state at S35 close ─────────────────────────────────
+
+13 total (UNCHANGED; 1.TAG = defer). `workstream-a-week2-end` remains
+OFFERED-but-DEFERRED (W A.2 not declared closed at S35 despite a third
+live-ADLS surface landing).
+
+**Canonical S35-close baseline for S36 Phase 0 Step 0.5
+(VERIFIED at HEAD `f80ccdc`):**
+
+```
+.venv/bin/python -m pytest \
+    tests/scraper/test_fixture_conformance.py \
+    tests/runners/fixture_cascade/ \
+    tests/baseline_v0/ \
+    tests/synthetic_crawl/ \
+    tests/scraper/test_robots.py \
+    tests/scraper/test_robots_gate.py \
+    tests/scraper/test_robots_bypass_config.py \
+    tests/classifier/pipeline/test_cost_journal.py \
+    tests/classifier/pipeline/test_cost_journal_local.py \
+    tests/classifier/pipeline/test_cost_journal_adls.py \
+    tests/orchestrator/test_robots_integration.py \
+    tests/orchestrator/test_vmss_worker.py \
+    tests/orchestrator/test_job_runner.py \
+    tests/orchestrator/test_worker_loop.py \
+    tests/orchestrator/test_robots_gate_integration.py \
+    tests/orchestrator/test_worker_loop_persistence.py -q
+# Expected: 970 passed / 0 failed / 0 skipped
+# UNCHANGED from S27-S35 close. ALL THREE Azurite tests are live-marked +
+# skip-by-default and are NOT in this invocation.
+```
+
+S35 narrower 14-path baseline: **944** (unchanged).
+
+**The THREE live tests are verified OUT-OF-BAND** (not in the canonical
+count; the dir selection picks up the new file automatically):
+```
+.venv/bin/python -m pytest -m live tests/classifier/pipeline/
+# Expected: 3 passed, 209 deselected (needs Docker + the Azurite image;
+# else SKIPS). CI (live-integration.yml) runs exactly this + a guard
+# that fails on any skip. Ports: S33=10000, S34=10001, S35=10002.
+```
+
+**S36 Phase 0 Step 0.4 fixture-count forward note**: UNCHANGED —
+html=222 / expected=202 / meta=222 / baseline=1213 /
+**`cassette_count == 30`** / **`exclusions_count == 30`**. (No fixture
+change at S35; the deliverable is one live test file.)
+
+**S36 Phase 0 Step 0.9 forward note**: add a presence check for the NEW
+S35 deliverable — `test_parquet_writer_adls_azurite.py`
+(`@pytest.mark.live`; drives the production `ShardWriter` via adlfs;
+DISTINCT port 10002 / container `barcada-azurite-parquet`; assert it
+keeps its live marker + the `AzureBlobFileSystem` teeth assertion).
+
+──────── LESSONS folded at S35 close ─────────────────────────────
+
+One new `(S35 folding)` section in LESSONS.md: **"adlfs is a SEPARATE
+ADLS write stack from the azure-storage-blob SDK — cover it on its own."**
+The cost-journal live tests (S33/S34) prove nothing about the parquet /
+page-storage write paths, which never touch the SDK. When surveying
+"what ADLS coverage exists", split by STACK (azure-storage-blob SDK vs
+fsspec/adlfs), not by "is there an Azurite test". Plus the adlfs operational
+gotcha: `makedirs(container, exist_ok=True)` silently no-ops; use `mkdir`
+to actually create a container.
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.

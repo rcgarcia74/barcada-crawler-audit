@@ -2908,3 +2908,49 @@ control (`retry_delays_ms=()` → 1 shard persisted, 11
   conflict *primitive* is necessary but not sufficient — add a
   multi-writer race with a no-lost-update assertion and a negative
   control proving the assertion has teeth.
+
+---
+
+## adlfs is a SEPARATE ADLS write stack from the azure-storage-blob SDK — cover it on its own (S35 folding)
+
+**What happened.** S35 was commissioned as "fresh live ADLS coverage,
+survey-first." The Phase 2 source-verify survey found that the S33/S34
+live tests — the only Azurite-backed coverage in the tree — exercise the
+cost journal, which writes via the `azure-storage-blob` SDK directly
+(`_AzureBlobBackend` + `AzureNamedKeyCredential`). EVERY other ADLS write
+surface in production goes through a **different stack**:
+`fsspec.url_to_fs` → `adlfs.AzureBlobFileSystem` → `pyarrow`. The two
+stacks share no code. So "is there an Azurite test?" → yes, but it proved
+nothing about the parquet `ShardWriter` (the scraper's DEFAULT output
+path), `page_storage`, or `prompt_logger`. The largest uncovered surface
+was the parquet writer, whose 33 hermetic tests run `file://`-only and
+whose docstring literally asserts the abfss path is "identical … via
+adlfs" — an equivalence never exercised. S35 closed the parquet leg
+(`f80ccdc`, port 10002).
+
+**Why it matters / how to apply (forward to S36+):**
+- When surveying "what coverage exists" for an external service, split by
+  the **client stack**, not by the emulator. azure-storage-blob SDK
+  coverage ≠ adlfs/fsspec coverage ≠ pyarrow-over-adlfs coverage. List
+  the surfaces, tag each with its stack, then ask which stacks are
+  unproven.
+- Honor the shared-key anti-trap by reading the auth precedence in
+  source. `storage_options_from_env` prefers managed identity → connection
+  string → SAS; the Azurite connection string is the shared-key path
+  (AccountKey embedded), precedence #2. Do NOT scope toward lease/SAS
+  unless prod actually constructs one (it does not here).
+- Teeth for an adlfs write test: assert the resolved fs is
+  `AzureBlobFileSystem` AND the public `final_path` is blob-relative (no
+  leading `/`); a silent `file://` fallback is `LocalFileSystem` with an
+  absolute path. Read the artifact back through a FRESH adlfs handle to
+  prove bytes reached the emulator, not in-process cache / local disk.
+- Operational adlfs gotcha: `fs.makedirs(container, exist_ok=True)`
+  SILENTLY NO-OPS for a bare container path — the container is not
+  created. Use `fs.mkdir(container)` (catch `FileExistsError` for
+  idempotency); it issues the real create_container. (Cost: one
+  `ContainerNotFound` test failure before the switch.)
+- Coexisting live Azurite fixtures need a DISTINCT port + container name:
+  S33=10000/`barcada-azurite-katest`, S34=10001/`barcada-azurite-racetest`,
+  S35=10002/`barcada-azurite-parquet`. Placed under
+  `tests/classifier/pipeline/`, a new `@pytest.mark.live` test auto-joins
+  `live-integration.yml`'s `-m live <dir>` selection — no workflow edit.
