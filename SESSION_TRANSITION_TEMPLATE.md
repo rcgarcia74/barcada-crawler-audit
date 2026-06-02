@@ -170,12 +170,12 @@ parquet ShardWriter)** — `f80ccdc`, single commit, 1 file, 309 LOC:
   were tolerated under "Workspace HEAD delta tolerance" (prompt-only
   edits).
 - Session 35 close-out workspace commits: 1 primary close-out
-  (SESSION_LOG.md + SESSION_TRANSITION_TEMPLATE.md + LESSONS.md)
-  + 1-2 anchor-pin follow-ups (pinning the actual close-out SHA into
-  this template's Anchors section for S36).
+  `fd3b5d8` (SESSION_LOG.md + SESSION_TRANSITION_TEMPLATE.md +
+  LESSONS.md) + this anchor-pin follow-up (pinning `fd3b5d8` into this
+  template's Anchors section for S36).
 - **Last commit SHA at Session 35 CLOSE: this anchor-pin follow-up
-  succeeding the primary close-out.** S36 Phase 0 Step 0.1 MUST anchor
-  workspace expectation to the S35 close-out OR this anchor-pin
+  succeeding the primary close-out `fd3b5d8`.** S36 Phase 0 Step 0.1
+  MUST anchor workspace expectation to `fd3b5d8` OR this anchor-pin
   follow-up OR a later follow-up.
 - Branch sync with `origin/main`: 0 ahead / 0 behind expected after
   the Session 35 close push.
