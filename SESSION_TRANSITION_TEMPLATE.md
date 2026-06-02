@@ -39,13 +39,14 @@ Anchors for Session 35 cold start:
   Tolerated delta: operator-side eval_data labeling commits between
   S34 close and S35 open (Sessions 8-34 precedent) — verify each is
   strictly `eval_data/*` via `git show --stat`.
-- Workspace HEAD: the S34 primary close-out commit (SESSION_LOG.md +
-  SESSION_TRANSITION_TEMPLATE.md + LESSONS.md) + its anchor-pin
-  follow-up succeeding it (+ any later prompt-revision commits). S35
-  Phase 0 Step 0.1 MUST anchor workspace expectation to that
-  close-out OR a later follow-up. Per the S21-S34 LESSONS pattern
-  "Workspace HEAD delta tolerance": tolerate N additional
-  prompt-drafting / audit-correction commits between sessions.
+- Workspace HEAD: the S34 primary close-out commit `a6eef0f`
+  (SESSION_LOG.md + SESSION_TRANSITION_TEMPLATE.md + LESSONS.md) +
+  THIS anchor-pin follow-up succeeding it (+ any later
+  prompt-revision commits). S35 Phase 0 Step 0.1 MUST anchor
+  workspace expectation to `a6eef0f` OR this anchor-pin follow-up OR
+  a later follow-up. Per the S21-S34 LESSONS pattern "Workspace HEAD
+  delta tolerance": tolerate N additional prompt-drafting /
+  audit-correction commits between sessions.
 - Canonical baseline: **970 tests** (16-path invocation; UNCHANGED
   from S27-S34 close). BOTH Azurite tests are `@pytest.mark.live` +
   skip-by-default and are NOT in the canonical invocation.
@@ -159,9 +160,10 @@ race test)** — `eba6585`, single commit, 2 files, 425 insertions:
   (SESSION_LOG.md + SESSION_TRANSITION_TEMPLATE.md + LESSONS.md)
   + 1-2 anchor-pin follow-ups (pinning the actual close-out SHA into
   this template's Anchors section for S35).
-- **Last commit SHA at Session 34 CLOSE: the anchor-pin follow-up
-  succeeding the primary close-out.** S35 Phase 0 Step 0.1 MUST
-  anchor workspace expectation to that close-out OR a later follow-up.
+- **Last commit SHA at Session 34 CLOSE: this anchor-pin follow-up
+  succeeding the primary close-out `a6eef0f`.** S35 Phase 0 Step 0.1
+  MUST anchor workspace expectation to `a6eef0f` OR this anchor-pin
+  follow-up OR a later follow-up.
 - Branch sync with `origin/main`: 0 ahead / 0 behind expected after
   the Session 34 close push.
 
