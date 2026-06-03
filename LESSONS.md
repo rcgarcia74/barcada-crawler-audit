@@ -2997,3 +2997,46 @@ plumbing channel. S36 closed the page_storage leg (`25c3696`, port 10003).
   a `file://` fallback is `LocalFileSystem` + absolute `/tmp/...` (both
   controls fail). Read back through a FRESH handle. Four live fixtures now
   coexist on ports 10000–10003.
+
+### (S37 folding) The makedirs-no-op gotcha is SHARPER on the partitioned write_to_dataset path: pyarrow's per-partition create_dir hits adlfs's non-idempotent create_container.
+
+S35 folded "adlfs `makedirs(container, exist_ok=True)` silently no-ops; use
+`mkdir`." S37 found the partitioned writer makes that gotcha BITE where the
+single-file writer did not. `PartitionedShardWriter._flush` calls
+`pq.write_to_dataset(filesystem=fs, partition_cols=PARTITION_COLUMNS, ...)`.
+pyarrow's dataset writer creates the output directories with `create_dir=True`
+by default — issuing one `create_dir` per partition directory it writes. On
+adlfs each `create_dir` walks up to the container and calls `create_container`,
+which is **non-idempotent**: the FIRST partition creates the container, the
+SECOND partition's create raises `ContainerAlreadyExists` and adlfs re-raises it
+as `ValueError`. The production `__init__`'s `makedirs(partition_root,
+exist_ok=True)` (`parquet_writer.py:375`) silently no-ops on adlfs and does NOT
+pre-create the container, so a multi-partition write against a fresh container
+fails. (A single-partition write — or a write where the container already exists
+— does not, which is why a naive spike that writes one record first "passes" and
+hides the bug. My first spike masked it exactly this way via a probe write.)
+
+**Why it matters / how to apply (forward to S38+):**
+- For any live test of a `pq.write_to_dataset`/`ds.write_dataset` path over
+  adlfs, PRE-CREATE the container via `fs.mkdir(container)` (catch
+  `FileExistsError`) in the fixture BEFORE the production write. This matches
+  the real production assumption (the output container is provisioned once,
+  before sharded writes fan out) and sidesteps adlfs's non-idempotent
+  `create_container`. Do NOT rely on the writer's own `makedirs(exist_ok=True)`.
+- Make the spike WRITE MULTIPLE PARTITIONS IN ONE `write_to_dataset` CALL against
+  a FRESH container — that is the configuration that exposes the
+  `ContainerAlreadyExists` race. A single-partition or pre-populated-container
+  spike is a false green. (S35/S36 build-time-spike discipline, with this
+  specific partitioned-path trap added.)
+- Teeth for the partitioned path use the public `partition_root` property (not
+  `final_path`): assert `AzureBlobFileSystem` + blob-relative `partition_root`;
+  the `file://` negative control resolves to `LocalFileSystem` + absolute path.
+  Read back with `pyarrow.dataset.dataset(root, filesystem=fresh_fs,
+  partitioning=HivePartitioning([has_website bool, bot_blocked bool]))` through a
+  FRESH handle and assert rows + reconstructed partition booleans.
+- This closes the SECOND half of `parquet_writer.py`'s live coverage; the
+  `ShardWriter` (S35) and `PartitionedShardWriter` (S37) take genuinely
+  different pyarrow paths and each needed its own live test. S37 landed the
+  partitioned leg (`f4e0a4a`, port 10004); five live fixtures now coexist on
+  ports 10000–10004. Remaining uncovered adlfs surfaces: `prompt_logger`
+  (fsspec `wb` single object) + cost-journal lease/SAS.

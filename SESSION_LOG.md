@@ -8392,3 +8392,152 @@ clear_instance_cache()`) before driving a URL-only resolution so a stale anon
 instance is not reused.
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+
+---
+
+## Session 37 — 2026-06-03 — PartitionedShardWriter adlfs leg: live ADLS coverage for the Hive write_to_dataset path (NEW candidate)
+
+**Scope chosen (Phase 1, decided-at-Phase-1 shape).** S37 opened with the same
+empty warm-candidate queue. Empirical re-audit: A still BLOCKED (0 `canary_runs`
+parquets, no launchd plist in `~/Library/LaunchAgents/`, no AI/ML decisions); D
+operator-led; E exhausted at 30; S35 + S36 candidates closed. The remaining
+uncovered adlfs surfaces were the only actionable space. Operator picked via
+AskUserQuestion: the **PartitionedShardWriter adlfs leg** — closes the second
+half of `output/parquet_writer.py`'s live coverage (the Hive
+`write_to_dataset(filesystem=fs)` path; a DIFFERENT pyarrow code path than the
+S35-covered `ShardWriter`).
+
+**Phase 2 source-verify (auth seam, S36 discipline).** `PartitionedShardWriter.
+__init__` takes an explicit `storage_options=` kwarg (`parquet_writer.py:361`),
+resolved via `fsspec.url_to_fs(output_dir, **storage_options)` (`:382`) — the
+SAME shared-key seam as S35's `ShardWriter`, NOT env-resolved like S36's
+`write_pages`. Verified from the signature, not assumed. Shared-key only, no
+lease/SAS.
+
+**Coverage survey (S35 discipline — by client stack).** The S35 azurite test
+drives only `ShardWriter` (10 refs, 0 `PartitionedShardWriter`); no azurite test
+references the Hive path. The distinctive surface is
+`pq.write_to_dataset(filesystem=fs, partition_cols=PARTITION_COLUMNS,
+existing_data_behavior=overwrite_or_ignore)` (`:413-419`). The 14 partitioned
+hermetic tests in `tests/test_parquet_writer.py` exercise it only over `file://`
+and remain the default-run guard.
+
+**Step 0.10 same-shape sweep.** New live test ADDS the adlfs client-stack
+coverage for the Hive path; does not modify/replace the hermetic guard.
+
+**Phase 2 gates (operator-confirmed):** Q-SHARED.1 = single bundled commit;
+1.TAG = defer (`workstream-a-week2-end` still OFFERED-but-DEFERRED, consistent
+with S33/S34/S35/S36).
+
+**Build-time validation spike (before writing the test) — KEY FINDING.** Stood
+up Azurite on a throwaway port, drove the REAL `PartitionedShardWriter` through
+adlfs. First (clean-container) run FAILED: with a fresh container and a single
+`write_to_dataset` spanning MULTIPLE partitions, pyarrow issues one `create_dir`
+per partition, each walking up to `create_container`; adlfs's `create_container`
+is **non-idempotent**, so the 2nd partition raises `ContainerAlreadyExists` →
+adlfs re-raises `ValueError`. (The production `makedirs(partition_root,
+exist_ok=True)` at `:375` silently no-ops on adlfs and does NOT pre-create the
+container — the S35 makedirs fold, sharper here.) Fix proven in-spike:
+pre-create the container via `fs.mkdir` (catch `FileExistsError`) so
+`write_to_dataset` never has to create it — matching the production assumption
+that the output container exists before sharded writes. With the pre-mkdir, the
+3-record / 3-partition round-trip read back deterministically (3 rows, partition
+booleans reconstructed) via a FRESH adlfs handle. Caught inside Phase 3, not as
+a post-commit HALT.
+
+**What landed — `f4e0a4a`** (1 file, 389 LOC after ruff format; one commit):
+`tests/classifier/pipeline/test_partitioned_shard_writer_adls_azurite.py` — 1
+`@pytest.mark.live` test (`test_partitioned_shardwriter_roundtrips_hive_dataset_
+on_live_azurite`). The body pre-creates the container via `mkdir`, constructs a
+real `PartitionedShardWriter` over `abfss://...` + Azurite `storage_options`,
+asserts teeth BEFORE writing (resolved fs == `AzureBlobFileSystem`;
+`partition_root` blob-relative, no leading `/`), writes three records deriving
+three distinct Hive partitions (`has_website=true/bot_blocked=false`,
+`has_website=true/bot_blocked=true`, `has_website=false/bot_blocked=false`),
+closes (driving the `write_to_dataset` fan-out), then reads the dataset back
+through a FRESH adlfs handle with `pyarrow.dataset.HivePartitioning` and asserts
+all rows + reconstructed partition booleans round-trip. Own module-scoped
+Azurite fixture on a DISTINCT port (10004) + name (`barcada-azurite-partitioned`)
+so all FIVE live fixtures coexist under one `-m live` run; same proven shape
+(skip-if-unavailable / self-healing pre-clean / unconditional try-finally
+teardown / baked `--skipApiVersionCheck`). Auto-joins `live-integration.yml`'s
+`-m live tests/classifier/pipeline/` selection — NO workflow edit needed.
+**Production `parquet_writer.py` UNMODIFIED** (public `storage_options=` seam only).
+
+**Teeth verified (negative control, in-body + out-of-band).** The test itself
+constructs a `file://` writer and asserts the local fallback resolves to
+`LocalFileSystem` with an ABSOLUTE `partition_root`. Out-of-band confirmed both
+blob assertions (fs type; blob-relative path) FAIL for that local fallback → the
+green abfss run is meaningful.
+
+**Phase 0 verification (all green at workspace `fbbed97` / repo `25c3696`):** 970
+canonical; fixtures 222/202/222/1213/30/30; 13 tags; driver lock empty; all
+S25-S36 public-API invariants incl. (a2) parquet ShardWriter + (a3) page_storage;
+CRAWLING_POLICY.md 77/2519; S31+S32 cassettes (10) + S33 primitive + S34 race+CI
++ S35 parquet + S36 page_storage adlfs tests present (posture intact).
+
+**Phase 4 pre-push gate (green):** `ruff check .` clean; `ruff format --check .`
+358 files OK; vermin min 3.10; `validate_consistency.py` 0 errors / 0 warnings
+(eval_data WIP did not trip the halt protocol).
+
+**Spend:** none. Local Docker + the already-pulled Azurite image; no LLM, no
+cloud infra.
+
+──────── Tags state at S37 close ─────────────────────────────────
+
+13 total (UNCHANGED; 1.TAG = defer). `workstream-a-week2-end` remains
+OFFERED-but-DEFERRED (W A.2 not declared closed at S37 despite a fifth
+live-ADLS surface landing — prompt_logger + lease/SAS remain uncovered).
+
+**Canonical S37-close baseline for S38 Phase 0 Step 0.5
+(VERIFIED at HEAD `f4e0a4a`):**
+
+```
+.venv/bin/python -m pytest \
+    tests/scraper/test_fixture_conformance.py \
+    tests/runners/fixture_cascade/ \
+    tests/baseline_v0/ \
+    tests/synthetic_crawl/ \
+    tests/scraper/test_robots.py \
+    tests/scraper/test_robots_gate.py \
+    tests/scraper/test_robots_bypass_config.py \
+    tests/classifier/pipeline/test_cost_journal.py \
+    tests/classifier/pipeline/test_cost_journal_local.py \
+    tests/classifier/pipeline/test_cost_journal_adls.py \
+    tests/orchestrator/test_robots_integration.py \
+    tests/orchestrator/test_vmss_worker.py \
+    tests/orchestrator/test_job_runner.py \
+    tests/orchestrator/test_worker_loop.py \
+    tests/orchestrator/test_robots_gate_integration.py \
+    tests/orchestrator/test_worker_loop_persistence.py -q
+# Expected: 970 passed / 0 failed / 0 skipped
+# UNCHANGED from S27-S37 close. ALL FIVE Azurite tests are live-marked +
+# skip-by-default and are NOT in this invocation.
+```
+
+S37 narrower 14-path baseline: **944** (unchanged).
+
+**The FIVE live tests are verified OUT-OF-BAND** (not in the canonical count;
+the dir selection picks up the new file automatically):
+```
+.venv/bin/python -m pytest -m live tests/classifier/pipeline/
+# Expected: 5 passed, 209 deselected (needs Docker + the Azurite image;
+# else SKIPS). CI (live-integration.yml) runs exactly this + a guard that
+# fails on any skip. Ports: S33=10000, S34=10001, S35=10002, S36=10003,
+# S37=10004. Verified at S37 close: 5 passed, 209 deselected in 14.29s.
+```
+
+**S38 Phase 0 Step 0.4 fixture-count forward note**: UNCHANGED —
+html=222 / expected=202 / meta=222 / baseline=1213 /
+**`cassette_count == 30`** / **`exclusions_count == 30`**. (No fixture change at
+S37; the deliverable is one live test file.)
+
+**S38 Phase 0 Step 0.9 forward note**: add a presence check for the NEW S37
+deliverable — `test_partitioned_shard_writer_adls_azurite.py` (`@pytest.mark.live`;
+drives the production `PartitionedShardWriter.write_to_dataset` Hive path via
+adlfs with the explicit `storage_options=` seam; DISTINCT port 10004 / container
+`barcada-azurite-partitioned`; assert it keeps its live marker + the
+`AzureBlobFileSystem` teeth + `write_to_dataset`/`HivePartitioning` drive + the
+container pre-`mkdir`).
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
