@@ -121,20 +121,31 @@ the S38 bundle.
 
 2. **Tag-taxonomy drift — settle it off-session before S38, don't defer a
    7th time.** `workstream-a-week2-end` has been OFFERED-but-DEFERRED six
-   times (S33→S37). The operator's correction: the S33–S37 ADLS live-test
-   cluster is **plan-Workstream-B-adjacent, NOT Workstream-A** — so the
-   `workstream-a-*` name is likely wrong for it. The off-session decision to
-   capture in the S38 bundle, so S38 has a real choice instead of a
-   default-defer:
-   - **Correct tag identity** for the S33–S37 ADLS live-test cluster (a
-     `workstream-b-*`-family name, or whatever the plan's Workstream-B
-     taxonomy dictates) — reconcile against
-     `BARCADA_CRAWLER_REMEDIATION_PLAN.md`'s Workstream-B definition.
-     (Separate concern: the COMMIT subjects use the `WA2.W8.*` prefix,
-     established + operator-flagged at S35/S36; that is the commit-label
-     convention, not the tag name. The tag taxonomy decision is about what
-     ANNOTATED TAG, if any, marks the cluster — not about rewriting pushed
-     commit subjects.)
+   times (S33→S37) and is the WRONG name for the S33–S37 ADLS live-test
+   cluster. **BUT (S38-review refinement, Finding M) do NOT pre-assume a
+   replacement letter either: the cluster is CROSS-WORKSTREAM** — the
+   cost-journal tests (S33/S34) map to plan Workstream B (Cost &
+   Observability, W10–12), but the parquet-output tests (S35/S37) are
+   scraper-output infra and page_storage (S36) is Stage-2 page acquisition;
+   neither is cleanly Workstream B. So `workstream-b-*` may be as wrong as
+   `workstream-a-week2-end`. The off-session decisions to capture in the S38
+   bundle, so S38 has a real choice instead of a default-defer:
+   - **Scope the cluster (Finding N)** — the cluster is the FIVE ADLS live
+     tests ONLY (S33 `f1cdce8`, S34 `eba6585`, S35 `f80ccdc`, S36 `25c3696`,
+     S37 `f4e0a4a`). The S23–S25 orchestrator-robots work and the S29/S30
+     K-b smoke script/execution are EXCLUDED — they were loosely lumped into
+     the S37 "W A.2" framing but are genuinely different work with their own
+     history. Any annotated tag names only the five live-test commits.
+   - **Correct tag identity — do NOT pre-assume a workstream letter.** Read
+     the FULL plan workstream taxonomy in
+     `BARCADA_CRAWLER_REMEDIATION_PLAN.md` and evaluate whether the
+     cross-workstream cluster maps to any single workstream tag at all, or
+     whether it warrants its OWN cross-cutting identity (e.g.
+     `adls-live-coverage-*`). (Separate concern: the COMMIT subjects use the
+     `WA2.W8.*` prefix, established + operator-flagged at S35/S36; that is the
+     commit-label convention, not the tag name. The tag taxonomy decision is
+     about what ANNOTATED TAG, if any, marks the cluster — not about
+     rewriting pushed commit subjects.)
    - **The bar that CLOSES the cluster** — e.g. is the cluster "done" at the
      parquet completeness boundary (note 1) plus cost-journal + page_storage,
      or does it stay open until `prompt_logger` + lease/SAS are also covered?
@@ -182,13 +193,17 @@ the S38 bundle.
     `workstream-stage1-step3-end` (`d4f06b8`) — operator eval_data tags
   - NOTE: `workstream-a-week2-end` was OFFERED at S33 AND remained
     DEFERRED at S34, S35, S36 AND S37 (six defers) despite five live-ADLS
-    surfaces landing. **TAG-TAXONOMY DRIFT (operator, S37 close): the
-    S33–S37 ADLS live-test cluster is plan-Workstream-B-adjacent, NOT A —
-    so `workstream-a-week2-end` is likely the WRONG tag name for it.** Do
-    NOT settle this by another defer-by-default at S38. See the "S38 forward
-    notes" section below: the off-session decision (correct tag identity +
-    the bar that closes the cluster) should be captured in the S38 bundle so
-    S38 does not make the same defer call a seventh time.
+    surfaces landing. **TAG-TAXONOMY DRIFT (operator, S37 close + S38
+    review): `workstream-a-week2-end` is the WRONG name for the S33–S37
+    ADLS live-test cluster — but the cluster is CROSS-WORKSTREAM
+    (cost-journal=plan Workstream B; parquet + page_storage are NOT B), so
+    do NOT pre-assume `workstream-b-*` either; it may warrant its own
+    cross-cutting identity. Scope it to the FIVE ADLS live tests only
+    (robots/K-b excluded).** Do NOT settle this by another defer-by-default
+    at S38. See the "S38 forward notes" section above: the off-session
+    decision (scope + correct tag identity + the bar that closes the
+    cluster) should be captured in the S38 bundle so S38 does not make the
+    same defer call a seventh time.
 - Pre-push gate at HEAD `f4e0a4a`: VERIFIED GREEN at S37 close
   (ruff check "All checks passed!" + ruff format clean [358 files;
   count not pinned] + vermin 3.10 + validate_consistency 0 errors /

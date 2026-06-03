@@ -255,13 +255,17 @@ git -C /Users/administrator/projects/barcada-scraper tag -l | sort
 git -C /Users/administrator/projects/barcada-scraper rev-list -n 1 workstream-0-end
 # Expect: a1c5636… (UNCHANGED).
 
-# CRITICAL (operator note at S37 close): `workstream-a-week2-end` was
-# OFFERED at S33 AND DEFERRED SIX TIMES (S33-S37). The S33-S37 ADLS
-# live-test cluster is plan-Workstream-B-adjacent, NOT Workstream-A — so
-# `workstream-a-week2-end` is likely the WRONG tag name. Do NOT default-defer
-# a SEVENTH time. See Sub-question 1.TAG: the off-session tag-taxonomy
-# decision MUST be resolved at S38 Phase 1 (correct tag identity + the bar
-# that closes the cluster), not deferred by reflex.
+# CRITICAL (operator note at S37 close + S38 review): `workstream-a-week2-end`
+# was OFFERED at S33 AND DEFERRED SIX TIMES (S33-S37) and is likely the WRONG
+# tag name for the S33-S37 ADLS live-test cluster. BUT do NOT pre-assume a
+# replacement letter either — the cluster is CROSS-WORKSTREAM (cost-journal
+# S33/S34 = plan Workstream B; parquet S35/S37 = scraper output; page_storage
+# S36 = Stage-2 acquisition), so `workstream-b-*` may be as wrong as the
+# `-a-` name. Do NOT default-defer a SEVENTH time. See Sub-question 1.TAG: the
+# off-session tag-taxonomy decision MUST be resolved at S38 Phase 1 (scope the
+# cluster to the FIVE ADLS live tests only [robots/K-b excluded]; correct tag
+# identity WITHOUT pre-assuming a workstream letter; + the bar that closes the
+# cluster), not deferred by reflex.
 
 # Tolerated delta: additional operator-side stage1-*/eval_data-* tags.
 # For each new tag beyond the 13, verify the tagged commit is
@@ -710,9 +714,12 @@ In this order:
 4. **`~/crawler-audit/BARCADA_CRAWLER_REMEDIATION_PLAN.md`** —
    chosen-scope section. READ-ONLY by default; the only exception is
    the plan-amendment session shape (explicit operator authorization
-   to edit §4 W7's "~20-30" ceiling). **ALSO read the Workstream-B
-   definition** if the tag-taxonomy decision (1.TAG) is being settled —
-   it determines the correct tag identity for the S33-S37 ADLS cluster.
+   to edit §4 W7's "~20-30" ceiling). **ALSO read the FULL workstream
+   taxonomy** if the tag-taxonomy decision (1.TAG) is being settled — to
+   determine where the cross-workstream S33-S37 ADLS cluster maps (the
+   cost-journal tests are Workstream B; the parquet + page_storage tests
+   are NOT), or whether it warrants its own cross-cutting identity. Do NOT
+   pre-assume `workstream-b-*` (Finding M).
 
 5. **`~/crawler-audit/CLASSIFICATION_ADJACENT_PLAN.md`** §Item 8 —
    only if Candidate A (barcada-drift) is chosen.
@@ -826,20 +833,38 @@ scripts with the ~70-100 LOC additive overhead floor.
 ### Sub-question 1.TAG — Tag at session close (pinned at Phase 1)
 
 **This is NO LONGER a routine defer.** The operator flagged at S37 close
-that the S33-S37 ADLS live-test cluster is plan-Workstream-B-adjacent,
-NOT Workstream-A — so `workstream-a-week2-end` (OFFERED+DEFERRED six
-times, S33-S37) is likely the WRONG tag name. **Resolve the
-tag-taxonomy decision explicitly at S38 Phase 1, do not default-defer a
-seventh time:**
+that `workstream-a-week2-end` (OFFERED+DEFERRED six times, S33-S37) is
+likely the WRONG tag name for the S33-S37 ADLS live-test cluster.
+**Resolve the tag-taxonomy decision explicitly at S38 Phase 1, do not
+default-defer a seventh time:**
 
-1. **Correct tag identity** — reconcile against the plan's Workstream-B
-   definition (read BARCADA_CRAWLER_REMEDIATION_PLAN.md). The ADLS
-   live-test cluster (cost-journal S33/S34 + parquet S35/S37 +
-   page_storage S36) likely belongs under a `workstream-b-*`-family tag,
-   not `workstream-a-week2-end`. NOTE: the commit-subject prefix
-   `WA2.W8.*` is a SEPARATE established convention (operator-flagged at
-   S35/S36) and is NOT the tag name — do not conflate, and do not rewrite
-   pushed commit subjects.
+**FIRST — scope the cluster explicitly (Finding N, operator S38 review).**
+S37's AskUserQuestion lumped W A.2 as "orchestrator robots + K-b +
+Azurite primitive + …". That was too broad. **The cluster is HEREBY
+SCOPED to the five ADLS live tests only — S33 (`f1cdce8`), S34
+(`eba6585`), S35 (`f80ccdc`), S36 (`25c3696`), S37 (`f4e0a4a`). The
+S23-S25 orchestrator-robots work and the S29/S30 K-b smoke
+script/execution are EXCLUDED** — they are genuinely different work with
+their own history, and must NOT be silently folded into this tag. Any
+annotated tag placed for this cluster names ONLY the five live-test
+commits.
+
+1. **Correct tag identity — do NOT pre-assume a workstream letter
+   (Finding M, operator S38 review).** Read
+   BARCADA_CRAWLER_REMEDIATION_PLAN.md and note the cluster SPANS plan
+   workstreams: the cost-journal live tests (S33/S34) map to plan
+   Workstream B (Cost & Observability, W10-12), BUT the parquet-output
+   live tests (S35/S37) are scraper-output infra and page_storage (S36)
+   is Stage-2 page acquisition — **neither is cleanly Workstream B.**
+   Pre-steering toward `workstream-b-*` would repeat the original
+   `workstream-a-week2-end` error with a different letter. Evaluate
+   whether the cluster maps to any SINGLE workstream tag at all, or
+   whether a five-ADLS-test cross-cutting set warrants its OWN dedicated
+   identity (e.g. `adls-live-coverage-*`) rather than a `workstream-N`
+   lineage. Do NOT assume `workstream-b-*`. NOTE: the commit-subject
+   prefix `WA2.W8.*` is a SEPARATE established convention
+   (operator-flagged at S35/S36) and is NOT the tag name — do not
+   conflate, and do not rewrite pushed commit subjects.
 2. **The bar that CLOSES the cluster** — `output/parquet_writer.py` is
    now FULLY live-covered (both halves) as of S37, the natural parquet
    completeness boundary. Decide whether the cluster closes at the
@@ -853,10 +878,13 @@ Options at Phase 1:
 - **A NEW adlfs-surface candidate (or a no-ship session)**: resolve the
   tag-taxonomy decision above. If the operator settles the identity +
   closing bar AND considers the cluster closed, place the CORRECTLY-NAMED
-  annotated tag (e.g. a `workstream-b-*` tag) rather than
-  `workstream-a-week2-end`. If the operator wants the cluster to stay
-  open (e.g. until prompt_logger lands), record that decision + the
-  closing bar explicitly and defer with a rationale (NOT a reflex defer).
+  annotated tag (the name from the 1.TAG resolution — a cross-cutting
+  `adls-live-coverage-*`-style identity or whatever the plan reconciliation
+  yields; NOT a pre-assumed `workstream-b-*`) over the FIVE live-test
+  commits only, rather than `workstream-a-week2-end`. If the operator
+  wants the cluster to stay open (e.g. until prompt_logger lands), record
+  that decision + the closing bar explicitly and defer with a rationale
+  (NOT a reflex defer).
 
 Phase 5 reads this resolution directly — no Phase 2 re-decision.
 
@@ -1080,17 +1108,20 @@ protocol at push (the gate ran clean).
 
 - Push to `origin/main` after operator confirms.
 - Tag per Phase 1 Sub-question 1.TAG decision (the tag-taxonomy
-  resolution — a correctly-named `workstream-b-*` tag if the cluster is
-  declared closed, OR an explicit rationale-backed defer; NOT a reflex
-  `workstream-a-week2-end` defer).
+  resolution — the correctly-named tag from the 1.TAG resolution if the
+  cluster is declared closed, OR an explicit rationale-backed defer; NOT a
+  reflex `workstream-a-week2-end` defer, and NOT a pre-assumed
+  `workstream-b-*` either).
 
-If a workstream-end tag is placed: include an annotated message naming
+If a tag is placed: include an annotated message naming
 every sub-surface commit + mapping to plan bullets + listing
 deferrals (mirror `workstream-a-week1-end` / `workstream-0-end`). If the
-S33-S37 ADLS cluster tag is placed, name all five live-test commits
-(`f1cdce8` S33, `eba6585` S34, `f80ccdc` S35, `25c3696` S36, `f4e0a4a`
-S37) and cite the parquet completeness boundary as part of the closing
-rationale.
+S33-S37 ADLS cluster tag is placed, scope it to the FIVE ADLS live-test
+commits ONLY — `f1cdce8` S33, `eba6585` S34, `f80ccdc` S35, `25c3696`
+S36, `f4e0a4a` S37 — and EXCLUDE the S23-S25 robots + S29/S30 K-b history
+(Finding N: those were loosely lumped into the S37 "W A.2" framing but are
+genuinely different work). Cite the parquet completeness boundary as part
+of the closing rationale.
 
 Note: workstream-0-end placed at S27. W A.1 closed at S22's
 `workstream-a-week1-end`. The ADLS live-test cluster (S33-S37) is the
@@ -1153,8 +1184,10 @@ explicitly at S38 close, draft it as a separate follow-up.
   headline (verified out-of-band; `pytest -m live tests/classifier/pipeline/`
   → 5 + N passed).
 - **S2.** Pre-push gate green (incl. eval_data WIP halt protocol).
-- **S3.** Tag-taxonomy decision (1.TAG) resolved — correctly-named tag
-  placed OR explicit rationale-backed defer (NOT a reflex defer).
+- **S3.** Tag-taxonomy decision (1.TAG) resolved — cluster scoped to the
+  five ADLS live tests (robots/K-b excluded), correctly-named tag placed
+  (no pre-assumed `workstream-b-*`) OR explicit rationale-backed defer
+  (NOT a reflex defer).
 - **S4.** Regression-protection checklist held (see Out-of-scope). In
   particular: ALL S21-S37 deliverables stay at their SHAs; their public
   APIs unchanged; the 5 S31 + 5 S32 cassettes stay at `06d67c4` /
@@ -1432,10 +1465,15 @@ LESSONS-folded discoveries worth re-applying:
   (S31; S32 confirmed; S35 re-confirmed: an agent-side `docker rm -f`
   pre-clean tripped the destructive-op hook, but `docker stop` and
   in-fixture `docker rm -f` run fine).
-- **Tag-taxonomy drift: the S33-S37 ADLS live-test cluster is
-  Workstream-B-adjacent, NOT A; `workstream-a-week2-end` is the wrong
-  name (operator note, S37 close). Settle the identity + closing bar at
-  S38 Phase 1, do not default-defer (see Sub-question 1.TAG).**
+- **Tag-taxonomy drift: `workstream-a-week2-end` is the wrong name for
+  the S33-S37 ADLS live-test cluster (operator note, S37 close) — but the
+  cluster is CROSS-WORKSTREAM (cost-journal S33/S34 = plan Workstream B;
+  parquet S35/S37 = scraper output; page_storage S36 = Stage-2
+  acquisition), so do NOT pre-assume `workstream-b-*` either; it may
+  warrant its own cross-cutting identity (Finding M, S38 review). Scope
+  the cluster to the FIVE ADLS live tests only — robots/K-b excluded
+  (Finding N, S38 review). Settle the identity + closing bar at S38 Phase
+  1, do not default-defer (see Sub-question 1.TAG).**
 
 ---
 
@@ -1553,10 +1591,15 @@ directly into this prompt — S38 does not need a separate amendment file:
   plan-ceiling revision first.
 - **NEW candidate space NARROWED** — only `prompt_logger` (ENV-resolved
   auth, S36-style) + lease/SAS cost-journal paths remain adlfs-uncovered.
-- **Tag-taxonomy decision ELEVATED** — the S33-S37 ADLS cluster is
-  Workstream-B-adjacent (operator note, S37 close); Sub-question 1.TAG
-  must settle the correct tag identity + the closing bar at Phase 1, not
-  default-defer a seventh time.
+- **Tag-taxonomy decision ELEVATED** — `workstream-a-week2-end` is the
+  wrong name for the S33-S37 ADLS cluster (operator note, S37 close). S38
+  review (Findings M + N) sharpened this: (M) the cluster is
+  CROSS-WORKSTREAM, so do NOT pre-assume `workstream-b-*` — it may warrant
+  its own cross-cutting identity; (N) scope the cluster to the FIVE ADLS
+  live tests only (robots/K-b excluded — they were loosely lumped into the
+  S37 "W A.2" framing). Sub-question 1.TAG must settle the scope + the
+  correct tag identity + the closing bar at Phase 1, not default-defer a
+  seventh time.
 
 If new amendments arise pre-S38 open, walk them per the
 reviewer-feedback hygiene pattern above.
