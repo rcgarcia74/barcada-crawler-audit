@@ -1394,7 +1394,7 @@ S37 does not need a separate amendment file:
   `fedb096`/`cfb6851` + this prompt-drafting commit; repo anchor
   `25c3696` with operator-eval_data-commit tolerance), Step 0.2 (13
   tags, unchanged), Step 0.4 (cassettes/exclusions stay 30), Step 0.5
-  (canonical 970), Step 0.8 (added the page_storage hermetic 16-test
+  (canonical 970), Step 0.8 (added the page_storage hermetic 13-test
   sub-suite check), Step 0.9 (added the S36 deliverable presence +
   posture check via `check_s37_deliverables.py` + the (a3) page_storage
   public-API check).
