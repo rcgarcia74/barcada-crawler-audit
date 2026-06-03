@@ -104,6 +104,45 @@ PartitionedShardWriter)** — `f4e0a4a`, single commit, 1 file, 389 LOC:
 
 ---
 
+## S38 forward notes (operator, recorded at S37 close — NOT actions now)
+
+Two notes the operator raised at S37 close for the S38 handoff. Neither is
+an action for S37; both are decisions to settle off-session and capture in
+the S38 bundle.
+
+1. **`parquet_writer.py` is now FULLY live-covered — completeness boundary.**
+   Both halves are closed: the single-file `ShardWriter` path (S35, port
+   10002) AND the Hive-partitioned `PartitionedShardWriter`
+   `write_to_dataset` path (S37, port 10004). There is no remaining
+   uncovered adlfs write path in `output/parquet_writer.py`. This is the
+   clean completeness marker for the **parquet cluster** — worth recording
+   explicitly because it is the natural closure point to cite whenever the
+   tag taxonomy (note 2) is settled.
+
+2. **Tag-taxonomy drift — settle it off-session before S38, don't defer a
+   7th time.** `workstream-a-week2-end` has been OFFERED-but-DEFERRED six
+   times (S33→S37). The operator's correction: the S33–S37 ADLS live-test
+   cluster is **plan-Workstream-B-adjacent, NOT Workstream-A** — so the
+   `workstream-a-*` name is likely wrong for it. The off-session decision to
+   capture in the S38 bundle, so S38 has a real choice instead of a
+   default-defer:
+   - **Correct tag identity** for the S33–S37 ADLS live-test cluster (a
+     `workstream-b-*`-family name, or whatever the plan's Workstream-B
+     taxonomy dictates) — reconcile against
+     `BARCADA_CRAWLER_REMEDIATION_PLAN.md`'s Workstream-B definition.
+     (Separate concern: the COMMIT subjects use the `WA2.W8.*` prefix,
+     established + operator-flagged at S35/S36; that is the commit-label
+     convention, not the tag name. The tag taxonomy decision is about what
+     ANNOTATED TAG, if any, marks the cluster — not about rewriting pushed
+     commit subjects.)
+   - **The bar that CLOSES the cluster** — e.g. is the cluster "done" at the
+     parquet completeness boundary (note 1) plus cost-journal + page_storage,
+     or does it stay open until `prompt_logger` + lease/SAS are also covered?
+     Define the closing bar so a future session can place the tag with a
+     clear rationale rather than defer again.
+
+---
+
 ## Handoff metadata
 
 - Outgoing session number: 37
@@ -142,9 +181,14 @@ PartitionedShardWriter)** — `f4e0a4a`, single commit, 1 file, 389 LOC:
   - `workstream-stage1-prestaged-flags-end` (`af6f1d4`),
     `workstream-stage1-step3-end` (`d4f06b8`) — operator eval_data tags
   - NOTE: `workstream-a-week2-end` was OFFERED at S33 AND remained
-    DEFERRED at S34, S35, S36 AND S37 despite five live-ADLS surfaces
-    landing. If a future session declares W A.2 closed, that annotated tag
-    remains appropriate.
+    DEFERRED at S34, S35, S36 AND S37 (six defers) despite five live-ADLS
+    surfaces landing. **TAG-TAXONOMY DRIFT (operator, S37 close): the
+    S33–S37 ADLS live-test cluster is plan-Workstream-B-adjacent, NOT A —
+    so `workstream-a-week2-end` is likely the WRONG tag name for it.** Do
+    NOT settle this by another defer-by-default at S38. See the "S38 forward
+    notes" section below: the off-session decision (correct tag identity +
+    the bar that closes the cluster) should be captured in the S38 bundle so
+    S38 does not make the same defer call a seventh time.
 - Pre-push gate at HEAD `f4e0a4a`: VERIFIED GREEN at S37 close
   (ruff check "All checks passed!" + ruff format clean [358 files;
   count not pinned] + vermin 3.10 + validate_consistency 0 errors /

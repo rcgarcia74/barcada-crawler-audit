@@ -8489,6 +8489,16 @@ cloud infra.
 OFFERED-but-DEFERRED (W A.2 not declared closed at S37 despite a fifth
 live-ADLS surface landing — prompt_logger + lease/SAS remain uncovered).
 
+**Operator note at S37 close (tag-taxonomy correction, forwarded to S38):**
+the S33–S37 ADLS live-test cluster is plan-Workstream-B-adjacent, NOT
+Workstream-A — so `workstream-a-week2-end` is likely the wrong tag name.
+This is the SIXTH defer; the off-session decision (correct tag identity +
+the bar that closes the cluster) should be settled in the S38 bundle rather
+than defaulted a seventh time. Also noted: `output/parquet_writer.py` is now
+FULLY live-covered (both ShardWriter [S35] and PartitionedShardWriter [S37]
+halves) — the clean completeness boundary for the parquet cluster. See the
+S38 forward-notes section of SESSION_TRANSITION_TEMPLATE.md.
+
 **Canonical S37-close baseline for S38 Phase 0 Step 0.5
 (VERIFIED at HEAD `f4e0a4a`):**
 
