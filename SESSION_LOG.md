@@ -8245,3 +8245,150 @@ gotcha: `makedirs(container, exist_ok=True)` silently no-ops; use `mkdir`
 to actually create a container.
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+
+---
+
+## Session 36 — 2026-06-02 — page_storage adlfs leg: live ADLS coverage for Stage-2 pages.parquet (NEW candidate)
+
+**Scope chosen (Phase 1, decided-at-Phase-1 shape).** S36 opened with the
+empty warm-candidate queue exactly as flagged. Empirical re-audit: A still
+BLOCKED (0 `canary_runs` parquets, no launchd plist in `~/Library/LaunchAgents/`,
+no AI/ML decisions); D operator-led; E exhausted at 30; S35 candidate closed.
+The remaining uncovered adlfs surfaces (named by the S35 survey) were the only
+actionable space. Operator picked via AskUserQuestion: the **page_storage adlfs
+leg** — the smallest, most S35-symmetric fresh candidate.
+
+**Phase 2 source-verify (the key finding — distinct from S35).** Unlike S35's
+`ShardWriter` (explicit `storage_options=` kwarg), `page_storage.write_pages(rows,
+output_path)` and `_write_pages_via_fsspec(rows, output_url)` take **NO**
+credential/storage_options parameter. Line 104 calls `fsspec.url_to_fs(output_url)`
+URL-only, so production resolves the fs + auth from ambient adlfs config = the
+ENVIRONMENT. The production VMSS caller `worker_loop.py:2305` calls `write_pages(rows,
+output_path)` with an `abfss://` URL and the same two-arg signature, so a prod
+worker MUST carry ambient adlfs creds in its env. **The test's
+`AZURE_STORAGE_CONNECTION_STRING` therefore drives production's REAL env-resolved
+auth path — not a test-side convenience** (operator-flagged this distinction at
+Phase 3; confirmed at source before commit). Anti-trap honored: shared-key only,
+no lease/SAS.
+
+**Step 0.10 same-shape sweep.** The hermetic
+`tests/classifier/page_acquisition/test_page_storage.py` exercises the fsspec
+branch ONLY against `file://` LocalFileSystem (zero `@pytest.mark.live`). The new
+live test ADDS the adlfs/AzureBlobFileSystem client-stack coverage; it does not
+modify/replace the hermetic guard. Mirrors S35's parquet situation exactly.
+
+**Phase 2 gates (operator-confirmed):** Q-SHARED.1 = single bundled commit (one
+self-contained live test file); 1.TAG = defer (`workstream-a-week2-end` still
+OFFERED-but-DEFERRED, consistent with S33/S34/S35).
+
+**Build-time validation spike (before writing the test).** Stood up Azurite on
+port 10003, set `AZURE_STORAGE_CONNECTION_STRING`, drove the REAL
+`page_storage.write_pages` through adlfs: `fsspec.url_to_fs` resolved
+`AzureBlobFileSystem` with a blob-relative path, wrote 5 rows, read them back
+through a FRESH handle, `.tmp` gone. Validated env-var auth, the `makedirs`-no-op
+gotcha (container pre-created via `mkdir`), and the `clear_instance_cache()` need
+(so a stale anon fsspec instance is not reused) — all before the final body.
+
+**What landed — `25c3696`** (1 file, 343 LOC; one commit):
+`tests/classifier/pipeline/test_page_storage_adls_azurite.py` — 1
+`@pytest.mark.live` test (`test_write_pages_roundtrips_on_live_azurite`). The body
+sets the Azurite connection string in the env (via `monkeypatch`), creates the
+container via `mkdir`, resolves the `abfss://` URL via `fsspec.url_to_fs` (the
+exact call `write_pages` makes), calls the PUBLIC `write_pages(rows, abfss://...)`
+— driving `_write_pages_via_fsspec` `makedirs` → `open('wb')`+`write_table` →
+`rm_file`-if-stale → atomic `fs.mv` tmp→final — then reads `pages.parquet` back
+through a FRESH adlfs handle and asserts the rows round-trip + the `.tmp` artifact
+is gone. Own module-scoped Azurite fixture on a DISTINCT port (10003) + name
+(`barcada-azurite-pages`) so all FOUR live fixtures coexist under one `-m live`
+run; same proven shape (skip-if-unavailable / self-healing pre-clean /
+unconditional try-finally teardown / baked `--skipApiVersionCheck`). Auto-joins
+`live-integration.yml`'s `-m live tests/classifier/pipeline/` selection — NO
+workflow edit needed. **Production `page_storage.py` UNMODIFIED** (public seam only).
+
+**Teeth verified (negative control, out-of-band).** Demonstrated that a `file://`
+URL resolves to `LocalFileSystem` with an absolute `/tmp/...` path → both
+assertions (`type == AzureBlobFileSystem`; blob-relative path) FAIL. The test
+cannot pass against local disk, and the fresh-handle read fails if bytes never
+reached Azurite.
+
+**Phase 0 verification (all green at workspace `bc40256` / repo `f80ccdc`):** 970
+canonical; fixtures 222/202/222/1213/30/30; 13 tags; driver lock empty; all
+S25-S35 public-API + parquet (a2) invariants; CRAWLING_POLICY.md 77/2519; S31+S32
+cassettes (10) + S33 Azurite primitive + S34 race+CI + S35 parquet adlfs test
+present (posture intact).
+
+**Phase 4 pre-push gate (green):** `ruff check .` clean; `ruff format --check .`
+357 files OK; vermin min 3.10; `validate_consistency.py` 0 errors / 0 warnings
+(eval_data WIP did not trip the halt protocol).
+
+**Spend:** none. Local Docker + the already-pulled Azurite image; no LLM, no
+cloud infra.
+
+──────── Tags state at S36 close ─────────────────────────────────
+
+13 total (UNCHANGED; 1.TAG = defer). `workstream-a-week2-end` remains
+OFFERED-but-DEFERRED (W A.2 not declared closed at S36 despite a fourth
+live-ADLS surface landing).
+
+**Canonical S36-close baseline for S37 Phase 0 Step 0.5
+(VERIFIED at HEAD `25c3696`):**
+
+```
+.venv/bin/python -m pytest \
+    tests/scraper/test_fixture_conformance.py \
+    tests/runners/fixture_cascade/ \
+    tests/baseline_v0/ \
+    tests/synthetic_crawl/ \
+    tests/scraper/test_robots.py \
+    tests/scraper/test_robots_gate.py \
+    tests/scraper/test_robots_bypass_config.py \
+    tests/classifier/pipeline/test_cost_journal.py \
+    tests/classifier/pipeline/test_cost_journal_local.py \
+    tests/classifier/pipeline/test_cost_journal_adls.py \
+    tests/orchestrator/test_robots_integration.py \
+    tests/orchestrator/test_vmss_worker.py \
+    tests/orchestrator/test_job_runner.py \
+    tests/orchestrator/test_worker_loop.py \
+    tests/orchestrator/test_robots_gate_integration.py \
+    tests/orchestrator/test_worker_loop_persistence.py -q
+# Expected: 970 passed / 0 failed / 0 skipped
+# UNCHANGED from S27-S36 close. ALL FOUR Azurite tests are live-marked +
+# skip-by-default and are NOT in this invocation.
+```
+
+S36 narrower 14-path baseline: **944** (unchanged).
+
+**The FOUR live tests are verified OUT-OF-BAND** (not in the canonical count;
+the dir selection picks up the new file automatically):
+```
+.venv/bin/python -m pytest -m live tests/classifier/pipeline/
+# Expected: 4 passed, 209 deselected (needs Docker + the Azurite image;
+# else SKIPS). CI (live-integration.yml) runs exactly this + a guard that
+# fails on any skip. Ports: S33=10000, S34=10001, S35=10002, S36=10003.
+```
+
+**S37 Phase 0 Step 0.4 fixture-count forward note**: UNCHANGED —
+html=222 / expected=202 / meta=222 / baseline=1213 /
+**`cassette_count == 30`** / **`exclusions_count == 30`**. (No fixture change at
+S36; the deliverable is one live test file.)
+
+**S37 Phase 0 Step 0.9 forward note**: add a presence check for the NEW S36
+deliverable — `test_page_storage_adls_azurite.py` (`@pytest.mark.live`; drives the
+production `write_pages` via adlfs with ENV-VAR auth; DISTINCT port 10003 /
+container `barcada-azurite-pages`; assert it keeps its live marker + the
+`AzureBlobFileSystem` teeth assertion + `AZURE_STORAGE_CONNECTION_STRING` env seam).
+
+──────── LESSONS folded at S36 close ─────────────────────────────
+
+One new `(S36 folding)` section in LESSONS.md: **"Survey the AUTH seam, not just
+the client stack — an adlfs write surface may resolve credentials from the URL +
+environment (no `storage_options` kwarg)."** `page_storage.write_pages` takes no
+credential parameter; `fsspec.url_to_fs(url)` resolves auth from ambient env, so
+the live test drives prod's REAL env-resolved path by setting
+`AZURE_STORAGE_CONNECTION_STRING` (mirroring how the VMSS worker is configured) —
+structurally different from S35's explicit-`storage_options` ShardWriter. Plus the
+operational note: clear the fsspec instance cache (`AzureBlobFileSystem.
+clear_instance_cache()`) before driving a URL-only resolution so a stale anon
+instance is not reused.
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.

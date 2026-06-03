@@ -2951,6 +2951,49 @@ adlfs" — an equivalence never exercised. S35 closed the parquet leg
   `ContainerNotFound` test failure before the switch.)
 - Coexisting live Azurite fixtures need a DISTINCT port + container name:
   S33=10000/`barcada-azurite-katest`, S34=10001/`barcada-azurite-racetest`,
-  S35=10002/`barcada-azurite-parquet`. Placed under
+  S35=10002/`barcada-azurite-parquet`, S36=10003/`barcada-azurite-pages`.
+  Placed under
   `tests/classifier/pipeline/`, a new `@pytest.mark.live` test auto-joins
   `live-integration.yml`'s `-m live <dir>` selection — no workflow edit.
+
+---
+
+### (S36 folding) Survey the AUTH seam, not just the client stack — an adlfs write surface may resolve credentials from the URL + environment (no `storage_options` kwarg).
+
+S35 taught "survey by client stack." S36 sharpened it: even WITHIN the
+adlfs/fsspec stack, two surfaces can authenticate differently, and the
+difference decides what the live test must drive. S35's `ShardWriter`
+threads an explicit `storage_options=` kwarg into `fsspec.url_to_fs(...,
+**storage_options)`. S36's `page_storage.write_pages(rows, output_path)` —
+and its `_write_pages_via_fsspec(rows, output_url)` — take **NO** credential
+parameter at all; line 104 is a bare `fsspec.url_to_fs(output_url)`. So
+production resolves the filesystem AND its auth purely from the URL +
+ambient adlfs config, which for adlfs means **environment variables**
+(`AZURE_STORAGE_CONNECTION_STRING`, read in `AzureBlobFileSystem.__init__`).
+The production VMSS caller (`worker_loop.py:2305`) uses the same two-arg
+signature, so a prod worker MUST carry creds in its env — there is no
+plumbing channel. S36 closed the page_storage leg (`25c3696`, port 10003).
+
+**Why it matters / how to apply (forward to S37+):**
+- Before designing a live test, read the production call site's SIGNATURE.
+  If it accepts no credential/`storage_options` parameter, the auth seam is
+  the **environment** — the test must set the env var (e.g. via
+  `monkeypatch.setenv`) and that IS production's real path, not a workaround.
+  Distinguish this in the commit body: env-var auth here is the former
+  (drives prod's actual config resolution), not a test-side convenience
+  dodging a plumbing issue. There is no plumbing to dodge.
+- A reviewer may (rightly) challenge "forced env-var auth" as a possible
+  test-side shortcut. Answer it at SOURCE: show the public signature has no
+  credential param + the prod caller uses the same signature → env is the
+  only channel. (S36 operator did exactly this mid-Phase-3; the answer
+  belonged in the commit body as the distinguishing coverage claim.)
+- Operational: for a URL-only `fsspec.url_to_fs` resolution, call
+  `adlfs.AzureBlobFileSystem.clear_instance_cache()` before the production
+  call (and before each verification handle). fsspec caches filesystem
+  instances by their construction args; a stale anon instance from an
+  earlier test (empty args) can otherwise be reused and ignore your env.
+- The teeth still bite the same way: resolve the same URL via
+  `fsspec.url_to_fs` and assert `AzureBlobFileSystem` + blob-relative path;
+  a `file://` fallback is `LocalFileSystem` + absolute `/tmp/...` (both
+  controls fail). Read back through a FRESH handle. Four live fixtures now
+  coexist on ports 10000–10003.
