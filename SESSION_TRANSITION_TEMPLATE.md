@@ -185,14 +185,14 @@ PartitionedShardWriter)** — `f4e0a4a`, single commit, 1 file, 389 LOC:
   prompt draft, which succeeds `fedb096` S36 anchor-pin). At S37 Phase 0
   Step 0.1 the 2 commits ahead of `fedb096` were tolerated under
   "Workspace HEAD delta tolerance" (prompt-only edits).
-- Session 37 close-out workspace commits: 1 primary close-out (SESSION_LOG.md
-  + SESSION_TRANSITION_TEMPLATE.md + LESSONS.md) + this anchor-pin
-  follow-up (pinning the primary close-out SHA into this template's Anchors
+- Session 37 close-out workspace commits: 1 primary close-out `bf52f8d`
+  (SESSION_LOG.md + SESSION_TRANSITION_TEMPLATE.md + LESSONS.md) + this
+  anchor-pin follow-up (pinning `bf52f8d` into this template's Anchors
   section for S38).
 - **Last commit SHA at Session 37 CLOSE: this anchor-pin follow-up
-  succeeding the primary close-out.** S38 Phase 0 Step 0.1 MUST anchor
-  workspace expectation to the S37 primary close-out OR this anchor-pin
-  follow-up OR a later follow-up.
+  succeeding the primary close-out `bf52f8d`.** S38 Phase 0 Step 0.1 MUST
+  anchor workspace expectation to `bf52f8d` OR this anchor-pin follow-up
+  OR a later follow-up.
 - Branch sync with `origin/main`: 0 ahead / 0 behind expected after
   the Session 37 close push.
 
