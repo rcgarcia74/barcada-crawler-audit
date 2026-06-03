@@ -188,14 +188,14 @@ two commits, two files:
   succeeds the S37 close-out chain). At S38 Phase 0 Step 0.1 the 2
   prompt-drafting commits ahead of `1a1d722` were tolerated under
   "Workspace HEAD delta tolerance".
-- Session 38 close-out workspace commits: 1 primary close-out (this commit:
-  SESSION_LOG.md + SESSION_TRANSITION_TEMPLATE.md + LESSONS.md) + an
-  anchor-pin follow-up succeeding it (pinning the primary close-out SHA
-  into this template's Anchors section for S39).
-- **Last commit SHA at Session 38 CLOSE: the anchor-pin follow-up
-  succeeding the primary close-out.** S39 Phase 0 Step 0.1 MUST anchor
-  workspace expectation to the S38 primary close-out OR this anchor-pin
-  follow-up OR a later follow-up.
+- Session 38 close-out workspace commits: 1 primary close-out `a27bb8d`
+  (SESSION_LOG.md + SESSION_TRANSITION_TEMPLATE.md + LESSONS.md) + this
+  anchor-pin follow-up succeeding it (pinning `a27bb8d` into this
+  template's Anchors section for S39).
+- **Last commit SHA at Session 38 CLOSE: this anchor-pin follow-up
+  succeeding the primary close-out `a27bb8d`.** S39 Phase 0 Step 0.1 MUST
+  anchor workspace expectation to `a27bb8d` OR this anchor-pin follow-up
+  OR a later follow-up.
 - Branch sync with `origin/main`: 0 ahead / 0 behind expected after
   the Session 38 close push.
 
