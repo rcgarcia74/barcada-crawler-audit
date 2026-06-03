@@ -8551,3 +8551,174 @@ adlfs with the explicit `storage_options=` seam; DISTINCT port 10004 / container
 container pre-`mkdir`).
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+
+---
+
+## Session 38 — 2026-06-03 — prompt_logger adlfs leg + hermetic guard: live ADLS coverage for the LAST uncovered adlfs write surface; ADLS cluster tagged
+
+**Scope chosen (Phase 1, decided-at-Phase-1 shape).** S38 opened with the same
+near-empty warm queue. Empirical re-audit: A still BLOCKED (`~/canary_runs/`
+absent → 0 drift parquets; no launchd plist; no AI/ML decisions); D
+operator-led; E exhausted at 30; S35/S36/S37 candidates closed. The
+lease/SAS cost-journal path is an S34 ANTI-TRAP — production
+`cost_journal_adls.py` constructs no lease/SAS (`grep -ciE 'lease|sas'` = 0),
+so there is nothing to live-test. That left **prompt_logger** as the only
+actionable engineering scope: the LAST uncovered adlfs WRITE surface
+(`PromptLogger.flush()` writes a single JSONL object). Operator picked it via
+AskUserQuestion.
+
+**Phase 2 source-verify (auth seam, S36 discipline).** `flush()` calls
+`fsspec.url_to_fs(self._output_url)` URL-only at `prompt_logger.py:118` with NO
+`storage_options` kwarg → ENV-resolved auth (`AZURE_STORAGE_CONNECTION_STRING`),
+the SAME shape as S36 `page_storage`, NOT the explicit-kwarg shape of S35/S37.
+Verified from the signature, not assumed. Single object via `fs.open(path,'wb')`
+@126, so the S37 multi-partition `create_container` race does NOT apply; the S35
+makedirs-no-op fold DOES (fixture pre-mkdirs the container).
+
+**Step 0.10 same-shape sweep — KEY FINDING.** The module had **ZERO tests of any
+kind** (no hermetic default-run guard, unlike S35/S36/S37 which each complemented
+an existing file:// suite). Surfaced as a Phase 2 design sub-question.
+
+**Phase 2 gates (operator-confirmed):** (1) scope = **live test + hermetic
+file:// guard** (give the module its first default-run coverage); (2) URL built
+via the production `prompt_log_url()` helper (exercises both public symbols +
+the realistic shard layout); (3) Q-SHARED.1 = **two commits** (per-sub-surface:
+CI-visible hermetic guard + live-on-demand adlfs test); (4) 1.TAG =
+**defer-with-rationale, closing bar = all adlfs write surfaces live-covered** —
+which prompt_logger MEETS, so the cross-cutting tag became placeable at S38 close.
+
+**Build-time validation spike (before writing the test bodies).** Stood up
+Azurite on port 10005, drove the REAL `PromptLogger.flush()` through adlfs
+(ENV-resolved). Confirmed: `prompt_log_url()` builds the abfss URL;
+`fsspec.url_to_fs` → `AzureBlobFileSystem` + blob-relative path; container
+pre-mkdir required + works; `flush()` returns the count (empty-buffer → 0);
+JSONL round-trips with all fields via a FRESH handle. No post-commit HALT.
+
+**Test bug caught in Phase 3 (not production).** `test_flush_creates_missing_
+parent_dirs` first FAILED: `Path.as_uri()` percent-encodes the `=` in a
+Hive-style `shard=NNNNN` segment to `%3D`, which fsspec does NOT decode, so the
+written path mismatched. Production builds URLs by plain string concatenation
+(`prompt_log_url`), so the fix was the faithful one: `_file_url` builds
+`f"file://{path}"`, not `.as_uri()`. Verified the encoding delta at source.
+
+**What landed — two commits:**
+- **`094a12f`** (Commit 1; 1 file, 282 LOC after ruff format; 13 tests):
+  `tests/classifier/llm/test_prompt_logger.py` — hermetic default-run guard.
+  Covers happy/failure/false-positive/false-negative paths: empty output_url →
+  ValueError; the 11-key log() row schema; status/error default to empty
+  strings; empty-buffer flush() → 0 and writes NO file; JSONL write + count +
+  buffer drain; nested parent-dir creation; second-flush no-op; non-ASCII
+  round-trip (ensure_ascii=False); `prompt_log_url()` layout + trailing-slash +
+  end-to-end compose. CI-visible (file:// LocalFileSystem only, no Docker).
+- **`d610f0b`** (Commit 2; 1 file, 358 LOC; 1 `@pytest.mark.live` test):
+  `tests/classifier/pipeline/test_prompt_logger_adls_azurite.py` — drives the
+  SAME production `flush()` against Azurite via adlfs. ENV-resolved auth
+  (`monkeypatch.setenv` + `clear_instance_cache`), URL via `prompt_log_url()`,
+  container pre-`mkdir` (catch `FileExistsError`). Empty-buffer no-op then two
+  logged entries flush + drain; read back through a FRESH adlfs handle asserting
+  both rows + all fields round-trip. DISTINCT port 10005 / docker container
+  `barcada-azurite-prompts` / blob container `prompts-out`; same proven fixture
+  shape (skip-if-unavailable / self-healing pre-clean / unconditional
+  try-finally teardown / baked `--skipApiVersionCheck`). Auto-joins
+  `live-integration.yml`'s `-m live tests/classifier/pipeline/` selection — NO
+  workflow edit. **Production `prompt_logger.py` UNMODIFIED** (public env seam only).
+
+**Teeth verified (negative control, in-body + out-of-band).** The live test
+asserts `fsspec.url_to_fs` (the exact resolution `flush()` performs) yields
+`AzureBlobFileSystem` + a blob-relative path, AND demonstrates the negative
+control directly: a `file://` URL resolves to `LocalFileSystem` + an absolute
+path. The fresh-handle read-back proves bytes reached Azurite, not an in-process
+cache. All SIX live tests pass together: `6 passed, 209 deselected`.
+
+**Phase 0 verification (all green at workspace `5a3ee7d` / repo `f4e0a4a`):** 970
+canonical; fixtures 222/202/222/1213/30/30; 13 tags; driver lock empty; all
+S25-S37 public-API invariants incl. (a4) PartitionedShardWriter;
+CRAWLING_POLICY.md 77/2519; S31+S32 cassettes (10) + S33 primitive + S34 race+CI
++ S35 parquet + S36 page_storage + S37 partitioned adlfs tests present.
+
+**Phase 4 pre-push gate (green):** `ruff check .` clean; `ruff format --check .`
+360 files OK; vermin min 3.10; `validate_consistency.py` 0 errors / 0 warnings
+(eval_data WIP did not trip the halt protocol).
+
+**Spend:** none. Local Docker + the already-pulled Azurite image; no LLM, no
+cloud infra.
+
+──────── Tags state at S38 close ─────────────────────────────────
+
+**14 total** (+1 from S37's 13). The tag-taxonomy drift (offered+deferred
+`workstream-a-week2-end`, S33-S37) is RESOLVED — placed a cross-cutting
+annotated tag **`adls-live-coverage-v0` at `d610f0b`**, NOT a workstream-letter
+tag (Finding M: the cluster is cross-workstream — cost-journal=B,
+parquet=scraper-output, page_storage=Stage-2, prompt_logger=LLM-pipeline). It
+names the SIX `@pytest.mark.live` ADLS integration commits ONLY (Finding N —
+robots S23-S25 + K-b S29/S30 EXCLUDED): `f1cdce8` S33, `eba6585` S34, `f80ccdc`
+S35, `25c3696` S36, `f4e0a4a` S37, `d610f0b` S38. Closing rationale: every
+adlfs write surface now has live coverage; the azure-storage-blob cost-journal
+path is covered at shared-key with lease/SAS an anti-trap. `workstream-a-week2-end`
+is NOT placed (superseded by the correctly-named cross-cutting tag).
+
+**Canonical S38-close baseline for S39 Phase 0 Step 0.5
+(VERIFIED at HEAD `d610f0b`):**
+
+```
+.venv/bin/python -m pytest \
+    tests/scraper/test_fixture_conformance.py \
+    tests/runners/fixture_cascade/ \
+    tests/baseline_v0/ \
+    tests/synthetic_crawl/ \
+    tests/scraper/test_robots.py \
+    tests/scraper/test_robots_gate.py \
+    tests/scraper/test_robots_bypass_config.py \
+    tests/classifier/pipeline/test_cost_journal.py \
+    tests/classifier/pipeline/test_cost_journal_local.py \
+    tests/classifier/pipeline/test_cost_journal_adls.py \
+    tests/orchestrator/test_robots_integration.py \
+    tests/orchestrator/test_vmss_worker.py \
+    tests/orchestrator/test_job_runner.py \
+    tests/orchestrator/test_worker_loop.py \
+    tests/orchestrator/test_robots_gate_integration.py \
+    tests/orchestrator/test_worker_loop_persistence.py -q
+# Expected: 970 passed — the original canonical 16-path is UNCHANGED (those
+# exact paths were not touched). The S38 hermetic guard lives in
+# tests/classifier/llm/ (NOT in this 16-path).
+```
+
+**S38 added a 17th path to the tracked combined invocation** — the hermetic
+guard. The S38 combined baseline is **983** (970 + 13):
+```
+# Append to the 16-path above:
+    tests/classifier/llm/test_prompt_logger.py
+# Expected: 983 passed. VERIFIED at d610f0b. This is the count the S39
+# cumulative gate must not let decrease.
+```
+
+**The SIX live tests are verified OUT-OF-BAND** (not in the canonical count):
+```
+.venv/bin/python -m pytest -m live tests/classifier/pipeline/
+# Expected: 6 passed, 209 deselected. Ports: S33=10000, S34=10001,
+# S35=10002, S36=10003, S37=10004, S38=10005. Verified at S38 close:
+# 6 passed, 209 deselected in 19.48s.
+```
+
+**S39 Phase 0 Step 0.4 fixture-count forward note**: UNCHANGED —
+html=222 / expected=202 / meta=222 / baseline=1213 /
+**`cassette_count == 30`** / **`exclusions_count == 30`**. (No fixture change at
+S38; the deliverables are two test files.)
+
+**S39 Phase 0 Step 0.9 forward note**: add presence checks for the TWO S38
+deliverables — (1) `tests/classifier/llm/test_prompt_logger.py` (hermetic guard;
+13 tests; NO live marker; default-run); (2)
+`tests/classifier/pipeline/test_prompt_logger_adls_azurite.py` (`@pytest.mark.live`;
+ENV-resolved auth via `AZURE_STORAGE_CONNECTION_STRING`; DISTINCT port 10005 /
+container `barcada-azurite-prompts`; assert it keeps its live marker + the
+`AzureBlobFileSystem` teeth + the `file://`→`LocalFileSystem` negative control +
+the container pre-`mkdir`). Also: tag count is now **14** (added
+`adls-live-coverage-v0`).
+
+**Scope-availability forward note for S39:** with prompt_logger closing the adlfs
+write cluster, NO actionable fresh adlfs candidate remains. A (barcada-drift)
+blocked, D operator-led, E exhausted. lease/SAS is an anti-trap. S39 likely has
+NO actionable engineering scope without operator action (unblock A / begin D /
+amend the E ceiling / commission a NEW candidate).
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.

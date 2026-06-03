@@ -3040,3 +3040,54 @@ hides the bug. My first spike masked it exactly this way via a probe write.)
   partitioned leg (`f4e0a4a`, port 10004); five live fixtures now coexist on
   ports 10000–10004. Remaining uncovered adlfs surfaces: `prompt_logger`
   (fsspec `wb` single object) + cost-journal lease/SAS.
+
+## (S38 folding) Path.as_uri() percent-encodes `=` in Hive-style path segments; fsspec does not decode it — build test URLs by plain string concatenation, matching production.
+
+- `Path('/a/shard=00001/x').as_uri()` → `file:///a/shard%3D00001/x`, and
+  `fsspec.url_to_fs` keeps the `%3D` ENCODED, so a write lands at `shard%3D00001`
+  while the test's `Path` comparand has the literal `=`. The S38 hermetic
+  `test_flush_creates_missing_parent_dirs` failed exactly this way.
+- Production builds these URLs by plain string concatenation (`prompt_log_url`
+  joins `…/shard={shard_id:05d}/prompts.jsonl`), so the FAITHFUL test helper is
+  `f"file://{path}"`, NOT `path.as_uri()`. The bug was in the TEST, not the code
+  — verify the encoding delta at source before "fixing" anything.
+- General rule: when a test resolves an fsspec URL containing `key=value`
+  segments (Hive partitions, `crawl_date=`, `shard=`), construct the URL the way
+  production does (string concat), not via `Path.as_uri()`.
+
+## (S38 folding) A live-only test of a module with ZERO existing tests leaves it with NO default-run coverage — surface adding a hermetic guard as a Phase 2 design sub-question.
+
+- S35/S36/S37 each complemented an EXISTING file:// hermetic suite (the
+  default-run guard the live test could lean on). `prompt_logger` had NO tests of
+  any kind, so a live-only test (skip-by-default) would leave the module with
+  zero CI-visible coverage. Step 0.10's same-shape sweep is where this surfaces:
+  if it finds NO hermetic guard, the "add one?" question is a real Phase 2 gate,
+  not a default.
+- S38 shipped BOTH (operator choice): a hermetic file:// guard (raises the
+  tracked combined count 970→983; CI-visible) + the live adlfs leg (off the
+  canonical headline; verified out-of-band). Two commits, per-sub-surface.
+- The live test still ADDS value over the hermetic guard: it proves the SAME
+  `flush()` reaches a real blob via adlfs (the `abfss://` path the file:// suite
+  assumes but cannot exercise). "Complements, not duplicates" still holds even
+  when the hermetic guard is brand-new.
+
+## (S38 folding) Confirm a lease/SAS candidate is real by grepping production for the construct BEFORE scoping it (S34 anti-trap, made concrete).
+
+- The lease/SAS cost-journal "candidate" has been carried forward since S33 as a
+  possible fresh surface. S38 settled it empirically: `grep -ciE 'lease|sas'
+  src/.../cost_journal_adls.py` = 0 — production constructs NO lease or SAS. A
+  live test of a behavior the production code never performs is an anti-trap;
+  there is nothing to cover. Do not scope it unless/until production grows one.
+
+## (S38 folding) A cross-workstream live-test cluster warrants its own cross-cutting tag identity, not a workstream-letter tag.
+
+- The S33-S38 ADLS live-test cluster spans plan workstreams (cost-journal =
+  Workstream B; parquet = scraper-output; page_storage = Stage-2; prompt_logger =
+  LLM-pipeline observability). `workstream-a-week2-end` was wrong (deferred 6×);
+  `workstream-b-*` would have been wrong too (Finding M). The resolution: a
+  cross-cutting `adls-live-coverage-v0` annotated tag naming ONLY the six
+  `@pytest.mark.live` ADLS commits (Finding N — robots/K-b excluded), placed when
+  the closing bar ("all adlfs write surfaces live-covered") was met at S38.
+- When a tag keeps getting deferred because no workstream letter fits, that is
+  the signal the cluster is cross-cutting and needs its own identity — settle it
+  explicitly rather than defer again.
