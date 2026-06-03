@@ -172,13 +172,13 @@ page_storage)** — `25c3696`, single commit, 1 file, 343 LOC:
   7-phase invocation prompt for Session 36"; succeeds `236a19c` S35
   anchor-pin). At S36 Phase 0 Step 0.1 the 1 commit ahead of `236a19c`
   was tolerated under "Workspace HEAD delta tolerance" (prompt-only edit).
-- Session 36 close-out workspace commits: 1 primary close-out
+- Session 36 close-out workspace commits: 1 primary close-out `cfb6851`
   (SESSION_LOG.md + SESSION_TRANSITION_TEMPLATE.md + LESSONS.md) + this
-  anchor-pin follow-up (pinning the primary close-out SHA into this
-  template's Anchors section for S37).
+  anchor-pin follow-up (pinning `cfb6851` into this template's Anchors
+  section for S37).
 - **Last commit SHA at Session 36 CLOSE: this anchor-pin follow-up
-  succeeding the primary close-out.** S37 Phase 0 Step 0.1 MUST anchor
-  workspace expectation to the S36 close-out OR this anchor-pin follow-up
+  succeeding the primary close-out `cfb6851`.** S37 Phase 0 Step 0.1 MUST
+  anchor workspace expectation to `cfb6851` OR this anchor-pin follow-up
   OR a later follow-up.
 - Branch sync with `origin/main`: 0 ahead / 0 behind expected after
   the Session 36 close push.
