@@ -3091,3 +3091,55 @@ hides the bug. My first spike masked it exactly this way via a probe write.)
 - When a tag keeps getting deferred because no workstream letter fits, that is
   the signal the cluster is cross-cutting and needs its own identity — settle it
   explicitly rather than defer again.
+
+## (S38 folding) Baseline bookkeeping: a new default-run test added OUTSIDE the canonical 16-path does NOT raise the canonical headline — record three numbers, not one.
+
+- S38's hermetic guard landed in `tests/classifier/llm/test_prompt_logger.py`,
+  which is NOT one of the canonical 16-path files. So the canonical headline
+  stayed **970** (those exact paths were untouched) even though a 13-test
+  default-run suite was added. The cumulative-gate count became **983** (970 +
+  13). These are DIFFERENT roles: 970 is what the next session's Phase 0 Step
+  0.5 cold-start check must still expect; 983 is the cumulative-gate floor.
+- The trap: writing only "983" in the close-out baseline block, where a cold-
+  start Step 0.5 reader could mistake it for the canonical count and HALT on a
+  false mismatch. ALWAYS split the record into three explicit numbers in the
+  SESSION_LOG "Canonical close baseline" block:
+  (1) canonical 16-path = 970 (Step 0.5 still expects this);
+  (2) the new sub-suite = 13 as its OWN Step 0.8 line (path + expect-N), so the
+      guard is pinned at cold-start, not folded into the headline;
+  (3) combined = 983 (the cumulative-gate number only).
+- General rule: a new default-run test either goes INTO a canonical-headline
+  path (raising the headline) or into a NEW path tracked as a Step 0.8 sub-suite
+  (headline unchanged, sub-suite + combined pinned separately). Decide which at
+  Phase 2 and write all the affected numbers down — never let one number stand
+  in for the split.
+
+## (S39 folding) "Outside the 16-path" is a DIRECTORY fact, not a filename fact — a test in a canonical-sweep DIR silently joins the headline even if its filename is new.
+
+- S39 chose the baseline disposition "headline stays 970, drift tracked as a
+  separate Step 0.8 sub-suite" and then wrote the hermetic tests at the natural
+  neighbor location `tests/baseline_v0/test_drift.py`. But the canonical 16-path
+  sweeps the **whole `tests/baseline_v0/` directory** — so the brand-new file
+  was collected by the canonical invocation and the headline silently rose
+  970 → 992 (the dir went 99 → 121), directly contradicting the chosen
+  disposition. Caught only because the per-commit checkpoint re-ran the canonical
+  16-path ALONE and compared to the Phase-0 baseline.
+- The S38 lesson said "place it outside the 16 canonical paths." S39 sharpens
+  WHAT "outside" means: the 16-path is a mix of single FILES
+  (`tests/scraper/test_robots.py`) and whole DIRECTORIES (`tests/baseline_v0/`,
+  `tests/orchestrator/`, `tests/synthetic_crawl/`). A new file lands in the
+  headline iff it sits under one of the swept directories — regardless of how
+  new its filename is. The existing Step 0.8 sub-suites avoid this precisely
+  because they live in dirs the 16-path does NOT sweep
+  (`tests/test_parquet_writer.py`, `tests/classifier/page_acquisition/`,
+  `tests/classifier/llm/`).
+- Resolution that honored the disposition: relocate to a dir OUTSIDE the sweep —
+  `tests/drift/` (with a package `__init__.py` matching the repo's
+  test-package convention) — restoring canonical 970 and tracking `tests/drift/`
+  as its own expect-22 sub-suite.
+- Forward rule: before placing a "keep-the-headline-stable" sub-suite, check the
+  TARGET DIRECTORY against the canonical 16-path list, not just the filename. If
+  the dir is swept, either pick a non-swept dir or consciously accept the
+  headline move. Verify by re-running the canonical 16-path ALONE post-placement
+  and diffing against the Phase-0 baseline — never trust the intended disposition
+  without the captured count.

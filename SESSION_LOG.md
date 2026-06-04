@@ -8736,3 +8736,167 @@ NO actionable engineering scope without operator action (unblock A / begin D /
 amend the E ceiling / commission a NEW candidate).
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+
+## Session 39 — 2026-06-03 — barcada-drift A-fetch fork: fetch-reachability drift comparator (first post-ADLS candidate; $0)
+
+**Scope chosen (Phase 1, decided-before-invocation shape).** S39 opened on the
+empty actionable queue exactly as forecast: A (barcada-drift) BLOCKED on
+re-audit (`~/canary_runs/` absent → 0 drift parquets; no launchd plist), D
+operator-led, E exhausted at 30, the ADLS cluster CLOSED+tagged, lease/SAS an
+anti-trap (`grep -ciE 'lease|sas' cost_journal_adls.py` = 0). Operator then
+commissioned a NEW candidate that sidesteps A's blockers: **A-fetch** — the
+drift COMPARATOR for the existing canary fetch-health snapshots. It needs no
+AI/ML decisions (those are classification-flavored), no real parquets (tested
+on synthetic), no launchd, and incurs ZERO LLM cost. The blocked A is now
+forked: A-fetch (this session) and A-classify (prompt drafted at close;
+first non-$0 candidate, cost-gated).
+
+**Pre-session source-verify (operator-commissioned, read-only).** Established
+that canary-run is REAL but snapshot-ONLY: `cli.py:266-274` → `canary.py:224
+canary_run` does a live `requests.get` per domain (`canary.py:172`) + parquet
+write (`canary.py:194`); it establishes NO drift basis (comparison was
+unbuilt); the 14-col schema is the public `canary.PARQUET_COLUMNS` tuple
+(test-asserted at `tests/baseline_v0/test_canary.py:116`); zero classifier,
+zero LLM. This grounded the comparator design.
+
+**Phase 2 design gates (operator-confirmed via AskUserQuestion):**
+- Drift basis = explicit `--baseline` / `--current` parquet paths (run-N vs
+  run-N-1); most testable, no dir-scan magic.
+- Namespace = new `drift` subcommand under `tools.baseline_v0` (un-defers the
+  Session-20 Q1.1 deferral; surface stays under barcada-baseline).
+- Metric set = crisp + per-metric thresholds: reachability-rate drop,
+  robots_allowed flips, the 5 anti-bot/exclusion flag-rate rises, per-domain
+  2xx→non-2xx regressions (always listed). body_bytes/elapsed_ms median deltas
+  are INFORMATIONAL-only (single-domain variance too noisy to gate).
+- Baseline disposition = new Step 0.8 sub-suite; canonical headline stays 970.
+- Threshold calibration: defaults `--max-reachability-drop 0.05`,
+  `--max-robots-flips 3`, `--max-exclusion-rate-rise 0.05`, and
+  `--max-regressions 1` — the last CHANGED from a proposed 0 on operator
+  judgment: one transient single-domain 2xx drop is within variance for a
+  50-domain live sweep; alert on >1 (two-or-more is a pattern). Defaults
+  flagged provisional until real snapshots calibrate them.
+
+**Phase-3 baseline-bookkeeping HALT (caught before commit).** The hermetic
+tests were first written at `tests/baseline_v0/test_drift.py` — but
+`tests/baseline_v0/` IS one of the canonical 16-path dirs, so the canonical
+headline silently rose 970 → 992 (the dir went 99 → 121). That contradicted
+the Phase-1 "headline stays 970" disposition. Surfaced to operator with
+captured evidence; resolution = relocate to **`tests/drift/`** (outside the 16
+canonical paths, with a package `__init__.py`), exactly how the existing Step
+0.8 sub-suites (parquet at `tests/test_parquet_writer.py`, page_storage,
+prompt_logger guard) sit outside the sweep. Post-move: canonical back to 970,
+`tests/drift/` = 22. (Folded to LESSONS.)
+
+**What landed — ONE commit (`7bbdc74` WA0.W7.drift-fetch-comparator):**
+- `tools/baseline_v0/drift.py` — 277 LOC comparator. Reads two snapshots,
+  validates schema by importing `canary.PARQUET_COLUMNS` + `_make_dtypes`
+  (require all 14, reject missing/dtype-mismatch, **TOLERATE EXTRAS**),
+  inner-joins on `domain` (appeared/disappeared reported separately, never as
+  drift), computes the 4 alerting metrics + 2 informational deltas via
+  vectorized polars, exit 0 (no drift) / 1 (drift) / 2 (input or schema
+  error). stdout table + optional `--report` JSON (17 keys).
+- `tools/baseline_v0/cli.py` — +84: `drift` subparser + dispatch; a lazy
+  default-constant import keeps `--help` dependency-light (drift.py is
+  polars-free at import).
+- `tests/drift/__init__.py` (13) + `tests/drift/test_drift.py` (269; 22 tests).
+- **Production `canary.py` UNMODIFIED.**
+
+**Teeth verified (both directions + CLI).** Hermetic: identical snapshots →
+exit 0 (clean control); each of the 4 alerting metrics injected → exit 1
+(exclusion-rise parametrized over all 5 flags); a single regression UNDER the
+calibrated threshold → exit 0 (proves the `--max-regressions 1` calibration);
+body_bytes/elapsed_ms change ALONE → exit 0 (reverse teeth — informational
+does not gate); schema mismatch (missing column, wrong dtype) + empty
+intersection → exit 2. CLI-level out-of-band: clean snapshots → `Exit: 0`;
+2-domain regression → `Exit: 1`, "DRIFT DETECTED" listing both domains.
+
+**Complexity (radon cc):** max 7 (`_validate_schema`, `_compare`); every
+function < 15 (ruff C901 at threshold 14 passes). Inaccurate inline CC numbers
+in four docstrings were caught against radon and stripped before commit (the
+rule is <15; radon-verified scores recorded in the commit body instead).
+
+**Phase 0 verification (all green at workspace `685ed13` / repo `d610f0b`):**
+970 canonical; fixtures 222/202/222/1213/30/30; 14 tags
+(`adls-live-coverage-v0` @ `d610f0b`, `workstream-0-end` @ `a1c5636`); driver
+lock empty; all S24-S38 public-API invariants incl. (a5) prompt_logger; cascade
+AST + K-b smoke (220 LOC); CRAWLING_POLICY.md 77/2519; all 6 ADLS live tests +
+the S38 hermetic guard present. One Phase-0.9 helper-script bug self-corrected
+(AST walk missed `async def _run_stage1`; added `AsyncFunctionDef`).
+
+**Phase 4 pre-push gate (green):** `ruff check .` clean; `ruff format --check .`
+363 files OK; vermin min 3.10; `validate_consistency.py` 0 errors / 0 warnings
+(eval_data WIP did not trip the halt protocol). Pushed `d610f0b..7bbdc74`.
+
+**A-classify follow-up prompt drafted** at `~/crawler-audit/A_CLASSIFY_PROMPT.md`
+(operator-commissioned, reviewed twice). It is the CLASSIFY fork — extends the
+A-fetch comparator with prediction-drift metrics. Audited against the live tree:
+the producer is bigger than a flag (fetch → parser → components → async cascade
+→ read-back `predictions.parquet`); the $0-dev path is client-MOCK, NOT vcrpy
+(the LLM legs run on AsyncAzureOpenAI/httpx, not requests); the field is
+`signals_business_score`, not `business_score`; `model_version` (git SHA per
+run) is the primary drift-attribution signal. First non-$0 candidate —
+Phase-0.COST gated. BLOCKED until this S39 close-out lands (it pins the anchor).
+
+**Spend:** none. No live run, no Docker, no LLM, no cloud infra.
+
+──────── Tags state at S39 close ─────────────────────────────────
+
+**14 total — UNCHANGED.** 1.TAG = defer-with-rationale: A-fetch is the first
+milestone of a 1-of-2 drift fork; tag (`barcada-drift-classify-v0` or a
+drift-workstream-closing tag) when A-classify lands or the workstream is
+declared closed. Do NOT place a workstream-letter tag.
+
+**Canonical S39-close baseline for S40 Phase 0 Step 0.5
+(VERIFIED at HEAD `7bbdc74`):**
+
+```
+.venv/bin/python -m pytest \
+    tests/scraper/test_fixture_conformance.py \
+    tests/runners/fixture_cascade/ \
+    tests/baseline_v0/ \
+    tests/synthetic_crawl/ \
+    tests/scraper/test_robots.py \
+    tests/scraper/test_robots_gate.py \
+    tests/scraper/test_robots_bypass_config.py \
+    tests/classifier/pipeline/test_cost_journal.py \
+    tests/classifier/pipeline/test_cost_journal_local.py \
+    tests/classifier/pipeline/test_cost_journal_adls.py \
+    tests/orchestrator/test_robots_integration.py \
+    tests/orchestrator/test_vmss_worker.py \
+    tests/orchestrator/test_job_runner.py \
+    tests/orchestrator/test_worker_loop.py \
+    tests/orchestrator/test_robots_gate_integration.py \
+    tests/orchestrator/test_worker_loop_persistence.py -q
+# Expected: 970 passed — the canonical 16-path is UNCHANGED (the new drift
+# tests live in tests/drift/, OUTSIDE this sweep, by deliberate disposition).
+```
+
+**Count split (record unambiguously for S40 cold-start):** canonical 16-path
+= **970** (S40 Step 0.5 STILL expects 970); the S38 prompt_logger hermetic
+guard = **13** (Step 0.8 sub-suite, `tests/classifier/llm/test_prompt_logger.py`);
+the NEW S39 drift sub-suite = **22** (Step 0.8 sub-suite, `tests/drift/`);
+combined (16-path + both Step 0.8 sub-suites) = **1005** (970 + 13 + 22). The
+1005 is the cumulative-gate floor only — NOT the Step 0.5 canonical baseline.
+
+**S40 Phase 0 Step 0.8 forward note**: add a sub-suite line `tests/drift/` —
+**expect 22** (the S39 fetch-reachability drift comparator; hermetic synthetic
+parquets; NO live marker), ALONGSIDE the existing
+`tests/classifier/llm/test_prompt_logger.py` **expect 13**.
+
+**S40 Phase 0 Step 0.4 fixture-count forward note**: UNCHANGED — html=222 /
+expected=202 / meta=222 / baseline=1213 / **`cassette_count == 30`** /
+**`exclusions_count == 30`** (no fixture change; the deliverable is code + tests).
+
+**S40 Phase 0 Step 0.9 forward note**: add a presence check for the S39
+deliverable — `tools/baseline_v0/drift.py` (the `drift` subcommand; imports
+`canary.PARQUET_COLUMNS` + `_make_dtypes`; TOLERATES extras; exit 0/1/2) +
+`tests/drift/test_drift.py` (22 tests; no live marker). Tag count stays **14**.
+
+**Scope-availability forward note for S40:** A-fetch SHIPPED. The drift
+workstream is now half-built. A-classify (prompt at `A_CLASSIFY_PROMPT.md`) is
+the next fork — first non-$0 candidate, Phase-0.COST gated, ready to commission.
+D operator-led; E exhausted. No fresh $0 candidate beyond A-classify's classify
+metrics.
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md (and
+A_CLASSIFY_PROMPT.md if A-classify is commissioned).
