@@ -3,8 +3,9 @@
 ## WHAT THIS IS
 #   Candidate A, CLASSIFY fork — the Item-8-as-written drift surface. Detects
 #   drift in CLASSIFIER BEHAVIOR (predictions changing run-over-run), which
-#   the fetch-health canary CANNOT surface. TWO-PART, SPENDY candidate; must
-#   NOT be commissioned without the explicit Phase-0.COST gate clearing.
+#   the fetch-health canary CANNOT surface. TWO-PART candidate; the FIRST
+#   non-$0 one (recurring LLM spend — though <$1/run, so cost is a guardrail,
+#   not a blocker); commission only after the Phase-0.COST gate clears.
 
 ## WHAT A-FETCH ALREADY SHIPPED (now a CONSTRAINT, not a hypothetical)
 #   A-fetch landed the drift COMPARATOR as a subcommand (S39 @ 7bbdc74):
@@ -282,11 +283,20 @@ auth-seam lesson generalizes to any reused production surface).
     run.py:31) — see 1.SCHEMA / 1.METRIC for why it matters.
 ALSO determine the $0-dev mechanism (load-bearing; the vcrpy-only-covers-fetch
 detail lives in Step 0.D — do not restate it here). There are TWO spend legs,
-BOTH on AsyncAzureOpenAI and NEITHER vcrpy-replayable: the EMBEDDER
-(`AzureOpenAIEmbedder`, used by Stage-1 LR inference — embedding_generator.py:57,
-run.py:60) and the ADJUDICATOR (Stage 3). Even the cheapest Stage-1 depth spends
-on the embedder (cache-miss). A $0-dev mock plan MUST cover BOTH legs, OR mock
-at the cascade entry ABOVE both. Confirm EITHER (i) a warm cache for the dev
+BOTH on AsyncAzureOpenAI and NEITHER vcrpy-replayable:
+  - the EMBEDDER — class `AzureOpenAIEmbedder` is DEFINED in
+    classifier/llm/embedder.py:50 (its network client `AsyncAzureOpenAI` at
+    embedder.py:42); it is CONSUMED by Stage-1 LR inference via
+    classifier/stage1/embedding_generator.py:57 (import) / :101 (param), which
+    holds the idempotent (domain, ml_text_hash) cache at
+    embedding_generator.py:13,22. (Same leg, two layers — do not read the two
+    filenames as two legs.)
+  - the ADJUDICATOR (Stage 3) — client `AsyncAzureOpenAI` in
+    classifier/llm/azure_openai_adjudicator.py:55.
+Even the cheapest Stage-1 depth spends on the embedder (cache-miss). A $0-dev
+mock plan MUST cover BOTH legs — mock the client in embedder.py:50 + the
+adjudicator, OR inject fakes at the embedding_generator / cascade entry ABOVE
+both. Verify these file:lines at source before placing the seam (live tree wins). Confirm EITHER (i) a warm cache for the dev
 subset on the relevant leg(s) — the embedder has an idempotent
 (domain, ml_text_hash) cache (embedding_generator.py:13,22), so warm-cache $0 is
 viable for EMBEDDINGS at Stage-1 depth; the adjudicator cache must be verified
