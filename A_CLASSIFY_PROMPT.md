@@ -27,8 +27,8 @@
 
 ## WHY IT IS A BIGGER COMMITMENT (source-verify — RE-VERIFY at Phase 0)
 #   canary (tools/baseline_v0/canary.py) emits ONLY fetch-health: the 14-col
-#   canary.PARQUET_COLUMNS (@ canary.py:66-81) — no signals_business_score,
-#   category, or prediction column. So classifier-prediction drift is NOT
+#   canary.PARQUET_COLUMNS (@ canary.py:66-81) — no is_business, confidence,
+#   or any prediction column. So classifier-prediction drift is NOT
 #   computable from current output. The producer extension is BIGGER than
 #   "add a flag": the cascade entry (cascade.py:314 async _run_stage1(*,
 #   parser_parquet, components, lr_bundle, thresholds, ...) / stage1/run.py:150
@@ -52,8 +52,11 @@
 
 ## LABEL GATING (scope boundary)
 #   Drift = behavior change → needs predictions, NOT labels:
-#     - prediction-AGREEMENT (run-N vs run-N-1) and KS on the
-#       signals_business_score distribution are LABEL-FREE and IN scope.
+#     - on the REAL prediction OUTPUTS (output_schema.py:103-124):
+#       is_business-AGREEMENT (run-N vs run-N-1), KS on the `confidence`
+#       distribution, and abstain-rate shift are LABEL-FREE and IN scope.
+#       (signals_business_score is the Tier-1 rules INPUT, run.py:21,317 — NOT
+#       a prediction; using it would measure INPUT drift, so it is OUT.)
 #     - Brier / calibration drift needs predicted-probability + a TRUE LABEL,
 #       so it is GATED on Stage 2/3 labeling (PR-D/E) and is OUT of scope.
 #       Do NOT build a calibration metric this session.
@@ -79,8 +82,9 @@ canary.py:193) — the --classify path needs its own assembled schema
 flag is used.
 
 PART 2 — Classify-drift comparator: compute the agreed LABEL-FREE metric(s)
-— prediction agreement and/or KS on signals_business_score — over two
-prediction-bearing parquets, REUSING A-fetch's comparator scaffold (the
+— is_business-agreement and/or KS on the `confidence` distribution and/or
+abstain-rate shift (on the real output_schema.py:103-124 predictions) — over
+two prediction-bearing parquets, REUSING A-fetch's comparator scaffold (the
 inner-join, appeared/disappeared, exit-0/1/2 contract, --report shape). It
 extends, not forks. KS is computable via scipy.stats.ks_2samp (scipy 1.17.1
 is already a dependency — NO new dependency required; do not hand-roll KS).
@@ -276,11 +280,16 @@ auth-seam lesson generalizes to any reused production surface).
   - OUTPUT: the cascade WRITES per-domain predictions to a separate parquet
     (stage1/run.py:15,169 -> stage1_predictions/.../predictions.parquet) with
     its own output_schema.SCHEMA. The producer READS THIS BACK and selects the
-    prediction fields. Quote the OUTPUT schema field names with file:line and
-    confirm the actual prediction-field name (it is `signals_business_score`
-    @ run.py:317 / __init__.py:13 — NOT `business_score`; verify against the
-    live tree). Note the rows also carry `model_version` (git SHA at run time,
-    run.py:31) — see 1.SCHEMA / 1.METRIC for why it matters.
+    prediction fields. VERIFIED (0.C, S39 commissioning) — the OUTPUT
+    prediction fields are (output_schema.py:103-124): `is_business` (bool
+    verdict, null on abstain), `confidence` (float, the unified final score),
+    `lr_probability` (float, Tier-2 only), `abstain`/`abstain_reason`,
+    `tier_decided`, `model_version`, `feature_schema_version`. CRITICAL:
+    `signals_business_score` is the Tier-1 rules INPUT (run.py:21,317), NOT an
+    output and NOT a prediction — do NOT target it (that would measure INPUT
+    drift). There is NO `category` column (Stage 1 is binary business/non-
+    business). `model_version` (git SHA at run time, run.py:31) is the drift-
+    attribution signal — see 1.SCHEMA / 1.METRIC. Re-confirm at the live tree.
 ALSO determine the $0-dev mechanism (load-bearing; the vcrpy-only-covers-fetch
 detail lives in Step 0.D — do not restate it here). There are TWO spend legs,
 BOTH on AsyncAzureOpenAI and NEITHER vcrpy-replayable:
@@ -350,13 +359,15 @@ parquet — breaking fetch-only runs. Keep the 14 frozen; predictions are an
 additive, opt-in set.
 DEFINE PREDICTION_COLUMNS as a frozen public tuple + dtype map (mirroring
 canary.PARQUET_COLUMNS / canary._make_dtypes), a curated SUBSET of the
-cascade's output_schema.SCHEMA — e.g. signals_business_score, is_business,
-category (only if depth >= Stage 2), model_version — exported and asserted in
-tests, so the classify comparator IMPORTS it as the source of truth exactly
-as A-fetch imports PARQUET_COLUMNS. This makes "append-only" mechanically
-checkable and prevents re-hardcoding. Include `model_version` deliberately
-(see 1.METRIC). The exact set is DEPTH-CONDITIONAL — settle 1.CASCADE-DEPTH
-FIRST (category exists only at depth >= Stage 2), then finalize this tuple.
+cascade's real output_schema.SCHEMA (output_schema.py:103-124, verified at
+0.C): `is_business`, `confidence`, `lr_probability`, `abstain`, `tier_decided`,
+`model_version`. (NOT signals_business_score — that is the Tier-1 rules INPUT,
+not an output; NOT category — no such column.) Exported and asserted in tests,
+so the classify comparator IMPORTS it as the source of truth exactly as A-fetch
+imports PARQUET_COLUMNS. This makes "append-only" mechanically checkable and
+prevents re-hardcoding. Include `model_version` deliberately (see 1.METRIC).
+The set is FIXED (no depth-conditionality — there is no depth knob; see
+1.CASCADE-NOTE).
 
 ### 1.NAMESPACE — extend the existing `drift` subcommand
 A-fetch's `drift` subcommand exists. Decide how classify metrics attach:
@@ -368,28 +379,47 @@ do NOT create a parallel comparator. NOTE option (a) BRANCHES the shipped
 comparator — the existing tests/drift/ A-fetch suite MUST stay green
 (fetch-only behavior byte-identical); guard it as a named acceptance row.
 
-### 1.METRIC — model_version is the primary drift-attribution signal
-predictions.parquet rows carry `model_version` (git SHA at run time,
-run.py:31). A prediction-drift alert's MOST LIKELY cause is a model/SHA
-change, not genuine input drift. The classify comparator MUST capture
-model_version per snapshot and surface a "baseline vs current model_version"
-line in the report, so a drift alert is immediately attributable to "the
-model changed" vs "the world changed." Without it, prediction drift is
-uninterpretable. This is informational context on the report, not itself a
-gating metric.
+### 1.METRIC — report-only signals, gate direction, overlap + calibration posture
+- **model_version (attribution; report-only).** predictions.parquet rows carry
+  `model_version` (git SHA at run time, run.py:31). A prediction-drift alert's
+  MOST LIKELY cause is a model/SHA change. The comparator MUST capture it per
+  snapshot and surface a "baseline vs current model_version" line, so drift is
+  attributable to "the model changed" vs "the world changed."
+- **tier-mix shift (report-only).** `tier_decided` (output_schema.py:105) routes
+  each domain to rules / lr / llm / abstained. Compute the run-over-run
+  distribution (rules% / LR% / LLM% / abstained%) and report the deltas. Routing
+  drift IS behavior drift AND an early cost signal — verdict + confidence can
+  stay flat while routing shifts. Report-only floor (NOT gating); this is what
+  consumes `tier_decided` (otherwise a carried-for-nothing column).
+- **abstain gate direction = TWO-SIDED `|Δ|` > threshold.** Drift = behavior
+  change in EITHER direction: an abstain DROP (model spuriously more decisive)
+  is as much a behavior change as a rise. Gate on
+  `|abstain_rate(current) - abstain_rate(baseline)|`, not a one-directional
+  rise — keeping the gating set direction-agnostic, consistent with
+  is_business-agreement (flip count) and confidence-KS (distribution distance).
+- **OVERLAP (acknowledged, acceptable).** is_business-agreement and abstain-rate
+  shift partially overlap — an abstain<->verdict change trips BOTH. Correlated,
+  not orthogonal; redundant detection is acceptable and expected.
+- **CALIBRATION posture.** All thresholds are PROVISIONAL + uncalibrated. The
+  ~5-domain operator-run smoke does NOT calibrate them (too small — it only
+  truth-checks the producer's output schema). Calibration is the FIRST real
+  two-snapshot operational run (out of this session). Until then, alerts mean
+  "look," not "act."
 
-### 1.CASCADE-DEPTH — metric richness (cost is a non-constraint at < $5/run)
-Stage 1 only (signals_business_score + KS feasible) vs Stage 1->2 (adds
-category -> per-category rate metric) vs full 1->2->3 (adds Stage-3 adjudicator
-behavior). NOTE: "Stage 1 only" is NOT free — it still spends on the EMBEDDER
-(AzureOpenAIEmbedder) on cache-miss; it is merely the cheapest (cents). Since
-every depth is well under the < $5/run tolerance, depth is a METRIC-RICHNESS
-decision, NOT a cost one; deeper = richer drift signal + more components to
-construct. Operator trade, not a silent default. NOTE the producer is
-sync (canary_run is a requests loop) and the cascade is async — PART 1 needs
-an asyncio bridge (asyncio.run) plus the component-construction setup
-(lr_bundle, embedder, adjudicator) the chosen depth requires; this shapes
-both the producer and the PART 1 spike.
+### 1.CASCADE-NOTE — there is NO operator depth knob (architecture fact)
+`run_shard` (run.py:150) auto-routes EACH domain through Tiers 1-3 by
+confidence (Tier 1 rules -> Tier 2 LR -> Tier 3 LLM adjudication, run.py:21-29)
+and ALWAYS emits the same output_schema. There is no "Stage 1 / 1->2 / full"
+operator choice and no category output. So depth is NOT a Phase-2 question.
+Cost is whatever the full per-domain cascade costs (embeddings on cache-miss +
+LLM adjudication only on the LR-uncertain band) — well under $1/run, a
+non-constraint vs the < $5/run tolerance. The producer always constructs the
+full component set (lr_bundle, embedder, adjudicator, thresholds, cost_tracker)
+and calls the single async `run_shard` entry. NOTE the producer is sync
+(canary_run is a requests loop) and run_shard is async — PART 1 needs an
+asyncio bridge (asyncio.run) plus the component construction (the cli.py
+`_run_stage1` wiring at cli.py:606-717 is the template); this shapes both the
+producer and the PART 1 spike.
 
 ### 1.BASELINE — tests go in tests/drift/ (the rule that just bit at A-fetch)
 New hermetic tests MUST live OUTSIDE the 16 canonical paths or they silently
@@ -409,17 +439,41 @@ for bisectability — the producer change touches the shared canary.py the
 A-fetch comparator depends on, so it must commit separately.
 
 ## Phase 2 — Design-gate elicitation (AskUserQuestion; 4 options/Q max)
-1. **Cascade depth** (Stage 1 / 1->2 / full) — sets cost + computable metrics.
-2. **Label-free metric set (Item 8 #1)** — prediction agreement (run-over-run
-   per-domain), KS on signals_business_score distribution (via
-   scipy.stats.ks_2samp; no new dep), per-category rate shift (only if depth
-   >= Stage 2). Calibration/Brier explicitly DEFERRED. model_version delta is
-   reported for attribution (1.METRIC), not gated.
+(NO operator "cascade depth" choice exists — run_shard auto-routes each domain
+through Tiers 1-3 [rules / LR / LLM adjudication, run.py:21-29] and always emits
+the SAME output_schema; the old depth question is REMOVED. No category column is
+produced — output_schema.py:97-127 — so per-category drift is OUT.)
+1. **Label-free metric set (Item 8 #1) — on the REAL prediction OUTPUTS**
+   (output_schema.py:103-124; verified at 0.C): (a) `is_business` AGREEMENT —
+   run-N vs run-N-1 per common domain, fraction whose verdict flips (count an
+   abstain<->verdict change as a flip; is_business is null on abstain, line
+   103); (b) KS on the `confidence` distribution (confidence is the unified
+   final-verdict score, line 104; via scipy.stats.ks_2samp, no new dep) — with
+   an OPTIONAL secondary KS on `lr_probability` (line 110) over the LR-tier
+   subset (report-only — sparse); (c) `abstain`-rate shift (line 106), gated
+   TWO-SIDED as `|Δ|` (see 1.METRIC); (d) tier-mix shift — the run-over-run
+   rules%/LR%/LLM%/abstained% distribution from `tier_decided` (line 105),
+   REPORT-ONLY (routing/cost drift; see 1.METRIC). NOTE: `signals_business_score`
+   is the Tier-1 rules INPUT (run.py:21,317), NOT a prediction and absent from
+   the output — it is OUT (using it would measure INPUT drift, A-fetch's
+   domain). per-category is OUT (no such column). Calibration/Brier DEFERRED
+   (label-gated). `model_version` delta reported for attribution (1.METRIC),
+   not gated.
+2. **GATING (DECIDED — S39 operator).** GATE (exit 1) on: is_business-agreement
+   drop + abstain-rate `|Δ|` (two-sided) + confidence-KS over threshold.
+   REPORT-ONLY: lr_probability-KS (sparse), tier-mix shift, model_version delta.
 3. **Thresholds + exit (Item 8 #2/#4), reconciled with A-fetch.** Same 0/1/2
-   contract; same inner-join domain alignment + appeared/disappeared. Per-
-   metric thresholds CLI-configurable; defaults flagged PROVISIONAL —
-   uncalibrated until real prediction snapshots exist (the A-fetch
-   --max-regressions lesson: don't imply calibration).
+   contract; same inner-join domain alignment + appeared/disappeared. Per-metric
+   thresholds CLI-configurable; PROVISIONAL defaults (DECIDED — S39 operator):
+   - verdict-flip rate > 0.05  (--max-verdict-flip-rate)
+   - abstain-rate |Δ| > 0.05   (--max-abstain-rate-delta)
+   - confidence-KS > 0.25      (--max-confidence-ks)
+   N-DEPENDENCE WARNING on confidence-KS: the two-sample KS critical value at
+   alpha=0.05 is ~1.36*sqrt((n+m)/(n*m)) ≈ 0.27 for n=m=50, so a KS threshold
+   below ~0.27 FIRES ON SAMPLING NOISE at dev/smoke scale (n≈50). 0.25 is a
+   provisional floor that is only meaningful at large production N; the
+   threshold is N-sensitive and stays uncalibrated until a real two-snapshot run
+   (the A-fetch --max-regressions lesson: don't imply calibration).
 4. **Producer real-validation smoke scope (operator-run; PART 1 only).**
    Dev/test data is DETERMINED, not a choice: the comparator is tested on
    SYNTHETIC prediction parquets (controllability — you need known drift to
@@ -469,12 +523,20 @@ parquet; threshold flips the exit code.
    Record the smoke's actual spend in the Phase-3 verification table.
 3. PART 2 classify metrics on the `drift` subcommand (per 1.NAMESPACE);
    hermetic tests in tests/drift/ against synthetic prediction parquets.
-   **Teeth (bidirectional, mirroring A-fetch):** (a) two IDENTICAL
-   prediction snapshots -> no drift -> exit 0; (b) injected prediction drift
-   -> detected -> exit 1; plus the **negative control** — a stub comparator
-   that always returns "no drift" MUST FAIL assertion (b). Reverse teeth: a
-   change in a NON-gating column must NOT flip the exit. Also assert the
-   model_version line appears in the report.
+   **Teeth — STRONGER than A-fetch (whose metrics all gated; here the
+   report-only/gating SPLIT must itself be tested).** (a) two IDENTICAL
+   prediction snapshots -> no drift -> exit 0; (b) injected drift in EACH
+   GATING metric -> exit 1, asserted per-metric: a verdict flip past
+   --max-verdict-flip-rate; an abstain |Δ| past --max-abstain-rate-delta
+   (test BOTH directions — a rise AND a drop must each fire, per the two-sided
+   gate); a confidence-distribution shift past --max-confidence-ks; (c) the
+   **negative control** — a stub comparator that always returns "no drift" MUST
+   FAIL assertion (b). (d) REPORT-ONLY/GATING SPLIT (the new requirement): inject
+   a change in EACH report-only signal — tier-mix (rules%/LR%/LLM%/abstained%
+   redistribution), lr_probability-KS, model_version — with all gating metrics
+   held flat, and assert exit STAYS 0 while the report still SHOWS the moved
+   value. Do NOT inherit A-fetch's teeth verbatim; this split case is mandatory.
+   Also assert the model_version baseline-vs-current line appears in the report.
 
 ### Per-commit checkpoint protocol (IN ORDER, every boundary)
 1. **Combined canonical suite** vs Phase-0 baseline; headline disposition per
@@ -553,8 +615,11 @@ compatibility PROVEN by running its comparator on a prediction parquet; (3)
 spend PROVEN by the actual run mode (client-mock=$0 or the authorized figure),
 never assumed. RE-verify the cascade entry seam + its input/output contracts
 (0.C) and A-fetch's tolerate-extras (0.B) against the live tree before relying
-on them — if a prompt file:line is stale, the live tree wins (the prediction
-field is `signals_business_score`, not `business_score` — confirm at source).
+on them — if a prompt file:line is stale, the live tree wins. (Hard-won at S39
+commissioning: the prediction OUTPUTS are is_business / confidence /
+lr_probability / abstain [output_schema.py:103-124]; `signals_business_score`
+is the Tier-1 rules INPUT [run.py:21,317], NOT a prediction — verifying the
+field NAME is not enough, verify it is an OUTPUT.)
 
 ## Regression-protection / locked artifacts (do NOT break working code)
 
