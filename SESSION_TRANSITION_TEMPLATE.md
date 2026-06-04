@@ -51,10 +51,10 @@ Anchors for Session 41 cold start:
   Parent `7bbdc74` (S39 A-fetch). Tolerated delta: operator-side eval_data
   labeling commits between S40 close and S41 open — verify each is strictly
   `eval_data/*` via `git show --stat`.
-- Workspace HEAD: the S40 primary close-out commit (SESSION_LOG.md +
+- Workspace HEAD: the S40 primary close-out commit `2cce09a` (SESSION_LOG.md +
   SESSION_TRANSITION_TEMPLATE.md + LESSONS.md + A_CLASSIFY_PROMPT.md PART 1
-  carry-forward) + the anchor-pin follow-up succeeding it. S41 Phase 0 Step 0.1
-  anchors workspace expectation there. NOTE: the operator-side uncommitted edit
+  carry-forward) + this anchor-pin follow-up succeeding it (pinning `2cce09a`).
+  S41 Phase 0 Step 0.1 anchors workspace expectation there. NOTE: the operator-side uncommitted edit
   to `SESSION_36_PROMPT.md` is still unstaged since S36 — tolerate it.
 - Canonical baseline: **970 tests** (16-path; UNCHANGED from S27-S40 close — the
   classify tests live in `tests/drift/`, outside the sweep; cli.py changed at
