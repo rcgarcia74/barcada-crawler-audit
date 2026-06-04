@@ -66,6 +66,16 @@
 
 ## Scope (two sequenced sub-surfaces)
 
+**STATUS at S41 open: PART 2 is SHIPPED (S40 `3266bc4`); PART 1 is the remaining
+work and is BLOCKED.** PART 2 (the classify-drift comparator + metrics) landed —
+do NOT rebuild it. THIS session is PART 1 (the producer) ONLY, and only if its
+unblock check clears (Open/carry-forward (a) — the worker_loop.py:193
+parser_parquet partition must exist). If still blocked, no-ship. PART 2's
+contract below is now reference (what the producer must FEED): the comparator
+auto-detects PREDICTION_COLUMNS and computes is_business-agreement /
+confidence-KS / abstain-|Δ| (gating) + lr_probability-KS / tier-mix /
+model_version (report-only).
+
 PART 1 — Producer extension: add an OPT-IN classifier leg to canary-run
 (e.g. a `--classify` flag). The chain per domain is fetch (existing) -> run
 the parser to assemble the cascade's parser_parquet input -> construct
@@ -98,35 +108,40 @@ fetch-only runs cheap).
 
 Run in order. HALT and surface to operator on ANY mismatch (the halt protocol
 is the contract — do not mutate the repo/workspace after a halt). All anchors
-below were VERIFIED green at the S39 close (2026-06-03/04) at repo `7bbdc74` /
-workspace `8c24270`; if reality differs, the live tree wins — surface the delta.
+below were VERIFIED green at the S40 close (2026-06-04) at repo `3266bc4` /
+workspace `46f35fc`; if reality differs, the live tree wins — surface the delta.
+(S40 SHIPPED PART 2 — the classify comparator; THIS session is PART 1 only, and
+ONLY if the unblock check below clears. See Scope + Open/carry-forward.)
 
 ### Step 0.1 — Workspace + repo HEAD
 ```
 git -C ~/crawler-audit rev-parse HEAD
-# Expect: 8c24270 (S39 anchor-pin) OR 32273f4 (S39 primary close-out) OR a
+# Expect: 46f35fc (S40 anchor-pin) OR 2cce09a (S40 primary close-out) OR a
 # later prompt-drafting / doc-edit commit succeeding it. If N ahead of
-# 8c24270, verify each via `git log --oneline 8c24270..HEAD` against expected
-# prompt-finalization / doc-edit patterns; surface any unexpected SHA.
-# NOTE: an operator-side uncommitted edit to SESSION_36_PROMPT.md has been
-# unstaged since S36 — tolerate it (operator territory).
+# 46f35fc, verify each via `git log --oneline 46f35fc..HEAD`; surface any
+# unexpected SHA. NOTE: the operator-side uncommitted edit to
+# SESSION_36_PROMPT.md is still unstaged since S36 — tolerate it.
 
 git -C /Users/administrator/projects/barcada-scraper rev-parse HEAD
-# Expect: 7bbdc74 (S39 WA0.W7.drift-fetch-comparator). Tolerated delta:
-# operator-side eval_data labeling commits between S39 close and S40 open —
-# verify each commit in 7bbdc74..HEAD is strictly eval_data/* via
-# `git show --stat <sha>` (NO src/, NO tests/ [incl. tests/drift/], NO
-# tools/baseline_v0/, NO .github/, NO docs/). Surface any non-eval_data delta.
+# Expect: 3266bc4 (S40 WA0.W7.classify-drift-comparator; parent 7bbdc74 = S39
+# A-fetch). Tolerated delta: operator-side eval_data labeling commits between
+# S40 close and S41 open — verify each commit in 3266bc4..HEAD is strictly
+# eval_data/* via `git show --stat <sha>` (NO src/, NO tests/ [incl.
+# tests/drift/], NO tools/baseline_v0/, NO .github/, NO docs/). Surface any
+# non-eval_data delta.
 ```
 
-### Step 0.2 — Tags (14 expected; UNCHANGED from S39 — the drift tag was deferred)
+### Step 0.2 — Tags (15 expected; +1 from S39 — S40 placed the part-scoped classify tag)
 ```
-git -C /Users/administrator/projects/barcada-scraper tag -l | sort | wc -l   # Expect 14
+git -C /Users/administrator/projects/barcada-scraper tag -l | sort | wc -l   # Expect 15
 git -C /Users/administrator/projects/barcada-scraper rev-list -n 1 workstream-0-end       # Expect a1c5636
 git -C /Users/administrator/projects/barcada-scraper rev-list -n 1 adls-live-coverage-v0  # Expect d610f0b
-# Do NOT place workstream-a-week2-end (superseded). S39 deferred its drift tag;
-# if S40 (A-classify) closes the drift workstream, place barcada-drift-classify-v0
-# (or a workstream-closing tag) at Phase 5 per 1.TAG. Tolerated: operator-side
+git -C /Users/administrator/projects/barcada-scraper rev-list -n 1 barcada-drift-classify-part2-v0  # Expect 3266bc4
+# barcada-drift-classify-part2-v0 is DELIVERABLE-SCOPED (PART 2), NOT
+# workstream-closing — the drift workstream stays HALF-SHIPPED until PART 1.
+# Place the workstream-closing tag (barcada-drift-classify-v0 / workstream-end)
+# only IF this session ships PART 1 and the workstream is then complete. Do NOT
+# place workstream-a-week2-end (superseded). Tolerated: operator-side
 # stage1-*/eval_data-* tags pointing at eval_data-only commits.
 ```
 
@@ -175,9 +190,9 @@ print('OK fixtures 222/202/222/1213/30/30')
     tests/orchestrator/test_worker_loop.py \
     tests/orchestrator/test_robots_gate_integration.py \
     tests/orchestrator/test_worker_loop_persistence.py -q
-# Expect: 970 passed. The S39 drift tests live in tests/drift/ (OUTSIDE this
-# sweep) by deliberate disposition — do NOT add tests/drift/ to this 16-path.
-# Combined cumulative-gate floor = 1005 (970 + the S38 guard 13 + drift 22).
+# Expect: 970 passed. The drift tests live in tests/drift/ (OUTSIDE this sweep)
+# by deliberate disposition — do NOT add tests/drift/ to this 16-path.
+# Combined cumulative-gate floor = 1026 (970 + the S38 guard 13 + drift 43).
 ```
 
 ### Step 0.6 — Manifest + schema invariants
@@ -208,7 +223,7 @@ Run the S33-S38 regression set as in the S39 prompt's Step 0.8, PLUS pin the
 two default-run sub-suites that sit OUTSIDE the 16-path:
 ```
 .venv/bin/python -m pytest tests/classifier/llm/test_prompt_logger.py -q   # expect 13 (S38 guard)
-.venv/bin/python -m pytest tests/drift/ -q                                 # expect 22 (S39 drift)
+.venv/bin/python -m pytest tests/drift/ -q                                 # expect 43 (S39 fetch 22 + S40 classify 21)
 .venv/bin/python -m pytest tests/test_parquet_writer.py -q                 # expect 33
 .venv/bin/python -m pytest tests/classifier/page_acquisition/test_page_storage.py -q  # expect 13
 # Plus the cost-journal / robots / orchestrator sub-suites per the S39 0.8 list.
@@ -220,9 +235,12 @@ page_storage / partitioned / prompt_logger public APIs; cascade AST; K-b smoke
 220 LOC; CRAWLING_POLICY 77/2519; the SIX ADLS live tests + the S38 hermetic
 guard present), PLUS the S39 drift deliverable:
 ```
-.venv/bin/python -c "from tools.baseline_v0 import drift; \
-print('OK drift module', bool(drift.run_drift) and bool(drift.Thresholds) and len(drift.EXCLUSION_FLAGS)==5)"
-test -f tools/baseline_v0/drift.py && test -f tests/drift/test_drift.py && echo "OK drift files present"
+.venv/bin/python -c "from tools.baseline_v0 import drift, drift_classify; \
+print('OK drift', bool(drift.run_drift) and len(drift.EXCLUSION_FLAGS)==5); \
+print('OK drift_classify (S40 PART 2)', len(drift_classify.PREDICTION_COLUMNS)==6 and bool(drift_classify.compute_classify_report))"
+test -f tools/baseline_v0/drift.py && test -f tools/baseline_v0/drift_classify.py \
+    && test -f tests/drift/test_drift.py && test -f tests/drift/test_drift_classify.py \
+    && echo "OK drift + drift_classify (S39 fetch + S40 classify) files present"
 # PART 2 KS dependency (scipy 1.17.1 verified present at S39 — de-risk before Phase 3):
 .venv/bin/python -c "from scipy.stats import ks_2samp; print('OK scipy.stats.ks_2samp available')"
 # drift._validate_schema must iterate ONLY over PARQUET_COLUMNS (tolerate
@@ -632,11 +650,13 @@ reminders". The A-classify-CRITICAL locks (any breach = HALT):
 - **The fetch-only producer path (no `--classify`) must be BYTE-FOR-BYTE
   unchanged** — every existing canary-run consumer (and the A-fetch comparator's
   "require all 14") keeps working. PROVE the no-flag parquet is identical.
-- **A-fetch's shipped comparator is EXTENDED, not forked.** `tools/baseline_v0/
-  drift.py` (`7bbdc74`) + the 22 `tests/drift/test_drift.py` tests must stay
-  GREEN with fetch-only behavior identical (1.NAMESPACE option (a) branches it —
-  guard the existing 22 explicitly). Do NOT regress the require-14/tolerate-
-  extras / inner-join / 0-1-2 contract.
+- **The shipped comparator is EXTENDED, not forked.** `tools/baseline_v0/
+  drift.py` (S39 `7bbdc74`) + `drift_classify.py` (S40 PART 2 `3266bc4`) + the
+  **43** `tests/drift/` tests (22 fetch `test_drift.py` + 21 classify
+  `test_drift_classify.py`) must stay GREEN. Do NOT regress the
+  require-14/tolerate-extras / inner-join / 0-1-2 contract, the fetch-only
+  byte-identical behavior (classify is None when prediction columns absent), OR
+  the PART-2 classify metrics + report-only/gating split.
 - **The src/ classifier cascade is INVOKED, not MODIFIED.** No `src/` change
   this session. canary.py is TOOLING (editable under the Phase-2 gate); the
   cascade entry, `output_schema.SCHEMA`, embedder/adjudicator are read + called.
@@ -645,7 +665,7 @@ reminders". The A-classify-CRITICAL locks (any breach = HALT):
   etc.), the 30 cassettes, the SIX ADLS live tests, the S38 hermetic guard, the
   CI workflow, or the `adls-live-coverage-v0` tag.
 - **Canonical 16-path stays 970** (Step 0.5); the cumulative gate (combined
-  1005 + N new tests/drift/ tests) never decreases. New tests live in
+  **1026** + N new tests/drift/ tests) never decreases. New tests live in
   `tests/drift/` (outside the sweep) — re-run the 16-path ALONE post-placement
   to confirm 970 (the S39 directory-fact LESSON).
 - **No live LLM spend** beyond an explicit Phase-0.COST authorization; default
@@ -656,13 +676,15 @@ Per-commit checkpoint step 1 (combined canonical suite vs the Phase-0 baseline)
 count change or any of the above breaches = HALT, not a commit.
 
 ## Open / carry-forward
-- PREREQUISITE — SATISFIED. S39 Phase 6 close-out landed and pushed: workspace
-  `32273f4` (primary) + `8c24270` (anchor-pin) refilled
-  SESSION_TRANSITION_TEMPLATE.md (repo anchor `7bbdc74`, workspace anchor
-  `8c24270`), recorded the drift baseline (canonical 970 / tests/drift/
-  expect-22 / combined 1005), and folded the S39 LESSON. A-classify can
-  cold-start cleanly. (This Phase 0 is now fully enumerated above — no
-  dependency on reconstructing "standard 0.1-0.10".)
+- PREREQUISITE — SATISFIED (and S40 SHIPPED PART 2). S39 + S40 Phase 6
+  close-outs landed + pushed; the CURRENT anchors are repo `3266bc4` / workspace
+  `46f35fc`, tag count 15, canonical 970 / combined **1026** / drift sub-suite
+  **43**. PART 2 (the classify comparator) is DONE; THIS session is PART 1 only.
+  Phase 0 above is fully enumerated at these S41 anchors — no dependency on
+  reconstructing "standard 0.1-0.10". **ORDER: run the PART 1 UNBLOCK CHECK
+  (next bullet, (a)) BEFORE any Phase 1 design work — if the worker_loop.py:193
+  partition does not exist, PART 1 STAYS DEFERRED and this is a no-ship
+  scope-resolution session (a legitimate outcome, like S39's empty-queue).**
 - **PART 1 (the `--classify` producer) is DEFERRED — carry-forward (the
   classify comparator PART 2 shipped at repo `3266bc4`).** Source-verify at
   commissioning showed the cascade READS a pre-existing parser_parquet that the
