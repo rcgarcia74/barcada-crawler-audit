@@ -663,12 +663,43 @@ count change or any of the above breaches = HALT, not a commit.
   expect-22 / combined 1005), and folded the S39 LESSON. A-classify can
   cold-start cleanly. (This Phase 0 is now fully enumerated above — no
   dependency on reconstructing "standard 0.1-0.10".)
+- **PART 1 (the `--classify` producer) is DEFERRED — carry-forward (the
+  classify comparator PART 2 shipped at repo `3266bc4`).** Source-verify at
+  commissioning showed the cascade READS a pre-existing parser_parquet that the
+  scraper stage has not produced yet. To commission PART 1 later:
+  - **(a) UNBLOCK CHECK.** PART 1 unblocks only when the scraper stage produces
+    a real parser_parquet partition at the worker_loop path
+    (worker_loop.py:193 → `.../parser/crawl_date=X/shard=NNNNN/has_website=*/
+    bot_blocked=*/data-<uuid>.parquet`). Verify that path EXISTS (and is
+    populated) before commissioning PART 1; until then PART 1 stays deferred.
+  - **(b) COST GATE APPLIES TO PART 1, not PART 2.** PART 2 shipped at $0
+    (hermetic, no cascade). The entire Phase-0.COST machinery (full-depth
+    ceiling, the < $5/run standing tolerance + per-run confirm, the stage-2
+    refined re-gate before any live run) governs PART 1's producer runs — the
+    first spend happens only when PART 1 runs the cascade. Re-read Phase-0.COST
+    as a PART 1 gate.
+  - **(c) PREDICTION_COLUMNS REAL-ARTIFACT RE-VERIFICATION — a PART 1 ACCEPTANCE
+    GATE.** PART 2 pinned `PREDICTION_COLUMNS` = (is_business, confidence,
+    lr_probability, abstain, tier_decided, model_version) from
+    output_schema.py:103-124 at commissioning. When PART 1 is built, RE-VERIFY
+    against the THEN-current `output_schema.SCHEMA` AND a REAL produced parquet:
+    the producer's append-only proof must DUMP the actual produced columns and
+    confirm they equal the 14 fetch columns + PREDICTION_COLUMNS. If the cascade
+    output schema has drifted, update `drift_classify.PREDICTION_COLUMNS` + its
+    dtype map (and the comparator/tests) FIRST.
+  - **(d) RE-SCOPE FLAG.** If, at PART 1 commissioning, the producer's real path
+    (scraper-stage-on-demand: HTML → parser_parquet) is still a large/unwired
+    surface, RE-SCOPE rather than force an inline scraper integration. Cleaner
+    options: have the producer CONSUME an existing parser_parquet partition
+    (lightest; matches the decoupled scrape/classify architecture), or wait for
+    a single-domain scraper entry. Decide at PART 1 Phase 1.
 - Calibration/Brier drift stays GATED on Stage 2/3 labeling (PR-D/E) —
   revisit only after labels exist.
 - Operational cadence = LAPTOP launchd, ~monthly, < $5/run (operator-confirmed,
-  S39 discussion). The producer + comparator are BUILT this session; enabling
-  the scheduled laptop run is a post-ship DEPLOYMENT step via the existing
-  scripts/launchd/ kit — NOT built here. Compute is local; the embedding +
+  S39 discussion). The COMPARATOR (PART 2) is BUILT this session; the PRODUCER
+  (PART 1) is deferred (see above). Enabling the scheduled laptop run is a
+  post-ship DEPLOYMENT step via the existing scripts/launchd/ kit — NOT built
+  here, and gated on PART 1 shipping first. Compute is local; the embedding +
   adjudication calls still go to Azure OpenAI (no fully-local option). Azure
   (VMSS) is overkill for 50 domains and is not the chosen target.
 - Item 8 #3 (canary curation) is an AI-ML-team decision independent of this

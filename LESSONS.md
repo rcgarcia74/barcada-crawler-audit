@@ -3143,3 +3143,35 @@ hides the bug. My first spike masked it exactly this way via a probe write.)
   headline move. Verify by re-running the canonical 16-path ALONE post-placement
   and diffing against the Phase-0 baseline — never trust the intended disposition
   without the captured count.
+
+## (S40 folding) Source-verify a field's ROLE (input vs output, read-site vs write-site, which stage produces it), not just its name-at-a-line.
+
+- A grep that confirms a symbol EXISTS at a line proves presence, not ROLE. Twice
+  in one session a prompt premise was built on presence-at-a-line and was wrong
+  about what that line DID — caught only by reading the surrounding role, not the
+  name:
+  - **signals_business_score.** Verified present at `run.py:317` and named
+    consistently — but `:317` is `score = pl.col("signals_business_score")`, a
+    READ of the Tier-1 rules-engine INPUT, not a prediction. The classifier
+    OUTPUT schema (`output_schema.py:97-127`) does not contain it at all. The
+    prompt's "KS on signals_business_score" would have measured INPUT drift while
+    claiming to measure classifier-BEHAVIOR drift. The real prediction outputs
+    are is_business / confidence / lr_probability / abstain (output_schema.py:103-124).
+    A prior review even "corrected" business_score -> signals_business_score —
+    fixing the NAME while the ROLE stayed wrong.
+  - **parser_parquet.** The prompt said the producer would "run the parser to
+    build parser_parquet." Source showed the cascade READS a pre-existing
+    parser_parquet partition that a SEPARATE scraper stage WRITES
+    (worker_loop.py:193), and that stage has not produced one yet
+    (tests/fixtures/synthetic_parquet.py). "Run the parser" was actually "run the
+    whole scraper stage," and the input did not exist — a deferral, not a step.
+- Same failure twice: presence-at-line != the role the design assumed. Before
+  building on a field/artifact, read THREE things at the source, not one:
+  (1) is this an INPUT the code reads or an OUTPUT it writes? (2) which
+  STAGE/tier produces it, and does that stage actually run/produce in the path
+  you assume? (3) is the line a definition, a read, or a write? The name being
+  right is necessary, not sufficient.
+- Payoff framing: this is the verify-before-build gate working as intended — both
+  misses were caught BEFORE any code, turning a wrong-premise build into a
+  retarget (PART 2) plus a precisely-gated carry-forward (PART 1). A presence-only
+  check would have shipped the wrong metric and a producer with no input.

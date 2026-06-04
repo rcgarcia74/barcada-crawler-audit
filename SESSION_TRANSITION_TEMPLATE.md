@@ -1,9 +1,9 @@
-# Session Transition Template — Handoff from Session 39 → Session 40
+# Session Transition Template — Handoff from Session 40 → Session 41
 
 This file is the handoff document filled out at the end of one Claude
 Code session for the next session to read first. Overwritten at each
 transition (use git history to recover prior handoffs). Sessions 1-11
-are summarized in SESSION_LOG.md; Sessions 12-39 are in the most
+are summarized in SESSION_LOG.md; Sessions 12-40 are in the most
 recent SESSION_LOG.md entries.
 
 Pair this with the latest entry in `SESSION_LOG.md`, with
@@ -11,49 +11,58 @@ Pair this with the latest entry in `SESSION_LOG.md`, with
 `BARCADA_CRAWLER_REMEDIATION_PLAN.md` to start a session cold and
 be productive within ~10 minutes.
 
-**Session 40 invocation prompt:** A-classify is DRAFTED + reviewed at
-`~/crawler-audit/A_CLASSIFY_PROMPT.md` (the CLASSIFY fork of barcada-drift).
-If the operator commissions A-classify, that is the S40 prompt. Otherwise a
-fresh prompt is operator-commissioned between sessions per the S20→S39
-precedent. Any S40 prompt should pin: repo HEAD anchor `7bbdc74`, workspace
-HEAD anchor (the S39 close-out commit + its anchor-pin follow-up), tag count
-`14`, canonical baseline `970` (16-path) / `1005` combined (970 + the 13-test
-S38 hermetic guard + the 22-test S39 drift sub-suite), Step 0.4
-`cassette_count == 30` / `exclusions_count == 30`, and a Step 0.9 presence
-check for the S33-S38 ADLS deliverables PLUS the S39 drift deliverable.
+**PRIMARY LIVE CANDIDATE for Session 41: A-classify PART 1 (the `--classify`
+producer) — DEFERRED at S40, BLOCKED, precisely gated.** S40 shipped A-classify
+PART 2 (the classify-drift COMPARATOR, `3266bc4`); PART 1 (the cascade producer
+that FEEDS it real prediction snapshots) is the carry-forward. **UNBLOCK CHECK
+(run this FIRST at S41 open):** the producer needs a real parser_parquet
+partition the scraper stage writes at **`worker_loop.py:193`**
+(`.../parser/crawl_date=X/shard=NNNNN/has_website=*/bot_blocked=*/data-*.parquet`)
+— it did NOT exist at S40 close (the parser has not produced one). If that path
+still has no partition, PART 1 STAYS DEFERRED; do not commission it. Full PART 1
+gates (a)-(d) live in `A_CLASSIFY_PROMPT.md` Open/carry-forward: (a) the
+partition unblock check; (b) the Phase-0.COST gate APPLIES TO PART 1 (PART 2 was
+$0; spend starts when the producer runs the cascade); (c) PREDICTION_COLUMNS
+real-artifact re-verification is a PART 1 acceptance gate; (d) the re-scope flag
+(consume-existing-partition vs inline-scraper). Other carry-forwards: D
+(operator-led labeling), E (EXHAUSTED at 30).
 
-**S40 opens with the drift workstream HALF-BUILT.** S39 shipped A-fetch — the
-fetch-reachability drift COMPARATOR (`drift` subcommand under
-`tools.baseline_v0`, `7bbdc74`). The natural next scope is **A-classify**
-(classifier-prediction drift), which EXTENDS the A-fetch comparator with
-prediction-drift metrics. It is the FIRST non-$0 candidate (routes the 50
-canary domains through the Stage 1->2->3 cascade → recurring LLM spend), so it
-carries a BLOCKING Phase-0.COST gate and a client-mock $0-dev requirement.
-Remaining other carry-forwards: D (operator-led labeling), E (EXHAUSTED at 30).
-Surface the scope choice at S40 Phase 1 as usual.
+**Session 41 invocation prompt:** `~/crawler-audit/A_CLASSIFY_PROMPT.md` is the
+PART 1 spec (its PART 2 is now shipped — read it for the producer scope + the
+(a)-(d) gates). Any S41 prompt should pin: repo HEAD anchor `3266bc4`, workspace
+HEAD anchor (the S40 close-out commit + its anchor-pin follow-up), tag count
+`15`, canonical baseline `970` (16-path) / **`1026`** combined (970 + the 13-test
+S38 hermetic guard + the **43-test** S39+S40 drift sub-suite), Step 0.4
+`cassette_count == 30` / `exclusions_count == 30`, and a Step 0.9 presence check
+for the S33-S38 ADLS deliverables + the drift deliverables (drift.py +
+drift_classify.py + tests/drift/).
 
-Anchors for Session 40 cold start:
-- Repo HEAD: `7bbdc74` (S39: WA0.W7.drift-fetch-comparator — the `drift`
-  subcommand + comparator + `tests/drift/`). Tolerated delta: operator-side
-  eval_data labeling commits between S39 close and S40 open (Sessions 8-39
-  precedent) — verify each is strictly `eval_data/*` via `git show --stat`.
-- Workspace HEAD: the S39 primary close-out commit `32273f4` (SESSION_LOG.md +
-  SESSION_TRANSITION_TEMPLATE.md + LESSONS.md + A_CLASSIFY_PROMPT.md +
-  SESSION_39_PROMPT.md) + the anchor-pin follow-up succeeding it (this commit,
-  pinning `32273f4`) (+ any later prompt-revision commits). S40
-  Phase 0 Step 0.1 MUST anchor workspace expectation to the S39 close-out OR
-  the anchor-pin follow-up OR a later follow-up. Per the S21-S39 "Workspace
-  HEAD delta tolerance" pattern: tolerate N additional prompt-drafting / audit
-  commits between sessions. NOTE: an operator-side uncommitted edit to
-  `SESSION_36_PROMPT.md` has been unstaged in the working tree since S36;
-  tolerate it — operator territory.
-- Canonical baseline: **970 tests** (16-path invocation; UNCHANGED from
-  S27-S39 close — those exact paths were not touched). The S39 drift tests
-  live in `tests/drift/` (NOT in the 16-path), by deliberate disposition.
-- Combined baseline: **1005 tests** (the 16-path 970 + the S38 hermetic guard
-  `tests/classifier/llm/test_prompt_logger.py` 13 + the S39 drift sub-suite
-  `tests/drift/` 22). This is the count the S40 cumulative gate must not let
-  decrease.
+**S40 shipped the drift workstream's DETECTION half; the workstream is
+HALF-SHIPPED.** S39 shipped A-fetch (fetch-reachability comparator). S40 shipped
+A-classify PART 2 (classifier-prediction comparator) extending the same `drift`
+subcommand. Detection now exists for BOTH fetch and classify drift — but the
+classify producer (the feed) is deferred (above). The part-scoped tag
+`barcada-drift-classify-part2-v0` marks this; the workstream-closing tag waits
+for PART 1.
+
+Anchors for Session 41 cold start:
+- Repo HEAD: `3266bc4` (S40: WA0.W7.classify-drift-comparator — drift_classify.py
+  + classify metrics on the `drift` subcommand + tests/drift/test_drift_classify.py).
+  Parent `7bbdc74` (S39 A-fetch). Tolerated delta: operator-side eval_data
+  labeling commits between S40 close and S41 open — verify each is strictly
+  `eval_data/*` via `git show --stat`.
+- Workspace HEAD: the S40 primary close-out commit (SESSION_LOG.md +
+  SESSION_TRANSITION_TEMPLATE.md + LESSONS.md + A_CLASSIFY_PROMPT.md PART 1
+  carry-forward) + the anchor-pin follow-up succeeding it. S41 Phase 0 Step 0.1
+  anchors workspace expectation there. NOTE: the operator-side uncommitted edit
+  to `SESSION_36_PROMPT.md` is still unstaged since S36 — tolerate it.
+- Canonical baseline: **970 tests** (16-path; UNCHANGED from S27-S40 close — the
+  classify tests live in `tests/drift/`, outside the sweep; cli.py changed at
+  S40 but the 16-path stayed 970, regression-checked).
+- Combined baseline: **1026 tests** (the 16-path 970 + the S38 hermetic guard
+  13 + the S39+S40 drift sub-suite `tests/drift/` **43** [22 fetch + 21
+  classify]). This is the NEW cumulative-gate floor (was 1005 at S39); S41
+  Phase 0.5 must assert against **1026, NOT 1005**, and never let it decrease.
 - Narrower baseline: **944 tests** (14-path; 970 minus 19 cost_journal_adls
   minus 7 robots_gate_integration). Unchanged.
 - Fixture counts (S40 Phase 0 Step 0.4): html=222 / expected=202 /
@@ -115,11 +124,11 @@ ONE commit, four files:
 ## Repository state — `/Users/administrator/projects/barcada-scraper/`
 
 - Branch: `main`
-- Last commit SHA: `7bbdc74` (WA0.W7.drift-fetch-comparator). Parent
-  `d610f0b` (S38 WA2.W8.adls-live-prompt-logger).
-- Branch sync with `origin/main`: pushed at S39 close (`d610f0b..7bbdc74`;
+- Last commit SHA: `3266bc4` (S40 WA0.W7.classify-drift-comparator). Parent
+  `7bbdc74` (S39 WA0.W7.drift-fetch-comparator).
+- Branch sync with `origin/main`: pushed at S40 close (`7bbdc74..3266bc4`;
   0 ahead / 0 behind verified).
-- Tags (14 total; UNCHANGED — S39 deferred its tag):
+- Tags (15 total; +1 from S39's 14 — S40 placed the part-scoped classify tag):
   - `pre-remediation-2026-05-19` / `baseline-v0` (`9e9a1fb`)
   - `workstream-0-week1-end` … `week7-end`
   - `workstream-0-end` at `a1c5636` (annotated; placed S27)
@@ -128,11 +137,12 @@ ONE commit, four files:
     `workstream-stage1-step3-end` (`d4f06b8`) — operator eval_data tags
   - `adls-live-coverage-v0` at `d610f0b` (annotated; cross-cutting; names the
     SIX ADLS live commits S33-S38). Do NOT delete/move.
-  - S39 1.TAG: DEFERRED — A-fetch is the first milestone of a 1-of-2 drift
-    fork; the closing tag (`barcada-drift-classify-v0` or a workstream-closing
-    tag) lands when A-classify ships or the workstream is declared closed.
-- Pre-push gate at HEAD `7bbdc74`: VERIFIED GREEN at S39 close (ruff check
-  "All checks passed!" + ruff format clean [363 files] + vermin 3.10 +
+  - `barcada-drift-classify-part2-v0` at `3266bc4` (annotated; S40) —
+    DELIVERABLE-SCOPED, NOT workstream-closing. The drift workstream is
+    HALF-SHIPPED (detection without producer); the workstream-closing tag
+    (`barcada-drift-classify-v0` or a workstream-end tag) waits for PART 1.
+- Pre-push gate at HEAD `3266bc4`: VERIFIED GREEN at S40 close (ruff check
+  "All checks passed!" + ruff format clean [365 files] + vermin 3.10 +
   validate_consistency 0 errors / 0 warnings).
 - Unstaged operator territory (Sessions 8-39 precedent):
   `eval_data/stage1_labels.jsonl` (modified) + `eval_data/audits/`
@@ -146,13 +156,13 @@ ONE commit, four files:
   (NEW; 13) + `tests/drift/test_drift.py` (NEW; 269; 22 tests). No `src/`
   changes. No cassette/driver changes. The S33-S38 live test files + the CI
   workflow + the S38 hermetic guard are UNTOUCHED.
-- Combined test suite at HEAD `7bbdc74`:
+- Combined test suite at HEAD `3266bc4`:
     - **970 passed** — canonical 16-path (UNCHANGED; the drift tests live in
       `tests/drift/`, OUTSIDE the sweep, by deliberate disposition).
-    - **1005 passed** — the 16-path + the S38 hermetic guard
-      (`tests/classifier/llm/test_prompt_logger.py`, 13) + the S39 drift
-      sub-suite (`tests/drift/`, 22). The S40 cumulative gate must not let
-      this decrease.
+    - **1026 passed** — the 16-path + the S38 hermetic guard
+      (`tests/classifier/llm/test_prompt_logger.py`, 13) + the S39+S40 drift
+      sub-suite (`tests/drift/`, **43** = 22 fetch + 21 classify). The S41
+      cumulative gate must not let this decrease (was 1005 at S39).
     - **944** — narrower 14-path (unchanged).
     - OUT-OF-BAND live tests: `pytest -m live tests/classifier/pipeline/`
       → **6 passed, 209 deselected** (needs Docker + the Azurite image, else
@@ -197,11 +207,12 @@ Session 40 starts cold by:
    CLASSIFICATION_ADJACENT_PLAN.md §Item 8 for the chosen S40 scope.
 5. Reading A_CLASSIFY_PROMPT.md if A-classify is commissioned, OR
    commissioning a fresh draft at S40 open.
-6. Running Phase 0 cold-start verification (mirror the S39 prompt's 9-step
-   shape, updating workspace HEAD anchor, repo HEAD anchor `7bbdc74`, tag
-   count `14`, canonical baseline `970` / combined `1005`, cassette
+6. Running Phase 0 cold-start verification (mirror the prompt's 9-step
+   shape, updating workspace HEAD anchor, repo HEAD anchor `3266bc4`, tag
+   count `15`, canonical baseline `970` / combined `1026`, cassette
    fixture-count `30` / exclusions `30`, AND a Step 0.9 presence check for
-   the S33-S38 ADLS deliverables AND the S39 drift deliverable).
+   the S33-S38 ADLS deliverables AND the drift deliverables (drift.py +
+   drift_classify.py + tests/drift/)).
 
 ---
 
@@ -415,7 +426,7 @@ Step 0.8 sub-suites (default-run; NOT in the canonical 16-path):
 
 ```
 .venv/bin/python -m pytest tests/classifier/llm/test_prompt_logger.py -q   # expect 13 (S38 guard)
-.venv/bin/python -m pytest tests/drift/ -q                                 # expect 22 (S39 drift)
+.venv/bin/python -m pytest tests/drift/ -q                                 # expect 43 (S39 fetch 22 + S40 classify 21)
 ```
 
 Combined (16-path + both Step 0.8 sub-suites):
@@ -424,8 +435,8 @@ Combined (16-path + both Step 0.8 sub-suites):
 # Append to the 16-path above:
     tests/classifier/llm/test_prompt_logger.py
     tests/drift/
-# Expected: 1005 passed (970 + 13 + 22). VERIFIED at 7bbdc74. This is the
-# count the S40 cumulative gate must not let decrease.
+# Expected: 1026 passed (970 + 13 + 43). VERIFIED at 3266bc4. This is the
+# count the S41 cumulative gate must not let decrease (was 1005 at S39).
 ```
 
 OUT-OF-BAND live tests (NOT in the canonical count; need Docker + the Azurite
@@ -521,7 +532,7 @@ Same pattern as Sessions 13-39:
 
 1. Commit SHA(s) of each Session 40 sub-surface.
 2. Sub-surfaces landed.
-3. Test count delta: 970 / 1005 baseline → S40 close.
+3. Test count delta: 970 / 1026 baseline → S41 close.
 4. Driver suite count (52/52 expected unless realigned).
 5. Files touched per surface.
 6. Tag dispositions (W0 closed S27; W A.1 closed S22; the S33-S38 ADLS

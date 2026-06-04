@@ -8900,3 +8900,106 @@ metrics.
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md (and
 A_CLASSIFY_PROMPT.md if A-classify is commissioned).
+
+## Session 40 — 2026-06-04 — A-classify: shipped the detection half (PART 2 classify-drift comparator); converted the producer half into a precisely-gated carry-forward
+
+**Outcome (plain).** A-classify shipped its DETECTION half ($0, 21 tests, full
+teeth including the report-only/gating split) and converted its PRODUCER half
+into a precisely-gated carry-forward — after source-verify TWICE corrected the
+prompt's premise: once on the metric field (signals_business_score is an input,
+not a prediction), once on the input dependency (the producer needs a real
+parser_parquet from a separate, not-yet-producing scraper stage). That is the
+verify-before-build gate earning its place across an entire session, not a
+shortfall: the wrong design was caught before any code, twice.
+
+**Two source-verify HALTs at commissioning (both pre-code):**
+1. **Metric-field HALT (Phase 0 / 0.C).** The prompt's label-free metric "KS on
+   signals_business_score" targeted the Tier-1 rules INPUT (read at run.py:317),
+   NOT a prediction — it is ABSENT from the cascade output schema
+   (output_schema.py:97-127). Retargeted to the REAL outputs (is_business /
+   confidence / lr_probability / abstain / tier_decided / model_version,
+   output_schema.py:103-124). Also found: no `category` column, and
+   "Stage 1/2/3" are internal confidence-routed TIERS (run.py:21-29), not
+   operator depths — so the depth question + per-category metric were dropped.
+   Operator approved the retarget + three amendments (tier-mix report-only;
+   abstain two-sided |Δ|; confidence-KS default 0.25 with a baked-in
+   N-dependence warning, ~0.27 critical at n=m=50).
+2. **Producer-dependency HALT (Phase 3 spike).** The producer's "run the parser"
+   step is really "run the whole scraper stage": the cascade READS a
+   pre-existing parser_parquet partition (worker_loop.py:193) the scraper
+   produces, and that partition does not exist yet (the parser has not produced
+   one — tests/fixtures/synthetic_parquet.py). Operator chose: ship PART 2 now,
+   defer PART 1.
+
+**What landed — ONE repo commit (`3266bc4` WA0.W7.classify-drift-comparator):**
+- `tools/baseline_v0/drift_classify.py` (221 LOC) — PREDICTION_COLUMNS (the real
+  output subset) + the classify metrics. GATING: is_business-agreement /
+  abstain-rate two-sided |Δ| / confidence-KS (scipy.stats.ks_2samp). REPORT-ONLY:
+  lr_probability-KS / tier-mix shift (consumes tier_decided) / model_version.
+- `tools/baseline_v0/drift.py` — auto-detect branch (when both snapshots carry
+  PREDICTION_COLUMNS, classify runs alongside fetch; fetch-only snapshots skip
+  it -> A-fetch behavior byte-identical) + the `classify` report field.
+- `tools/baseline_v0/cli.py` — 3 classify flags (--max-verdict-flip-rate /
+  --max-abstain-rate-delta / --max-confidence-ks) + dispatch.
+- `tests/drift/test_drift_classify.py` (346 LOC, 21 tests). **Production src/
+  UNMODIFIED.**
+
+**Teeth (stronger than A-fetch — the report-only/gating SPLIT was the new
+requirement).** identical -> exit 0; each gating metric injected -> exit 1
+(abstain tested BOTH directions per the two-sided gate); negative control proven
+non-vacuous; and the SPLIT: a move in tier-mix / lr_probability-KS /
+model_version with gating held flat keeps exit 0 while the report still shows the
+moved value (test_report_only_move_does_not_gate ×3 + _still_shown). CLI
+end-to-end: classify drift with fetch flat -> exit 1, confidence-KS ALERT,
+lr/tier/model_version as [info].
+
+**PART 1 carry-forward (DEFERRED; precisely gated — see A_CLASSIFY_PROMPT.md
+Open/carry-forward):** (a) UNBLOCK CHECK = the worker_loop.py:193 parser_parquet
+partition path must exist+populate; (b) the Phase-0.COST gate APPLIES TO PART 1
+(PART 2 was $0; spend begins only when the producer runs the cascade); (c)
+PREDICTION_COLUMNS REAL-ARTIFACT re-verification is a PART 1 acceptance gate
+(dump the produced parquet columns vs the then-current output_schema.SCHEMA;
+update drift_classify.PREDICTION_COLUMNS first if drifted); (d) RE-SCOPE flag
+(consume-existing-partition vs inline-scraper; decide at PART 1 Phase 1).
+
+**Phase 4 pre-push gate (green):** ruff check . clean; ruff format --check . 365
+files OK; vermin 3.10; validate_consistency 0 errors / 0 warnings. Pushed
+`7bbdc74..3266bc4`.
+
+**Spend:** $0. PART 2 is hermetic (no cascade, no Azure, no network). The spendy
+leg (PART 1 producer running the cascade) is deferred. Running total stays $0;
+A-classify remains the first non-$0 candidate, now via the deferred PART 1.
+
+──────── Tags state at S40 close ─────────────────────────────────
+
+**15 total** (+1 from S39's 14). Placed `barcada-drift-classify-part2-v0` at
+`3266bc4` — DELIVERABLE-SCOPED, NOT workstream-closing. The drift workstream is
+HALF-SHIPPED (detection without producer); the workstream-closing tag waits for
+PART 1. Do NOT read the part-scoped tag as "done."
+
+**Canonical S40-close baseline for S41 Phase 0 Step 0.5
+(VERIFIED at HEAD `3266bc4`):** canonical 16-path = **970** (UNCHANGED — the
+classify tests live in tests/drift/, OUTSIDE the sweep; cli.py changed but the
+16-path stayed 970, regression-checked).
+
+**Count split (record unambiguously for S41 cold-start):** canonical 16-path =
+**970**; S38 prompt_logger guard = **13** (Step 0.8, tests/classifier/llm/);
+the S39+S40 drift sub-suite = **43** (Step 0.8, tests/drift/ — 22 fetch + 21
+classify, was 22 at S39); combined = **1026** (970 + 13 + 43). 1026 is the NEW
+combined cumulative-gate floor (was 1005 at S39); S41 Phase 0.5 must assert
+against 1026, NOT 1005.
+
+**S41 Phase 0 Step 0.4 fixtures**: UNCHANGED — 222/202/222/1213/30/30.
+
+**S41 Phase 0 Step 0.7 note**: tools.baseline_v0 still has 4 subcommands
+(generate/check/canary-run/drift); the drift subcommand now also carries the 3
+classify flags. Step 0.9: add presence checks for tools/baseline_v0/drift_classify.py
++ tests/drift/test_drift_classify.py. Tag count = **15**.
+
+**Scope-availability forward note for S41:** PART 1 (the A-classify producer) is
+the primary LIVE candidate, but BLOCKED on (a) above (the scraper producing a
+parser_parquet partition) — re-check worker_loop.py:193 before commissioning.
+D operator-led; E exhausted. No fresh $0 candidate.
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md + A_CLASSIFY_PROMPT.md
+(PART 1 section + Open/carry-forward).
