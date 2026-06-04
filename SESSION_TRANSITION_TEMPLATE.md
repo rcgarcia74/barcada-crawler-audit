@@ -37,9 +37,10 @@ Anchors for Session 40 cold start:
   subcommand + comparator + `tests/drift/`). Tolerated delta: operator-side
   eval_data labeling commits between S39 close and S40 open (Sessions 8-39
   precedent) — verify each is strictly `eval_data/*` via `git show --stat`.
-- Workspace HEAD: the S39 primary close-out commit (SESSION_LOG.md +
-  SESSION_TRANSITION_TEMPLATE.md + LESSONS.md + A_CLASSIFY_PROMPT.md) + the
-  anchor-pin follow-up succeeding it (+ any later prompt-revision commits). S40
+- Workspace HEAD: the S39 primary close-out commit `32273f4` (SESSION_LOG.md +
+  SESSION_TRANSITION_TEMPLATE.md + LESSONS.md + A_CLASSIFY_PROMPT.md +
+  SESSION_39_PROMPT.md) + the anchor-pin follow-up succeeding it (this commit,
+  pinning `32273f4`) (+ any later prompt-revision commits). S40
   Phase 0 Step 0.1 MUST anchor workspace expectation to the S39 close-out OR
   the anchor-pin follow-up OR a later follow-up. Per the S21-S39 "Workspace
   HEAD delta tolerance" pattern: tolerate N additional prompt-drafting / audit
@@ -166,11 +167,11 @@ ONE commit, four files:
 - Branch: `main`
 - Last commit SHA at Session 39 start: `685ed13` (S38 baseline-clarity
   follow-up).
-- Session 39 close-out workspace commits: 1 primary close-out (SESSION_LOG.md
-  + SESSION_TRANSITION_TEMPLATE.md + LESSONS.md + A_CLASSIFY_PROMPT.md) + an
-  anchor-pin follow-up succeeding it (pinning the primary close-out SHA into
-  this template's Anchors section for S40). After the close-out lands expect
-  1-2 follow-up commits.
+- Session 39 close-out workspace commits: 1 primary close-out `32273f4`
+  (SESSION_LOG.md + SESSION_TRANSITION_TEMPLATE.md + LESSONS.md +
+  A_CLASSIFY_PROMPT.md + SESSION_39_PROMPT.md) + this anchor-pin follow-up
+  succeeding it (pinning `32273f4` into this template's Anchors section for
+  S40).
 - Branch sync with `origin/main`: 0 ahead / 0 behind expected after the
   Session 39 close push.
 
