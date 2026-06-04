@@ -91,8 +91,166 @@ fetch-only runs cheap).
 
 ## Phase 0 — Cold-start + source-verify re-confirm (halt-on-mismatch)
 
-Fill generic anchors from SESSION_TRANSITION_TEMPLATE.md at invocation (NOT
-guessed). Run standard 0.1-0.10, PLUS:
+Run in order. HALT and surface to operator on ANY mismatch (the halt protocol
+is the contract — do not mutate the repo/workspace after a halt). All anchors
+below were VERIFIED green at the S39 close (2026-06-03/04) at repo `7bbdc74` /
+workspace `8c24270`; if reality differs, the live tree wins — surface the delta.
+
+### Step 0.1 — Workspace + repo HEAD
+```
+git -C ~/crawler-audit rev-parse HEAD
+# Expect: 8c24270 (S39 anchor-pin) OR 32273f4 (S39 primary close-out) OR a
+# later prompt-drafting / doc-edit commit succeeding it. If N ahead of
+# 8c24270, verify each via `git log --oneline 8c24270..HEAD` against expected
+# prompt-finalization / doc-edit patterns; surface any unexpected SHA.
+# NOTE: an operator-side uncommitted edit to SESSION_36_PROMPT.md has been
+# unstaged since S36 — tolerate it (operator territory).
+
+git -C /Users/administrator/projects/barcada-scraper rev-parse HEAD
+# Expect: 7bbdc74 (S39 WA0.W7.drift-fetch-comparator). Tolerated delta:
+# operator-side eval_data labeling commits between S39 close and S40 open —
+# verify each commit in 7bbdc74..HEAD is strictly eval_data/* via
+# `git show --stat <sha>` (NO src/, NO tests/ [incl. tests/drift/], NO
+# tools/baseline_v0/, NO .github/, NO docs/). Surface any non-eval_data delta.
+```
+
+### Step 0.2 — Tags (14 expected; UNCHANGED from S39 — the drift tag was deferred)
+```
+git -C /Users/administrator/projects/barcada-scraper tag -l | sort | wc -l   # Expect 14
+git -C /Users/administrator/projects/barcada-scraper rev-list -n 1 workstream-0-end       # Expect a1c5636
+git -C /Users/administrator/projects/barcada-scraper rev-list -n 1 adls-live-coverage-v0  # Expect d610f0b
+# Do NOT place workstream-a-week2-end (superseded). S39 deferred its drift tag;
+# if S40 (A-classify) closes the drift workstream, place barcada-drift-classify-v0
+# (or a workstream-closing tag) at Phase 5 per 1.TAG. Tolerated: operator-side
+# stage1-*/eval_data-* tags pointing at eval_data-only commits.
+```
+
+### Step 0.3 — Driver locked (S16/S27/S28 exceptions only)
+```
+cd /Users/administrator/projects/barcada-scraper
+git diff dd64963..HEAD -- tests/runners/fixture_cascade/ \
+    ':(exclude)tests/runners/fixture_cascade/test_fixture_fetcher.py' \
+    ':(exclude)tests/runners/fixture_cascade/cascade.py' \
+    ':(exclude)tests/runners/fixture_cascade/test_cost_journal_wiring.py'
+# Expect: empty. Any non-empty diff outside those 3 files = HALT. S29-S39 did
+# NOT touch this surface.
+```
+
+### Step 0.4 — Fixture counts (Python rglob, NOT bare find; UNCHANGED)
+```
+.venv/bin/python -c "
+from pathlib import Path
+r = Path('tests/fixtures')
+assert sum(1 for _ in (r/'html').rglob('*.html')) == 222
+assert sum(1 for p in (r/'html').rglob('*.json') if '/expected/' in str(p)) == 202
+assert sum(1 for _ in (r/'html').rglob('*.meta.json')) == 222
+assert sum(1 for p in (r/'baseline-v0').rglob('*') if p.is_file()) == 1213
+assert sum(1 for _ in (r/'synthetic_crawls').rglob('cassette.yaml')) == 30
+assert sum(1 for _ in (r/'synthetic_crawls').rglob('extract_hard_exclusions.json')) == 30
+print('OK fixtures 222/202/222/1213/30/30')
+"
+```
+
+### Step 0.5 — Canonical 16-path baseline (expect 970; UNCHANGED)
+```
+.venv/bin/python -m pytest \
+    tests/scraper/test_fixture_conformance.py \
+    tests/runners/fixture_cascade/ \
+    tests/baseline_v0/ \
+    tests/synthetic_crawl/ \
+    tests/scraper/test_robots.py \
+    tests/scraper/test_robots_gate.py \
+    tests/scraper/test_robots_bypass_config.py \
+    tests/classifier/pipeline/test_cost_journal.py \
+    tests/classifier/pipeline/test_cost_journal_local.py \
+    tests/classifier/pipeline/test_cost_journal_adls.py \
+    tests/orchestrator/test_robots_integration.py \
+    tests/orchestrator/test_vmss_worker.py \
+    tests/orchestrator/test_job_runner.py \
+    tests/orchestrator/test_worker_loop.py \
+    tests/orchestrator/test_robots_gate_integration.py \
+    tests/orchestrator/test_worker_loop_persistence.py -q
+# Expect: 970 passed. The S39 drift tests live in tests/drift/ (OUTSIDE this
+# sweep) by deliberate disposition — do NOT add tests/drift/ to this 16-path.
+# Combined cumulative-gate floor = 1005 (970 + the S38 guard 13 + drift 22).
+```
+
+### Step 0.6 — Manifest + schema invariants
+```
+.venv/bin/python -c "
+import json
+m = json.load(open('tests/fixtures/baseline-v0/manifest.json'))
+assert m['schema_version'] == 'baseline-v0/0.1.0' and m['fixture_count'] == 202
+assert m['llm_mode'] == 'real' and m['driver_sha'].startswith('521e363')
+s = json.load(open('tests/fixtures/expected.schema.json'))
+assert len(s['properties']['stage3_decision']['required']) == 18
+print('OK manifest baseline-v0/0.1.0 + expected.schema.json v1.1 (18-col)')
+"
+```
+
+### Step 0.7 — Sub-surface CLIs (drift ADDED at S39 — now FOUR baseline subcommands)
+```
+.venv/bin/python -m tools.baseline_v0 --help 2>&1 \
+    | grep -oE '\b(generate|check|canary-run|drift)\b' | sort -u | wc -l
+# Expect: 4 (NOT 3 — the S39 drift subcommand is registered).
+.venv/bin/python -m tools.synthetic_crawl --help 2>&1 \
+    | grep -oE '\b(record|replay)\b' | sort -u | wc -l
+# Expect: 2
+```
+
+### Step 0.8 — Regression sub-suites + the TWO Step 0.8 default-run sub-suites
+Run the S33-S38 regression set as in the S39 prompt's Step 0.8, PLUS pin the
+two default-run sub-suites that sit OUTSIDE the 16-path:
+```
+.venv/bin/python -m pytest tests/classifier/llm/test_prompt_logger.py -q   # expect 13 (S38 guard)
+.venv/bin/python -m pytest tests/drift/ -q                                 # expect 22 (S39 drift)
+.venv/bin/python -m pytest tests/test_parquet_writer.py -q                 # expect 33
+.venv/bin/python -m pytest tests/classifier/page_acquisition/test_page_storage.py -q  # expect 13
+# Plus the cost-journal / robots / orchestrator sub-suites per the S39 0.8 list.
+```
+
+### Step 0.9 — Public-API invariants + S33-S38 ADLS + S39 drift deliverable presence
+Run the S39 Step 0.9 invariant checks (a)-(f) (cost_journal / parquet /
+page_storage / partitioned / prompt_logger public APIs; cascade AST; K-b smoke
+220 LOC; CRAWLING_POLICY 77/2519; the SIX ADLS live tests + the S38 hermetic
+guard present), PLUS the S39 drift deliverable:
+```
+.venv/bin/python -c "from tools.baseline_v0 import drift; \
+print('OK drift module', bool(drift.run_drift) and bool(drift.Thresholds) and len(drift.EXCLUSION_FLAGS)==5)"
+test -f tools/baseline_v0/drift.py && test -f tests/drift/test_drift.py && echo "OK drift files present"
+# PART 2 KS dependency (scipy 1.17.1 verified present at S39 — de-risk before Phase 3):
+.venv/bin/python -c "from scipy.stats import ks_2samp; print('OK scipy.stats.ks_2samp available')"
+# drift._validate_schema must iterate ONLY over PARQUET_COLUMNS (tolerate
+# extras) — this is also Step 0.B below, the A-classify compatibility anchor.
+```
+
+### Step 0.10 — Same-shape-test sweep (DEFERRED — not in the cold-start halt set; one-time, AFTER Phase 1 scope fixed, BEFORE Phase 3)
+NOT part of the cold-start halt set (0.1-0.9). Once the A-classify scope is fixed, grep
+the test tree for same-shape tests pinning the contracts the producer/comparator
+will touch (esp. the 22 tests/drift/ A-fetch tests + canary's PARQUET_COLUMNS
+assertions at tests/baseline_v0/test_canary.py). If found and NOT in an explicit
+replacement allowlist, surface at Phase 1/2 — do NOT silently modify.
+
+If any of 0.1-0.9 fail, HALT before doing any work.
+
+---
+
+## Required reading (before Step 0.A — 0.A/0.B/0.C inspect these very files)
+- CLASSIFICATION_ADJACENT_PLAN.md Item 8 (all four decisions; metric #1 is
+  SCOPE-DEFINING) + cascade/cost refs.
+- canary.py (producer to extend) + the Stage 1/2/3 cascade entry module
+  (cascade.py / stage1/run.py / stage1/output_schema.py — input AND output).
+- A-fetch's shipped comparator + tests/drift/test_drift.py (the scaffold to
+  EXTEND, the schema/exit contract to honor, the test LOCATION precedent).
+- BARCADA_CRAWLER_REMEDIATION_PLAN.md cost-ceiling + Item-8 surface
+  (READ-ONLY); LESSONS.md (baseline-bookkeeping; the test-placement rule —
+  a default-run suite stays out of the headline ONLY if it lives outside the
+  16 canonical sweep paths; auth-seam; tape-replay; threshold-defaults-are-
+  provisional).
+
+---
+
+Then the A-classify-specific source-verify re-confirm steps:
 
 ### Step 0.A — Re-pin the frozen 14-col contract via the public tuple
 Import canary.PARQUET_COLUMNS; assert len==14 and the names/order match.
@@ -122,14 +280,24 @@ auth-seam lesson generalizes to any reused production surface).
     @ run.py:317 / __init__.py:13 — NOT `business_score`; verify against the
     live tree). Note the rows also carry `model_version` (git SHA at run time,
     run.py:31) — see 1.SCHEMA / 1.METRIC for why it matters.
-ALSO determine the $0-dev mechanism (this is load-bearing — see Step 0.D):
-the classifier uses AsyncAzureOpenAI (openai/httpx), NOT requests, so vcrpy
-does NOT replay the LLM legs. Confirm EITHER (i) an LLM RESPONSE CACHE exists
-on the cascade path AND is warm for the dev subset (quote file:line), OR
-(ii) a clean mock seam for the cascade entry / AsyncAzureOpenAI client
-exists (mirroring how test_canary.py mocks requests.get). If NEITHER a warm
-cache NOR a client-mock plan exists -> HALT (there is no $0 dev path and the
-session would burn live spend just to develop).
+ALSO determine the $0-dev mechanism (load-bearing; the vcrpy-only-covers-fetch
+detail lives in Step 0.D — do not restate it here). There are TWO spend legs,
+BOTH on AsyncAzureOpenAI and NEITHER vcrpy-replayable: the EMBEDDER
+(`AzureOpenAIEmbedder`, used by Stage-1 LR inference — embedding_generator.py:57,
+run.py:60) and the ADJUDICATOR (Stage 3). Even the cheapest Stage-1 depth spends
+on the embedder (cache-miss). A $0-dev mock plan MUST cover BOTH legs, OR mock
+at the cascade entry ABOVE both. Confirm EITHER (i) a warm cache for the dev
+subset on the relevant leg(s) — the embedder has an idempotent
+(domain, ml_text_hash) cache (embedding_generator.py:13,22), so warm-cache $0 is
+viable for EMBEDDINGS at Stage-1 depth; the adjudicator cache must be verified
+separately and warm-cache viability is therefore depth-dependent — OR (ii) a
+clean mock seam covering BOTH legs (the test_canary.py-mocks-requests.get
+pattern). If NEITHER a warm cache NOR a both-legs mock plan exists -> HALT (no $0
+dev path; the session would burn live spend just to develop).
+
+RUN 0.C AS A STANDALONE PRE-FLIGHT before commissioning A-classify (mirroring
+the S39 pre-session canary-run source-verify), so a no-$0-path HALT surfaces
+BEFORE the session opens, not mid-Phase-0.
 
 ### Step 0.D — Dev replay reality (vcrpy covers the FETCH leg ONLY)
 vcrpy patches `requests`, so it replays the canary FETCH leg only. It does
@@ -142,28 +310,23 @@ LLM cache is a SECONDARY lever, valid only if Step 0.C proved it warm for the
 dev subset. Do NOT rely on "wrap the run in vcr.use_cassette" for the LLM
 legs — it will not replay them.
 
-## Required reading (early — before Phase 0.COST)
-- CLASSIFICATION_ADJACENT_PLAN.md Item 8 (all four decisions; metric #1 is
-  SCOPE-DEFINING) + cascade/cost refs.
-- canary.py (producer to extend) + the Stage 1/2/3 cascade entry module
-  (cascade.py / stage1/run.py / stage1/output_schema.py — input AND output).
-- A-fetch's shipped comparator + tests/drift/test_drift.py (the scaffold to
-  EXTEND, the schema/exit contract to honor, the test LOCATION precedent).
-- BARCADA_CRAWLER_REMEDIATION_PLAN.md cost-ceiling + Item-8 surface
-  (READ-ONLY); LESSONS.md (baseline-bookkeeping; the test-placement rule —
-  a default-run suite stays out of the headline ONLY if it lives outside the
-  16 canonical sweep paths; auth-seam; tape-replay; threshold-defaults-are-
-  provisional).
+## Phase 0.COST — Spend gate (guardrail; standing tolerance pre-set)
+Grounded estimate: a full 50-domain run is cheap — embeddings are cents
+(cached), Stage-3 adjudication fires only on the rules-uncertain band (a
+subset) at ~$0.01-0.02/domain, so full-depth is well under $1/run and
+Stage-1-only is a few cents. Operator standing tolerance: **< $5/run is
+pre-authorized** with a per-run confirm; a run estimated above $5 needs fresh
+authorization; the **$100 cumulative ceiling** is the hard guard.
 
-## Phase 0.COST — Spend gate (BLOCKING; two-stage, before any live run)
-Cascade depth is a Phase-1/2 decision, so Phase 0 can only bound the UPPER
-limit: compute the FULL-DEPTH ceiling = 50 domains x full 1->2->3 token cost
-x intended cadence; present it + remaining headroom vs the $100 ceiling. Then
-AFTER Phase 2 (depth chosen), compute a REFINED estimate at the chosen depth
-and re-gate immediately BEFORE the first authorized live run. Default dev
-path = client-MOCK ($0, per Step 0.D), NOT tapes-for-LLM; live runs are a
-SEPARATE, explicitly-authorized step. Do NOT execute a single live cascade
-run until the operator confirms the refined estimate.
+This session is $0 for CC: CC has NO Azure credentials, so CC builds + tests
+entirely with client-mock + synthetic ($0). Any live execution is
+OPERATOR-RUN on the laptop:
+- Stage 1 (informational): present the full-depth ceiling vs headroom at
+  Phase 0.
+- Stage 2 (refined): AFTER Phase 2 depth is chosen, compute the refined
+  per-run estimate and confirm it BEFORE the operator runs (i) the optional
+  Phase-3 producer live SMOKE and (ii) any future operational run. Both are
+  operator-executed; CC never runs a live cascade.
 
 ## Phase 1 — Scope resolution (no code)
 
@@ -182,7 +345,8 @@ category (only if depth >= Stage 2), model_version — exported and asserted in
 tests, so the classify comparator IMPORTS it as the source of truth exactly
 as A-fetch imports PARQUET_COLUMNS. This makes "append-only" mechanically
 checkable and prevents re-hardcoding. Include `model_version` deliberately
-(see 1.METRIC).
+(see 1.METRIC). The exact set is DEPTH-CONDITIONAL — settle 1.CASCADE-DEPTH
+FIRST (category exists only at depth >= Stage 2), then finalize this tuple.
 
 ### 1.NAMESPACE — extend the existing `drift` subcommand
 A-fetch's `drift` subcommand exists. Decide how classify metrics attach:
@@ -204,11 +368,14 @@ model changed" vs "the world changed." Without it, prediction drift is
 uninterpretable. This is informational context on the report, not itself a
 gating metric.
 
-### 1.CASCADE-DEPTH — cost vs metric richness (the genuine tension)
-Stage 1 only (cheapest; signals_business_score + KS feasible) vs Stage 1->2
-(adds category -> per-category rate metric) vs full 1->2->3 (most expensive).
-Deeper = richer drift signal AND higher recurring spend AND more components
-to construct. Operator trade, not a silent default. NOTE the producer is
+### 1.CASCADE-DEPTH — metric richness (cost is a non-constraint at < $5/run)
+Stage 1 only (signals_business_score + KS feasible) vs Stage 1->2 (adds
+category -> per-category rate metric) vs full 1->2->3 (adds Stage-3 adjudicator
+behavior). NOTE: "Stage 1 only" is NOT free — it still spends on the EMBEDDER
+(AzureOpenAIEmbedder) on cache-miss; it is merely the cheapest (cents). Since
+every depth is well under the < $5/run tolerance, depth is a METRIC-RICHNESS
+decision, NOT a cost one; deeper = richer drift signal + more components to
+construct. Operator trade, not a silent default. NOTE the producer is
 sync (canary_run is a requests loop) and the cascade is async — PART 1 needs
 an asyncio bridge (asyncio.run) plus the component-construction setup
 (lr_bundle, embedder, adjudicator) the chosen depth requires; this shapes
@@ -243,11 +410,17 @@ A-fetch comparator depends on, so it must commit separately.
    metric thresholds CLI-configurable; defaults flagged PROVISIONAL —
    uncalibrated until real prediction snapshots exist (the A-fetch
    --max-regressions lesson: don't imply calibration).
-4. **Dev data source** — client-MOCK ($0 dev, RECOMMENDED — mocks the cascade
-   entry / AsyncAzureOpenAI client per Step 0.D, optionally vcrpy for the
-   fetch leg) vs warm-cache replay (only if Step 0.C proved the cache warm for
-   the dev subset) vs one authorized live capture to seed real prediction
-   parquets (Phase-0.COST-gated). Tapes alone do NOT cover the LLM legs.
+4. **Producer real-validation smoke scope (operator-run; PART 1 only).**
+   Dev/test data is DETERMINED, not a choice: the comparator is tested on
+   SYNTHETIC prediction parquets (controllability — you need known drift to
+   assert detection), and the producer's hermetic test mocks BOTH cascade legs
+   ($0, credless CI). The genuine choice is the size of the OPERATOR-RUN live
+   smoke that truth-checks the producer against the REAL cascade output:
+   ~5-domain subset (cheapest, fastest, RECOMMENDED) / all 50 (a full real
+   prediction parquet, still < $1) / skip the smoke (mock-only — accept the
+   unvalidated real-output-schema risk). Live capture is NOT a dev-data source
+   for the test suite and is NOT CC-executed (CC has no creds). [S39: operator
+   chose the operator-run smoke + laptop cadence.]
 Operator confirms before code.
 
 ## Phase 3 — Implementation (strict order; verify before every commit)
@@ -269,10 +442,21 @@ parquet; threshold flips the exit code.
    read back predictions.parquet -> append PREDICTION_COLUMNS via an assembled
    (14 + predictions) schema (NOT the hardcoded PARQUET_COLUMNS dtype dict at
    canary.py:193). Fetch-only path (no flag) byte-for-byte unchanged.
-2. PART 1 tests (hermetic, client-mock-backed — vcrpy optional for the fetch
-   leg only; tests/drift/): assert schema is append-only (14 untouched +
-   PREDICTION_COLUMNS present); assert the A-fetch comparator still validates
+2. PART 1 tests (hermetic, client-mock-backed [BOTH legs] — vcrpy optional for
+   the fetch leg only; tests/drift/): assert schema is append-only (14 untouched
+   + PREDICTION_COLUMNS present); assert the A-fetch comparator still validates
    a prediction parquet.
+2b. PART 1 live SMOKE (OPERATOR-EXECUTED on the laptop; cost-gated per
+   Phase-0.COST stage-2; scope per Q4, default ~5 domains; skip if Q4=skip).
+   CC cannot run it (no creds): CC stages the exact command + the refined
+   Phase-0.COST stage-2 per-run estimate; the OPERATOR CONFIRMS the estimate
+   BEFORE running (explicit gate — do not run on the standing <$5 tolerance
+   alone), THEN runs `--classify` over the subset and pastes back the produced
+   parquet's column
+   list, and CC pins PREDICTION_COLUMNS to the OBSERVED real schema + confirms
+   append-only against reality (the 14 unchanged + predictions). This is the
+   "build it real" truth-check; the hermetic mock test (step 2) stays for CI.
+   Record the smoke's actual spend in the Phase-3 verification table.
 3. PART 2 classify metrics on the `drift` subcommand (per 1.NAMESPACE);
    hermetic tests in tests/drift/ against synthetic prediction parquets.
    **Teeth (bidirectional, mirroring A-fetch):** (a) two IDENTICAL
@@ -322,9 +506,11 @@ or rationale-backed defer. Workspace commits land local-first.
 
 ## Phase 6 — Workspace close-out
 SESSION_LOG entry with the unambiguous baseline split (canonical 970 /
-tests/drift/ expect-N / combined) AND a RECORDED SPEND LINE (dev $0 vs any
-authorized live figure; running total vs $100 — first non-$0 candidate, so
-spend tracking is load-bearing). Fold LESSONS with causal framing: opt-in
+tests/drift/ expect-N / combined) AND a RECORDED SPEND LINE. Prior cumulative
+spend = $0 (every session through S39 recorded $0; A-classify is the FIRST
+non-$0 candidate), so the session spend (CC dev $0 + any operator-run smoke
+figure) IS the new running total — record it vs the $100 ceiling. Spend
+tracking is load-bearing from here on. Fold LESSONS with causal framing: opt-in
 prediction columns keep fetch-only runs cheap + A-fetch-compatible;
 append-only discipline when a shipped comparator tolerates-but-depends-on the
 frozen columns; vcrpy covers the fetch leg only (mock the LLM client for $0
@@ -360,16 +546,56 @@ never assumed. RE-verify the cascade entry seam + its input/output contracts
 on them — if a prompt file:line is stale, the live tree wins (the prediction
 field is `signals_business_score`, not `business_score` — confirm at source).
 
+## Regression-protection / locked artifacts (do NOT break working code)
+
+Full locked-artifact list: SESSION_TRANSITION_TEMPLATE.md "Locked artifact
+reminders". The A-classify-CRITICAL locks (any breach = HALT):
+
+- **The 14-col `canary.PARQUET_COLUMNS` is FROZEN — append-only.** The producer
+  adds `PREDICTION_COLUMNS` AFTER the 14; it never alters the 14, their order,
+  or their dtypes. Step 0.A re-pins this.
+- **The fetch-only producer path (no `--classify`) must be BYTE-FOR-BYTE
+  unchanged** — every existing canary-run consumer (and the A-fetch comparator's
+  "require all 14") keeps working. PROVE the no-flag parquet is identical.
+- **A-fetch's shipped comparator is EXTENDED, not forked.** `tools/baseline_v0/
+  drift.py` (`7bbdc74`) + the 22 `tests/drift/test_drift.py` tests must stay
+  GREEN with fetch-only behavior identical (1.NAMESPACE option (a) branches it —
+  guard the existing 22 explicitly). Do NOT regress the require-14/tolerate-
+  extras / inner-join / 0-1-2 contract.
+- **The src/ classifier cascade is INVOKED, not MODIFIED.** No `src/` change
+  this session. canary.py is TOOLING (editable under the Phase-2 gate); the
+  cascade entry, `output_schema.SCHEMA`, embedder/adjudicator are read + called.
+- **No change to:** the W4.1.5 driver (`tests/runners/fixture_cascade/`), the
+  baseline-v0 snapshot (`9e9a1fb`), the schemas (`expected.schema.json` v1.1
+  etc.), the 30 cassettes, the SIX ADLS live tests, the S38 hermetic guard, the
+  CI workflow, or the `adls-live-coverage-v0` tag.
+- **Canonical 16-path stays 970** (Step 0.5); the cumulative gate (combined
+  1005 + N new tests/drift/ tests) never decreases. New tests live in
+  `tests/drift/` (outside the sweep) — re-run the 16-path ALONE post-placement
+  to confirm 970 (the S39 directory-fact LESSON).
+- **No live LLM spend** beyond an explicit Phase-0.COST authorization; default
+  dev = client-mock ($0).
+
+Per-commit checkpoint step 1 (combined canonical suite vs the Phase-0 baseline)
++ step 6 (re-run post-commit) enforce this every boundary. Any unexplained
+count change or any of the above breaches = HALT, not a commit.
+
 ## Open / carry-forward
-- PREREQUISITE (blocking cold-start): S39 Phase 6 close-out must land FIRST —
-  it refills SESSION_TRANSITION_TEMPLATE.md, pins the post-A-fetch repo SHA
-  (7bbdc74), and records the drift baseline (canonical 970 / tests/drift/
-  expect-22 / combined 1005). A-classify Phase 0 cannot cold-start cleanly
-  until that exists. Do NOT commission A-classify until S39 is closed.
+- PREREQUISITE — SATISFIED. S39 Phase 6 close-out landed and pushed: workspace
+  `32273f4` (primary) + `8c24270` (anchor-pin) refilled
+  SESSION_TRANSITION_TEMPLATE.md (repo anchor `7bbdc74`, workspace anchor
+  `8c24270`), recorded the drift baseline (canonical 970 / tests/drift/
+  expect-22 / combined 1005), and folded the S39 LESSON. A-classify can
+  cold-start cleanly. (This Phase 0 is now fully enumerated above — no
+  dependency on reconstructing "standard 0.1-0.10".)
 - Calibration/Brier drift stays GATED on Stage 2/3 labeling (PR-D/E) —
   revisit only after labels exist.
-- Live recurring runs + the launchd kit are a PRODUCTION step, after the
-  daemon ships and after deployment — not this dev session.
+- Operational cadence = LAPTOP launchd, ~monthly, < $5/run (operator-confirmed,
+  S39 discussion). The producer + comparator are BUILT this session; enabling
+  the scheduled laptop run is a post-ship DEPLOYMENT step via the existing
+  scripts/launchd/ kit — NOT built here. Compute is local; the embedding +
+  adjudication calls still go to Azure OpenAI (no fully-local option). Azure
+  (VMSS) is overkill for 50 domains and is not the chosen target.
 - Item 8 #3 (canary curation) is an AI-ML-team decision independent of this
   build.
 - If A-classify closes the drift workstream (fetch + classify both shipped),
