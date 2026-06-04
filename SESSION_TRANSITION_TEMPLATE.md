@@ -192,10 +192,13 @@ two commits, two files:
   (SESSION_LOG.md + SESSION_TRANSITION_TEMPLATE.md + LESSONS.md) + this
   anchor-pin follow-up succeeding it (pinning `a27bb8d` into this
   template's Anchors section for S39).
-- **Last commit SHA at Session 38 CLOSE: this anchor-pin follow-up
-  succeeding the primary close-out `a27bb8d`.** S39 Phase 0 Step 0.1 MUST
-  anchor workspace expectation to `a27bb8d` OR this anchor-pin follow-up
-  OR a later follow-up.
+- **Last commit SHA at Session 38 CLOSE: a baseline-clarity follow-up
+  succeeding the anchor-pin `4943d94` (which succeeds the primary close-out
+  `a27bb8d`).** The baseline-clarity follow-up records the count split
+  unambiguously in SESSION_LOG (canonical 16-path = 970 for Step 0.5;
+  hermetic guard = 13 as a new Step 0.8 sub-suite; combined = 983). S39
+  Phase 0 Step 0.1 MUST anchor workspace expectation to `a27bb8d` OR the
+  anchor-pin follow-up `4943d94` OR a later follow-up.
 - Branch sync with `origin/main`: 0 ahead / 0 behind expected after
   the Session 38 close push.
 

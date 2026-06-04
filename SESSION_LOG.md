@@ -8700,6 +8700,20 @@ guard. The S38 combined baseline is **983** (970 + 13):
 # 6 passed, 209 deselected in 19.48s.
 ```
 
+**Count split (record unambiguously for S39 cold-start):** canonical
+16-path = **970** (S39 Step 0.5 STILL expects 970, NOT 983); the S38
+prompt_logger hermetic guard = **13** (a NEW Step 0.8 sub-suite,
+`tests/classifier/llm/test_prompt_logger.py`, expect 13); combined
+(16-path + the hermetic guard) = **983**. The 983 is the cumulative-gate
+count only — it is NOT the Step 0.5 canonical baseline.
+
+**S39 Phase 0 Step 0.8 forward note**: add a sub-suite line
+`tests/classifier/llm/test_prompt_logger.py` — **expect 13** (the S38
+hermetic prompt_logger guard; file:// LocalFileSystem; no live marker),
+so the guard is pinned at cold-start alongside the other Step 0.8
+sub-suites. (Step 0.5 canonical stays 970; this guard is counted in
+Step 0.8, not folded into the 16-path headline.)
+
 **S39 Phase 0 Step 0.4 fixture-count forward note**: UNCHANGED —
 html=222 / expected=202 / meta=222 / baseline=1213 /
 **`cassette_count == 30`** / **`exclusions_count == 30`**. (No fixture change at
