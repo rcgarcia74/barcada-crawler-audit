@@ -3175,3 +3175,32 @@ hides the bug. My first spike masked it exactly this way via a probe write.)
   misses were caught BEFORE any code, turning a wrong-premise build into a
   retarget (PART 2) plus a precisely-gated carry-forward (PART 1). A presence-only
   check would have shipped the wrong metric and a producer with no input.
+
+## (S41 folding) Repeated source-verify can shrink a scope to a fraction of its original size — let it, and ship the smaller correct thing.
+
+- A-classify PART 1 was commissioned as a "producer" (run the cascade over canary
+  domains, append predictions). It SHIPPED as a ~220-line comparator INPUT-MODE
+  addition — no producer, no cascade run, no new pipeline. The reduction was not
+  a descope decision; it was forced, one source-verify at a time, by the premise
+  being wrong four separate ways:
+  1. the metric field's ROLE (`signals_business_score` is a Tier-1 INPUT, not a
+     prediction — S40);
+  2. the producer's INPUT (`parser_parquet` is a separate, not-yet-producing
+     scraper stage — the producer had no data to run on);
+  3. the cascade's OUTPUT SHAPE (it writes a STANDALONE predictions parquet, not
+     predictions appended to the 14 fetch columns — so the work was an input
+     contract, not a join/append);
+  4. the TARGET (Stage-1 `is_business`, not Stage-3 partner-type).
+- The lesson is not "scopes shrink" — it is that a multi-step build prompt can
+  rest on a chain of plausible-but-unverified premises, and verifying each at the
+  source (input-vs-output, which-stage-produces-it, what-shape-it-emits,
+  which-target) can collapse the whole thing to a much smaller, correct
+  deliverable. The failure mode would have been to BUILD the producer to the
+  prompt's letter and discover the input doesn't exist / the shape is wrong only
+  after writing it. Cheap to verify the premise; expensive to build on a wrong one.
+- Corollary (independent audit earned its keep): a confident, well-structured
+  REVIEW of one's own work is still a set of claims. The independent audit pass
+  re-derived them against the tree and found real gaps the review asserted away
+  (no classify-native negative control; the report-only/gating split demonstrated
+  only in the unified path; a partial-fetch input silently routed to the classify
+  path). Re-derive, don't trust the report — even your own.

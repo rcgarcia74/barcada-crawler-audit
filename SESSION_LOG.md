@@ -9003,3 +9003,67 @@ D operator-led; E exhausted. No fresh $0 candidate.
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md + A_CLASSIFY_PROMPT.md
 (PART 1 section + Open/carry-forward).
+
+## Session 41 — 2026-06-05 — A-classify PART 1 shipped as a classify-native INPUT MODE (re-scoped from producer); audited + remediated + commit-prepped (push held)
+
+**Outcome.** A-classify PART 1 shipped NOT as the producer it was originally
+scoped as, but as an ADDITIVE classify-native INPUT MODE on the `drift`
+comparator. When both snapshots carry the 6 PREDICTION_COLUMNS but not the 14
+fetch columns (a standalone predictions parquet), the comparator auto-detects
+the shape, validates `domain` + predictions, skips fetch metrics, and computes
+only classifier-behavior drift. The require-14 fetch path is byte-identical.
+Built (prior draft + corrections), independently audited, remediated to close
+the audit's open teeth/contract items, and commit-prepped. **Push held.**
+
+**Why PART 1 became an input-mode, not a producer (source-verify corrected the
+premise FOUR times).** (1) the metric field's role (signals_business_score is a
+Tier-1 INPUT, not a prediction); (2) the producer's input (parser_parquet is a
+separate, not-yet-producing scraper stage); (3) the cascade emits a STANDALONE
+predictions parquet keyed on (domain, crawl_timestamp) carrying none of the
+fetch columns except `domain` (shape B) -- so the S40 require-14 comparator
+would reject it; (4) Stage-1 (`is_business`) vs Stage-3 (partner-type) target.
+Each correction shrank the scope; the net is a comparator input-mode addition,
+not a new pipeline.
+
+**Independent audit + remediation.** The audit (read-only) found the
+implementation correct + regression-clean, with two teeth-completeness gaps and
+one contract to pin: C10 (no classify-native negative control), C11 (the
+report-only/gating split only partially demonstrated in-mode), B4b (the
+partial-fetch detection boundary was an accident of `_is_fetch_shaped`'s
+boolean), E18 (PREDICTION_COLUMNS pinned against the schema definition, not a
+real produced artifact). Remediation closed all four:
+- C10: `test_classify_native_negative_control_not_vacuous` (stub-no-drift FAILS).
+- C11: 4 new `_run_pred` tests -> all six signals' gate/report-only behavior now
+  proven IN classify-native mode (verdict-flip / abstain-|Δ| / confidence-KS
+  gate; tier-mix / lr_probability-KS / model_version report-only).
+- B4b: chose **(a) reject-ambiguous** -- `_reject_ambiguous_fetch_subset`
+  (drift.py) raises exit 2 "ambiguous schema" on a partial-fetch+predictions
+  parquet (fires before the classify-native validation; checks only the 13
+  non-domain fetch cols so cascade extras stay tolerated); pinned by a test.
+- E18: recorded in carry-forward (c) as a STANDING DEFERRED acceptance gate --
+  re-pin the 6 PREDICTION_COLUMNS against a real produced 16-col partition with
+  a real 12-char SHA before PART 1 is declared COMPLETE.
+
+**Counts (re-derived at commit time).** Canonical 16-path **970** UNCHANGED;
+`pytest tests/drift/` = **62** (22 fetch + 21 S40 classify + 13 classify-native +
+6 remediation); combined floor **1045** (970 + 13 hermetic guard + 62 -- replaces
+the S40 1026). `drift_classify.py` BYTE-IDENTICAL (boundary held); **no `src/`
+change**. ruff/format clean; vermin 3.10; validate_consistency PASS; complexity
+max 13 (<15). Spend: **$0** (hermetic; no cascade/canary/Azure).
+
+**State at this entry.** Repo commit PREPARED (one atomic
+`WA0.W7.classify-native-input-mode`, 3 files: drift.py + cli.py +
+test_drift_classify.py) and this workspace close-out PREPARED -- both SURFACED
+for operator read; **NOT committed, NOT pushed** pending operator confirmation
+(commit) + a separate confirmation (push). `cli.py` help-text note is from the
+PART 1 draft, not remediation.
+
+**Forward note for the next session.** Repo anchor moves to the PART 1 commit SHA
+once committed (currently prepared on `3266bc4`). Combined floor becomes **1045**.
+PART 1 is functionally shipped (classify-native input mode); the only OUTSTANDING
+PART 1 item is the E18 real-artifact re-pin (carry-forward (c)), gated on a real
+Stage-1 partition existing. Re-pin the S42 Phase 0 anchors (repo SHA, tag count
+[15, unchanged -- no new tag this session], canonical 970 / combined 1045, drift
+62) after the commit lands.
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md + A_CLASSIFY_PROMPT.md.

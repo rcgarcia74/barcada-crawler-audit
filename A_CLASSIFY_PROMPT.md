@@ -700,15 +700,23 @@ count change or any of the above breaches = HALT, not a commit.
     refined re-gate before any live run) governs PART 1's producer runs — the
     first spend happens only when PART 1 runs the cascade. Re-read Phase-0.COST
     as a PART 1 gate.
-  - **(c) PREDICTION_COLUMNS REAL-ARTIFACT RE-VERIFICATION — a PART 1 ACCEPTANCE
-    GATE.** PART 2 pinned `PREDICTION_COLUMNS` = (is_business, confidence,
-    lr_probability, abstain, tier_decided, model_version) from
-    output_schema.py:103-124 at commissioning. When PART 1 is built, RE-VERIFY
-    against the THEN-current `output_schema.SCHEMA` AND a REAL produced parquet:
-    the producer's append-only proof must DUMP the actual produced columns and
-    confirm they equal the 14 fetch columns + PREDICTION_COLUMNS. If the cascade
-    output schema has drifted, update `drift_classify.PREDICTION_COLUMNS` + its
-    dtype map (and the comparator/tests) FIRST.
+  - **(c) PREDICTION_COLUMNS REAL-ARTIFACT RE-VERIFICATION — STANDING DEFERRED
+    ACCEPTANCE GATE (E18; remediation-recorded, NOT yet met).** PART 1 was
+    re-scoped to shape **B** and shipped as a CLASSIFY-NATIVE INPUT MODE (the
+    comparator accepts a standalone predictions parquet: `domain` + the 6
+    PREDICTION_COLUMNS, no fetch columns). `PREDICTION_COLUMNS` =
+    (is_business, confidence, lr_probability, abstain, tier_decided,
+    model_version) is pinned against the SOURCE SCHEMA
+    `stage1/output_schema.py:103-124` — the authoritative definition, NOT stage3
+    and NOT the 15-col May-09 **dev** sample. It has NOT been verified against a
+    REAL PRODUCED partition because none exists yet (the producer is deferred).
+    **GATE — before PART 1 is declared COMPLETE:** when a real Stage-1 partition
+    exists (16-col post-PR-COST, real 12-char SHA `model_version`), DUMP its
+    actual columns and confirm the 6 `PREDICTION_COLUMNS` + their dtypes match;
+    if the cascade output schema has drifted, update
+    `drift_classify.PREDICTION_COLUMNS` + its dtype map (and the comparator /
+    tests) FIRST. Until then the classify-native mode ships against the
+    schema-of-record, with this real-artifact confirmation explicitly OUTSTANDING.
   - **(d) RE-SCOPE FLAG.** If, at PART 1 commissioning, the producer's real path
     (scraper-stage-on-demand: HTML → parser_parquet) is still a large/unwired
     surface, RE-SCOPE rather than force an inline scraper integration. Cleaner
