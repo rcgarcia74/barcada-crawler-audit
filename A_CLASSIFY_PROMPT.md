@@ -66,15 +66,19 @@
 
 ## Scope (two sequenced sub-surfaces)
 
-**STATUS at S41 open: PART 2 is SHIPPED (S40 `3266bc4`); PART 1 is the remaining
-work and is BLOCKED.** PART 2 (the classify-drift comparator + metrics) landed —
-do NOT rebuild it. THIS session is PART 1 (the producer) ONLY, and only if its
-unblock check clears (Open/carry-forward (a) — the worker_loop.py:193
-parser_parquet partition must exist). If still blocked, no-ship. PART 2's
-contract below is now reference (what the producer must FEED): the comparator
-auto-detects PREDICTION_COLUMNS and computes is_business-agreement /
-confidence-KS / abstain-|Δ| (gating) + lr_probability-KS / tier-mix /
-model_version (report-only).
+**STATUS (S42): BOTH PARTS SHIPPED — this prompt is now mostly HISTORICAL.**
+PART 2 (classify-drift comparator + metrics) shipped S40 `3266bc4`; PART 1
+shipped S41 `b41cf72` — re-scoped from a producer to a classify-native INPUT
+MODE on the `drift` comparator (it consumes a STANDALONE predictions parquet;
+there is NO `--classify` producer, and canary.py is UNTOUCHED). Do NOT rebuild
+either. The ONLY open item is **E18** (carry-forward (c)): re-pin the 6
+PREDICTION_COLUMNS against a REAL produced 16-col Stage-1 partition with a real
+SHA, gated on such a partition existing. **Live S42 anchors (repo `b41cf72` /
+workspace `a0db876` / canonical 970 / combined 1045 / drift 62) are in
+SESSION_TRANSITION_TEMPLATE.md — use THAT for cold-start, not the enumerated
+Phase 0 below (whose anchors are S41-open and now superseded).** The metrics
+(unchanged): is_business-agreement / confidence-KS / abstain-|Δ| (gating) +
+lr_probability-KS / tier-mix / model_version (report-only).
 
 PART 1 — Producer extension: add an OPT-IN classifier leg to canary-run
 (e.g. a `--classify` flag). The chain per domain is fetch (existing) -> run
