@@ -54,11 +54,12 @@ Anchors for Session 43 cold start:
   Parent `b41cf72` (S41 PART 1). Tolerated delta: operator-side eval_data
   labeling commits after S42 close — verify each is strictly `eval_data/*` via
   `git show --stat`.
-- Workspace HEAD: the S42 close-out commit (SESSION_LOG.md +
-  SESSION_TRANSITION_TEMPLATE.md; pending operator push at this writing — re-pin
-  to the actual SHA on the anchor-pin follow-up). NOTE: the operator-side
-  uncommitted edit to `SESSION_36_PROMPT.md` is still unstaged since S36 —
-  tolerate it.
+- Workspace HEAD: `96b4cc6` (S42 close-out — SESSION_LOG.md +
+  SESSION_TRANSITION_TEMPLATE.md + LESSONS.md + SESSION_42_PROMPT.md), plus this
+  anchor-pin follow-up succeeding it. S43 Phase 0 Step 0.1 anchors workspace
+  expectation there (or a later doc-edit commit succeeding it). NOTE: the
+  operator-side uncommitted edit to `SESSION_36_PROMPT.md` is still unstaged
+  since S36 — tolerate it.
 - Canonical baseline: **970 tests** (16-path; UNCHANGED from S27-S42 close — the
   drift tests live in `tests/drift/`, outside the sweep; the S42 pin is in
   `tests/drift/` so the 16-path stayed 970, regression-checked).
