@@ -9147,3 +9147,77 @@ Workspace close-out PREPARED, SURFACED for operator read; workspace push pending
 operator confirm.
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+
+---
+
+## Session 43 — 2026-06-05 — Candidate (a): Stage-1 drift operational-cadence kit (selection + two-layer coverage + runbook); untuned baseline capture deferred to operator-run
+
+**Scope (a) — drift operational cadence — CHOSEN from the S43 menu** (operator-
+commissioned via `SESSION_43_PROMPT_candidate_a.md`). A-classify drift CODE was
+already complete (`barcada-drift-classify-v0` @ `ba09669`); (a) is the remaining
+DEPLOYMENT item. Built the repeatable snapshot->diff cadence instrument + the
+coverage gate; the actual cascade run that captures the untuned baseline is
+**operator-run** (S30 pattern) and is the real completion of the session's
+purpose. Commit `9f6f66d`, pushed (`ba09669..9f6f66d`). **No tag** (operational
+cadence, not a code milestone — prompt default).
+
+**Build/run split held.** CC's deliverables are **$0 / offline** — NO Azure, NO
+cascade run, NO spend. The operator runs the full cascade on the selected domains
+to produce the snapshot.
+
+**Domain-list source-verify (Phase 1.2).** Operator file
+`~/Downloads/domains.csv`: 43,391 rows, `website` + `industry`, no nulls, 440
+website dupes. `website` is `http://www.X` form (normalized to bare host). 42
+distinct industries, heavily tech-skewed: "information technology & services"
+39,382 (91%), tech-ish total 42,851 (98.8%); small non-tech tail (consulting,
+marketing, legal, retail, logistics). The `industry` field is the category signal
+used for diversity.
+
+**Design gate (Phase 2, operator).** Run shape = **full cascade (1->2->3)**;
+selection = **stratified industry-diverse**. Snapshot naming defaulted to
+`model_version`-SHA + the Hive `crawl_date=/shard=` partition; single commit.
+
+**Phase 0.COST (grounded).** Rates from `configs/llm_pricing.yaml` (gpt-4.1-nano
+0.10/0.40; gpt-4.1-mini 0.40/1.60; embeddings 0.02 per 1M). For ~75 domains:
+Stage-1-only < $0.01; full cascade < ~$0.25 conservatively. Both << $1. CC = $0;
+operator covers the run.
+
+**Deliverables (commit `9f6f66d`, 6 files, +750).**
+- `tools/baseline_v0/select_drift_domains.py` — read (website,industry), normalize
+  to bare domain, de-dupe, round-robin rarest-industry-first stratified select.
+- `tools/baseline_v0/drift_cadence/run1_domains.txt` — the run-1 selection: **75
+  domains across all 41 industries** (post-dedup), seed 7, zero malformed lines.
+- `tools/baseline_v0/check_drift_coverage.py` — POST-RUN **two-layer** check:
+  Layer 1 Stage-1 tier spread (gate; flags all-rules dev-sample trap, exit 1) +
+  Layer 2 Stage-2/3 populated (full-cascade downstream presence).
+- `tools/baseline_v0/drift_cadence/RUNBOOK.md` — operator recipe: select ->
+  operator full-cascade run -> two-layer coverage -> **bank stage1/2/3 artifacts +
+  SHA** -> diff. Cites the verified classify CLI + the drift invocation + the
+  `stage1_predictions` path convention.
+- `tests/drift/test_select_drift_domains.py` + `test_check_drift_coverage.py` —
+  29 hermetic tests (selector + coverage; happy/failure/edge/false).
+
+**Verified before commit.** Selector: 6 normalize spot-checks + 75-across-41
+selection, deterministic. Coverage tool AND the `drift` subcommand both run clean
+on a **hermetic run_shard-produced** 16-col partition (E18 fakes harness, $0;
+classify-native auto-detected, exit 0) — proving the recipe's coverage + diff
+steps work on real producer output WITHOUT a live cascade.
+
+**run-1 disposition: DEFERRED to operator-run.** The untuned Stage-1 baseline is
+NOT yet captured (the cascade run is operator-owned, not done in-session). The
+kit ships complete; the operator's full-cascade run on the 75 domains -> two-layer
+coverage check -> captured baseline (+ banked stage2/3) completes the purpose.
+
+**Counts (re-derived at commit).** Canonical 16-path **970** UNCHANGED (new files
+in `tools/` + `tests/drift/`, outside the sweep); `tests/drift/` **65 -> 94**
+(+29); combined floor **1048 -> 1077**. tag count **16** (no new tag).
+`drift_classify.py` BYTE-IDENTICAL since S40; `drift.py` / `canary.py` UNTOUCHED;
+**no `src/` change**; no producer; no Stage 2/3 drift surface (Stage-1 guard
+held). ruff check + format clean (370 files); vermin `--target=3.10-` exit 0;
+validate_consistency PASS; complexity < 15. Spend: **$0 CC** (operator-run
+pending).
+
+**State at this entry.** Repo: pushed (`origin/main` @ `9f6f66d`), 16 tags.
+Workspace close-out PREPARED + SURFACED; workspace push pending operator confirm.
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.

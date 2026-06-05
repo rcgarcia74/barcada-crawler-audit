@@ -3231,3 +3231,27 @@ hides the bug. My first spike masked it exactly this way via a probe write.)
   when a deferred gate says "verify X against a produced artifact," read the
   PRODUCER first. If the producer pins the property the gate checks, the gate is
   about provenance, not drift, and a hermetic real-writer run closes it.
+
+## (S43 folding) For a monitoring CADENCE, ship the instrument + the coverage GATE, and leave the paid baseline capture to the operator-run -- verify the recipe on a hermetic producer output, don't fake the baseline.
+
+- Candidate (a) was "operational cadence." The trap would have been to either
+  (i) run the cascade myself to "complete" the baseline (Azure spend CC can't
+  incur), or (ii) declare the baseline captured from a synthetic/dev parquet. The
+  correct deliverable is the INSTRUMENT (selection + snapshot->diff recipe) plus
+  the COVERAGE GATE that decides whether a future real run is usable -- the actual
+  capture is the operator's $0-to-CC, cents-to-them run. The session's value ships
+  even though the baseline isn't captured in-session.
+- Verify the recipe without paying for it: the coverage tool AND the `drift`
+  subcommand were both run against a HERMETIC `run_shard`-produced 16-col
+  partition (the E18 fakes harness, $0) -- proving they consume real producer
+  output (classify-native auto-detected, exit 0) without a live cascade. Word the
+  provenance as "hermetic run_shard-produced," never "genuine/live," so the
+  evidence isn't over-claimed (S42 provenance-wording discipline, reused).
+- Two-layer coverage for a full-cascade run: Layer 1 (Stage-1 tier spread) is the
+  GATE -- it decides baseline usability and flags the all-rules dev-sample trap;
+  Layer 2 (Stage-2/3 populated) is informational confirmation that the paid-for
+  downstream artifacts exist and should be BANKED with their model_version SHA.
+  Don't conflate the two: the drift deliverable gates on Layer 1 only.
+- Cadence phase matters: while the model is UNTUNED, snapshots are EVENT-DRIVEN
+  (one per tuning change), so the deliverable is a repeatable MANUAL recipe;
+  deferring the launchd scheduler to the stable phase is correct, not incomplete.
