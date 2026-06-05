@@ -3204,3 +3204,30 @@ hides the bug. My first spike masked it exactly this way via a probe write.)
   (no classify-native negative control; the report-only/gating split demonstrated
   only in the unified path; a partial-fetch input silently routed to the classify
   path). Re-derive, don't trust the report — even your own.
+
+## (S42 folding) Before hunting for a real produced artifact to verify a schema pin, check whether the writer HARD-CODES the schema — if it does, the artifact cannot drift and the gate collapses to provenance, resolvable hermetically.
+
+- E18 asked to re-pin the 6 PREDICTION_COLUMNS against a "real produced 16-col
+  partition," and the prompt's whole Phase-0 was built to locate one (bounded
+  find, operator-supplied ADLS path, $0 read). The cheap decisive check was
+  upstream of all of it: `run.py:_write_output` writes via
+  `pa.Table.from_pylist(rows, schema=output_schema.SCHEMA)`. The schema is passed
+  explicitly, so EVERY produced partition — test or production — is byte-equal to
+  `SCHEMA` by construction and CANNOT drift from it.
+- Consequence: "re-pin against a real artifact" carried no schema information the
+  source pin didn't already have. The only thing a real production run adds over
+  a hermetic one is `model_version` being a real SHA vs `dev` — and that value
+  was already ruled immaterial (M2: it's a `str` either way; the test asserts the
+  dtype, never the value). So the gate was provenance-only.
+- Resolution: derive the pin from a genuine `run_shard`-produced partition via
+  the existing hermetic harness (`tests/classifier/stage1/test_run_cascade.py`'s
+  fakes — $0, no Azure), not from a production ADLS file. Run inside the checkout,
+  the writer even stamped a real 12-char SHA, so provenance is "hermetic
+  real-writer, real-SHA" — strictly stronger than the `dev` fallback the prompt
+  anticipated.
+- The operator's reframe ("why not just run the stages to generate the latest
+  schema?") is what surfaced the writer's hard-coding — answering "can we run it
+  cheaply?" forced reading the writer, which dissolved the gate. The general move:
+  when a deferred gate says "verify X against a produced artifact," read the
+  PRODUCER first. If the producer pins the property the gate checks, the gate is
+  about provenance, not drift, and a hermetic real-writer run closes it.

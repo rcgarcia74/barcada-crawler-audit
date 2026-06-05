@@ -9067,3 +9067,83 @@ Stage-1 partition existing. Re-pin the S42 Phase 0 anchors (repo SHA, tag count
 62) after the commit lands.
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md + A_CLASSIFY_PROMPT.md.
+
+---
+
+## Session 42 — 2026-06-05 — A-classify E18 CLEARED: PREDICTION_COLUMNS re-pinned to a genuine run_shard-produced 16-col partition; A-classify COMPLETE; workstream tag placed
+
+**Disposition: CLEARED.** E18 — the only open A-classify item — closed. The 6
+`drift_classify.PREDICTION_COLUMNS` were pinned against the SOURCE schema
+(`stage1.output_schema.SCHEMA`) but never confirmed against a real produced
+artifact. This session re-pinned them against a partition the production writer
+actually emits, via an additive hermetic test. **Pushed** (`b41cf72..ba09669`)
++ workstream tag placed.
+
+**Phase 0.E18-UNBLOCK — no real partition existed locally.** Bounded find
+(`/tmp /data` + project data dir) surfaced only: (1) 37 `predictions.parquet`
+under `/private/tmp/.../classify_s1_shard_00007_*` — ALL 16-byte corrupt stubs
+("must end with PAR1"), orchestrator worker-loop test residue (the test stubs
+the write), NOT real; (2) the known 15-col May-09 dev sample
+(`~/Downloads/.../stage1_predictions_shard00003.parquet`) — excluded as
+pre-PR-COST (missing `llm_cached_input_tokens`). Per M5, surfaced to operator
+rather than auto-deferring.
+
+**Operator question reframed the path: "why not run the stages to generate the
+latest schema?"** Source-verify answered it: `run.py:_write_output` writes via
+`pa.Table.from_pylist(rows, schema=output_schema.SCHEMA)` — the schema is
+HARD-CODED, so ANY produced partition (test or prod) is byte-equal to SCHEMA by
+construction and CANNOT drift. A full parser->stage1/2/3 run hits Azure (Tier-2
+embeddings + Tier-3 LLM) = creds + spend = out of boundary; the ONLY thing a
+real prod run adds is a real-SHA `model_version`, which M2 declares immaterial
+(it's a `str` either way). Existing hermetic `tests/classifier/stage1/
+test_run_cascade.py` already drives the REAL `run_shard` + writer with fakes
+($0) and asserts the produced schema == SCHEMA.
+
+**Operator chose: pin against a genuine run_shard-produced partition from that
+hermetic harness (DERIVED, not a copied schema list).**
+
+**Phase 1 determination — CLEARED.** Produced a real partition via the harness
+(`run_shard` + `_FakeEmbedder`/`_FakeAdjudicator`, 1000 synthetic rows, $0): 16
+cols incl `llm_cached_input_tokens`; `produced.schema == output_schema.SCHEMA`
+True; `model_version` = `b41cf72c794b` (a real 12-char git SHA — run_shard ran
+inside the checkout). All 6 pinned names + polars dtypes (Boolean / Float64 /
+Float64 / Boolean / String / String) match the produced artifact AND SCHEMA.
+
+**Deliverable — `tests/drift/test_prediction_columns_real_schema.py` (+148, 3
+tests).** (a) pin: each of the 6 columns present + DERIVED dtype ==
+`prediction_dtypes()`; (b) provenance: artifact is current 16-col, carries
+`llm_cached_input_tokens`, full schema == SCHEMA, `model_version` is `str` (value
+NOT asserted — M2); (c) M4 guard: pin stays exactly 6, disjoint from the 10
+cost/token/timestamp provenance columns. Teeth verified out-of-band: wrong dtype,
+renamed column, and cost-col absorption all fail the assertions; real pin matches
+non-vacuously.
+
+**Provenance of record: hermetic real-writer, real-SHA (checkout).** (The old
+`dev`-fallback / "immaterial" framing from when we expected the fallback does NOT
+apply — the checkout run produced a real SHA. M2 still holds: the VALUE is
+immaterial to the schema pin, and the test does not assert it.)
+
+**Counts (re-derived at commit time).** Canonical 16-path **970** UNCHANGED
+(new file in `tests/drift/`, outside the sweep — S39 directory-fact);
+`pytest tests/drift/` = **65** (62 + 3); combined floor **1048** (970 + 13
+hermetic guard + 65 — was 1045 at S41, authorized ADD). `drift_classify.py`
+BYTE-IDENTICAL since S40 (`3266bc4`); `drift.py` UNCHANGED this session; **no
+`src/` change**; no producer; `canary.py` UNTOUCHED. ruff check + format clean
+(366 files); vermin `--target=3.10-` exit 0; validate_consistency PASS (operator
+eval_data WIP intact, unstaged); complexity < 15 (no C901). Spend: **$0**
+(hermetic; no cascade/canary/Azure).
+
+**Tag.** `barcada-drift-classify-v0` placed + pushed at `ba09669` (annotated):
+the A-classify workstream chain `7bbdc74` (S39 fetch) / `3266bc4` (S40 PART 2) /
+`b41cf72` (S41 PART 1) / `ba09669` (S42 E18). Tag count **15 -> 16**. Operational
+cadence (scheduled run + diff) remains a deployment step.
+
+**A-classify COMPLETE.** Carry-forward (c) — the E18 real-artifact re-pin — is
+**CLOSED**. A-classify code is whole: fetch comparator + classify metrics +
+classify-native input mode + the real-artifact pin.
+
+**State at this entry.** Repo: pushed (`origin/main` at `ba09669`) + tag pushed.
+Workspace close-out PREPARED, SURFACED for operator read; workspace push pending
+operator confirm.
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
