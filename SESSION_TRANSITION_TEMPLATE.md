@@ -55,9 +55,10 @@ Anchors for Session 44 cold start:
   runbook + 29 tests, +750). Parent `ba09669` (S42 E18 pin). Tolerated delta:
   operator-side eval_data labeling commits after S43 close — verify each is
   strictly `eval_data/*` via `git show --stat`.
-- Workspace HEAD: the S43 close-out commit (SESSION_LOG.md +
-  SESSION_TRANSITION_TEMPLATE.md + LESSONS.md + SESSION_43_PROMPT.md), plus the
-  anchor-pin follow-up succeeding it (re-pin to the actual SHA there). NOTE: the
+- Workspace HEAD: `783d04e` (S43 close-out — SESSION_LOG.md +
+  SESSION_TRANSITION_TEMPLATE.md + LESSONS.md + SESSION_43_PROMPT.md), plus this
+  anchor-pin follow-up succeeding it. S44 Phase 0 Step 0.1 anchors workspace
+  expectation there (or a later doc-edit commit succeeding it). NOTE: the
   operator-side uncommitted edit to `SESSION_36_PROMPT.md` is still unstaged
   since S36 — tolerate it.
 - Canonical baseline: **970 tests** (16-path; UNCHANGED from S27-S43 close — the
