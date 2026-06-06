@@ -33,7 +33,8 @@ into one snapshot, and `check_drift_coverage` confirmed it: **exit 0, Layer-1 PA
 `abfss://output@barcadastorage.dfs.core.windows.net/drift-run1/`; local source +
 provenance manifest at `/tmp/drift_run1/stages/stage1_predictions/crawl_date=2026-06-05/_union/`
 (`predictions.parquet` + `run1_manifest.json`, $TMP ephemeral). **`model_version` SHA
-`9f6f66d5e726`** (= HEAD `9f6f66d`). 52 domains; escalated 5 (9.6%); tiers rules 40 /
+`9f6f66d5e726`** (FROZEN at the S43 build `9f6f66d` — the capture-time HEAD; the later
+validator fix `b95df00` does NOT change run-1's model_version). 52 domains; escalated 5 (9.6%); tiers rules 40 /
 upstream_excluded 7 / lr 5; crawl_date 2026-06-05. Full provenance in the S44 SESSION_LOG
 Branch-A addendum. **From run 2 on**, the `drift` subcommand diffs run-N-1 vs run-N
 (classify-native, $0) — run 1 IS the baseline; one snapshot cannot drift. Thresholds
@@ -58,17 +59,20 @@ the cadence now waits for **run 2** (a future cascade on the same selection → 
 snapshot cannot drift). (2) a fresh scope (D Phase-4 PR-D labeling tooling — source-check
 that labeling artifacts exist first; eval_data labeling is ACTIVE as of 2026-06-05,
 `stage1_labels.jsonl` 532 lines); or (3) **two newly-found CC-owned deferred fixes** from
-the S44 cascade-run (see the S44 Branch-A addendum + findings in SESSION_LOG) — these are
-now the most concrete code scopes: **(3a)** pre-filter `select_drift_domains.py` through
-`is_valid_domain` so the selection count is truthful (75 selected → only 72 survive
-validation: `nessis.ca`/`theeethereal.com` excessive-repetition, `octagoncybersecurity.ng`
-hash-like); **(3b)** reconcile `RUNBOOK.md` Step 2/3 + `check_drift_coverage` to the
+the S44 cascade-run (see the S44 Branch-A addendum + findings in SESSION_LOG): **(3a)
+DONE/SUPERSEDED** — the root cause (the `is_valid_domain` false-negatives) was fixed at
+source in commit `b95df00` (pushed; `_has_excessive_repetition` consecutive-run,
+`_is_hash_like` vowel-sparsity gate; `run1_domains.txt` now 75/75 valid, 766 recovered
+across the 43k set). The selection count is now truthful WITHOUT a selector pre-filter;
+any residual 3a (have `select_drift_domains.py` actively call `is_valid_domain`) is now
+optional/minor. **(3b)** reconcile `RUNBOOK.md` Step 2/3 + `check_drift_coverage` to the
 per-shard reality (a real run hash-scatters domains across N `shard=NNNNN` partitions —
 `shard_id_for_domain = int(sha256(d.lower())[:8],16) % 100` — so the baseline is the
 UNION over shards, not one `--shard 00001`; the manual recipe must loop the stage over
-every produced shard then `pl.concat`). Both 3a/3b touch committed repo files and would
-ship code (full Phase 0 + per-commit gate). Any S45 prompt should pin: repo HEAD anchor
-`9f6f66d`, tag count `16`, canonical baseline `970` (16-path) / **`1077`** combined
+every produced shard then `pl.concat`). 3a already SHIPPED (`b95df00`); 3b still touches
+committed repo files and would ship code (full Phase 0 + per-commit gate). Any S45 prompt
+should pin: repo HEAD anchor **`b95df00`** (S43 cadence kit `9f6f66d` + the post-S44
+validator-recall fix), tag count `16`, canonical baseline `970` (16-path) / **`1077`** combined
 (970 + the 13-test S38 hermetic guard + the **94-test** drift sub-suite), Step 0.4
 `cassette_count == 30` / `exclusions_count == 30`, and a presence check for the S33-S38
 ADLS deliverables + the drift deliverables + the S43 cadence kit
@@ -90,11 +94,13 @@ hand-driven per-shard loop needs `--force-concurrent-run` on every call, and a c
 run leaves a stale lock to clear (`halted:true` or delete).
 
 Anchors for Session 45 cold start:
-- Repo HEAD: `9f6f66d` (S43: WA0.W7.drift-cadence-kit — selection + coverage +
-  runbook + 29 tests, +750). Parent `ba09669` (S42 E18 pin). **UNCHANGED by S44**
-  (S44 was a no-ship Branch-B close — zero repo commits). Tolerated delta:
-  operator-side eval_data labeling commits after S43 close — verify each is
-  strictly `eval_data/*` via `git show --stat`.
+- Repo HEAD: **`b95df00`** (post-S44 domain_validator recall fix — `is_valid_domain`
+  false-negatives; +176/-11, 2 files). Parent `9f6f66d` (S43 WA0.W7.drift-cadence-kit).
+  S44 itself was a no-ship Branch-B close (zero repo commits); `b95df00` is the
+  operator-requested validator fix done after the S44 close. Canonical 970 / combined
+  1077 UNCHANGED at `b95df00` (the +31 new tests live in `tests/domain_validator/`,
+  outside both tracked suites). Tolerated delta: operator-side eval_data labeling commits —
+  verify each is strictly `eval_data/*` via `git show --stat`.
 - Workspace HEAD: the **S44 close-out commit** (SESSION_LOG.md S44 entry +
   SESSION_TRANSITION_TEMPLATE.md refill + LESSONS.md fold), succeeding `fa06689`
   (the S44-prompt doc-edit, which itself succeeded `ee97f0c`). S45 Phase 0 Step 0.1
@@ -169,10 +175,9 @@ ONE commit, four files:
 ## Repository state — `/Users/administrator/projects/barcada-scraper/`
 
 - Branch: `main`
-- Last commit SHA: `9f6f66d` (S43 WA0.W7.drift-cadence-kit — selection + coverage
-  + runbook). Parent `ba09669` (S42 E18 pin).
-- Branch sync with `origin/main`: pushed at S43 close (`ba09669..9f6f66d`;
-  0 ahead / 0 behind verified).
+- Last commit SHA: `b95df00` (post-S44 domain_validator recall fix). Parent `9f6f66d`
+  (S43 WA0.W7.drift-cadence-kit).
+- Branch sync with `origin/main`: pushed (`9f6f66d..b95df00`; 0 ahead / 0 behind verified).
 - Tags (16 total; UNCHANGED at S43 — operational cadence placed NO tag):
   - `pre-remediation-2026-05-19` / `baseline-v0` (`9e9a1fb`)
   - `workstream-0-week1-end` … `week7-end`

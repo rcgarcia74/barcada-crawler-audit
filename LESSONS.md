@@ -3331,3 +3331,25 @@ hides the bug. My first spike masked it exactly this way via a probe write.)
   echo the resolved endpoint at startup. Diagnostic corollary: a DNS error on a host the
   operator says works means something REWROTE the value between their shell and the call --
   suspect the script, not the network.
+
+## (post-S44) Fix a false-negative at its SOURCE heuristic, not by papering over with a pre-filter; quantify before relaxing a "finalized" gate.
+
+- The original plan (3a) was "pre-filter `select_drift_domains.py` through
+  `is_valid_domain` so the selection count is truthful." But `is_valid_domain` ITSELF
+  was the defect (false-rejecting real businesses) -- a pre-filter would have produced a
+  truthful count of a WRONG filter and left the bug live for every other consumer. When a
+  downstream symptom traces to a shared upstream defect, fix the upstream; the pre-filter
+  becomes unnecessary (it did: `run1_domains.txt` is 75/75 valid with no selector change).
+- Per-category, not a blanket relax. Two distinct rules, two distinct corrections:
+  consecutive-run (not distributed total-frequency) for `_has_excessive_repetition`;
+  a vowel-sparsity gate on the unique-ratio path for `_is_hash_like`. Each loosened rule
+  paired BOTH directions -- the previously-rejected real domain now passes AND a malformed
+  near-neighbor still fails -- is the guard against over-loosening. Lumping them into one
+  regex relax is how new false-positives sneak in.
+- Quantify before touching a "finalized" gate. The validator was precision-1.0; rather
+  than guess whether loosening was safe, scan the actual input: the two rules were ~99.7%
+  false-positive on the 43k operator set (766 real businesses recovered, the 2 genuinely
+  spammy retained). And because `is_valid_domain` is a PRE-NETWORK input filter, loosening
+  it can only raise recall -- the unchanged downstream DNS/HTTP/content checks govern
+  precision -- so a precision regression is impossible by construction, no truth-eval
+  re-run needed. Reason about WHERE a gate sits in the pipeline before fearing its blast radius.

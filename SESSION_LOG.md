@@ -9360,3 +9360,46 @@ satisfies the prompt's Branch-A MANDATORY banking requirement.
   change resulted.
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+
+---
+
+## Post-S44 (pre-S45) repo change — domain_validator recall fix (commit `b95df00`, pushed; NOT a tuning event)
+
+Operator-requested before scoping S45: fix the validator false-negatives surfaced by
+the S44 cascade-run (the 75->72 selector overcount). This was the deeper of the two 3a
+options — fixing `is_valid_domain` at source rather than pre-filtering the selector.
+
+- **What (commit `b95df00`, `origin/main`).** Two syntactic heuristics in
+  `src/barcada_scraper/domain_validator/check_domains.py`:
+  - `_has_excessive_repetition`: flag a CONSECUTIVE run of >=4 of one char (real spam:
+    `looooan`/`cccctech`) instead of >40% total frequency (which mis-rejected real words
+    with distributed repeats: `nessis` s-x3, `theeethereal` e-x5).
+  - `_is_hash_like`: gate the `unique_ratio>0.6` path on vowel-sparsity
+    (`vowel_ratio<0.25`); keep the standalone `vowel_ratio<0.1` hash signal. (Old rule
+    mis-rejected long real compound brands: `octagoncybersecurity`, 0.65 unique / 0.35 vowel.)
+- **Impact.** ~99.7% false-positive on the 43k operator set; **766 real businesses
+  recovered**; `run1_domains.txt` validates **72 -> 75/75**. Malformed near-neighbors
+  still rejected (both-direction tests).
+- **Scope + verification.** `src/` change — an operator-CONFIRMED escalation beyond the
+  $0 tools-only 3a; blast radius contained to `is_valid_domain` (barriers.py has
+  independent hash logic). New `tests/domain_validator/test_syntactic_false_positives.py`
+  (31, both-direction). Full validator suite **385 passed**; canonical 16-path **970
+  UNCHANGED**; complexity **5/6** (<15); ruff check `.` / format / vermin (`src tests
+  scripts tools`, min 3.10) clean.
+- **CLASSIFICATION: validator-RECALL fix, NOT a tuning event.** It changes WHICH domains
+  reach the cascade, not HOW the model classifies them. **Does NOT trigger run-2**; the
+  drift cadence still waits on an actual model/prompt change.
+- **RUN-1 BASELINE UNCHANGED.** Run-1 stays frozen at its actual **52** classified
+  domains. The fix improves FUTURE selections (the 3 recovered would enter validation in
+  a future run IF they resolve + have sites); it does not retroactively change run-1's
+  set. The run-2-must-match-run-1 rule still points at the 52 run-1 classified.
+- **No precision regression by construction.** `is_valid_domain` is a pre-network INPUT
+  filter (loaders, before the DNS query at cli line ~923); loosening it only admits more
+  domains into the UNCHANGED downstream DNS/HTTP/content pipeline -> recall up, content
+  precision untouched. The truth-eval (precision 1.0 / recall 0.9199) is network-bound /
+  operator-run (CC $0/offline), not re-run here.
+- **Pre-push.** Hook blocked once on an UNRELATED unstaged eval_data WIP error
+  (`stage1_labels.jsonl` row 268 `hercrentals.com` — duplicate `business_customers`
+  keyword); operator fixed it; `validate_consistency` clean (0 errors); pushed.
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
