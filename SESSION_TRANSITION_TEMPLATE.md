@@ -52,7 +52,11 @@ classify-native auto-detected, exit 0). No `src/` change; `drift_classify.py`
 byte-identical since S40; `drift.py` / `canary.py` untouched; no Stage 2/3 drift
 surface (Stage-1 guard held).
 
-**Session 45 invocation prompt:** none drafted. S45 is operator-led. Menu: (1) run-1
+**Session 45 invocation prompt:** DRAFTED at `~/crawler-audit/SESSION_45_PROMPT.md` —
+scope **3b** (standalone per-shard union helper + RUNBOOK/coverage reconcile; $0
+tools-only). Chosen at S44 close after source-verifying that D is blocked (PR-D needs
+Stage 2/3 labeling; only Stage 1 is active) and run-2 is not actionable. Menu retained
+below for context: (1) run-1
 baseline is **CAPTURED + BANKED (Branch A done)** — there is nothing left to capture;
 the cadence now waits for **run 2** (a future cascade on the same selection → `drift
 --baseline run1 --current run2`, classify-native, $0). Do NOT diff this session (one
