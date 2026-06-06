@@ -1,9 +1,9 @@
-# Session Transition Template — Handoff from Session 43 → Session 44
+# Session Transition Template — Handoff from Session 44 → Session 45
 
 This file is the handoff document filled out at the end of one Claude
 Code session for the next session to read first. Overwritten at each
 transition (use git history to recover prior handoffs). Sessions 1-11
-are summarized in SESSION_LOG.md; Sessions 12-43 are in the most
+are summarized in SESSION_LOG.md; Sessions 12-44 are in the most
 recent SESSION_LOG.md entries.
 
 Pair this with the latest entry in `SESSION_LOG.md`, with
@@ -18,16 +18,27 @@ instrument around it (domain selection + two-layer coverage check + operator
 runbook). NO new comparator code; NO tag (operational cadence, not a code
 milestone).
 
-**THE ACTUAL NEXT STEP is an OPERATOR-RUN, not CC code: capture run-1.** The
-untuned Stage-1 baseline is NOT yet captured. The operator runs the full cascade
-on the 75 selected domains (`tools/baseline_v0/drift_cadence/run1_domains.txt`)
--> `check_drift_coverage` (two-layer: Stage-1 tier spread is the gate, Stage-2/3
-populated is Layer 2) -> banks stage1/2/3 partitions + the `model_version` SHA ->
-that stage1_predictions IS the run-1 baseline. See
-`tools/baseline_v0/drift_cadence/RUNBOOK.md`. From run 2 on, the `drift`
-subcommand diffs run-N-1 vs run-N (classify-native, $0). Thresholds stay
-PROVISIONAL / look-don't-act; the launchd scheduler is DEFERRED to the stable
-(post-tuning) phase. If run 1 comes back all-rules, re-select (`--seed`) + re-run.
+**S44 opened Branch-B no-ship, then the operator carried it to a Branch-A capture
+(no repo commit either way).** S44's gating question — *has the operator run the cascade
+yet?* — resolved **NO** at Phase 0.BASELINE-CHECK (Branch-B no-ship close). Post-close,
+the operator ran the cascade with CC repairing the recipe, and **captured + banked a real
+run-1 baseline** (details below). Repo unchanged at `9f6f66d`; Phase 0 re-derived green
+(970/1077/16). No repo commit, tag, or `src/` change.
+
+**RUN-1 BASELINE: CAPTURED + CONFIRMED + BANKED (Branch A).** The untuned Stage-1
+baseline now EXISTS. The operator ran the Stage-1 cascade on the selected domains
+(Stage-1 only — the drift surface), CC unioned the 42 per-shard `stage1_predictions`
+into one snapshot, and `check_drift_coverage` confirmed it: **exit 0, Layer-1 PASS**
+(escalation observed, not all-rules). Banked to **ADLS** by the operator at
+`abfss://output@barcadastorage.dfs.core.windows.net/drift-run1/`; local source +
+provenance manifest at `/tmp/drift_run1/stages/stage1_predictions/crawl_date=2026-06-05/_union/`
+(`predictions.parquet` + `run1_manifest.json`, $TMP ephemeral). **`model_version` SHA
+`9f6f66d5e726`** (= HEAD `9f6f66d`). 52 domains; escalated 5 (9.6%); tiers rules 40 /
+upstream_excluded 7 / lr 5; crawl_date 2026-06-05. Full provenance in the S44 SESSION_LOG
+Branch-A addendum. **From run 2 on**, the `drift` subcommand diffs run-N-1 vs run-N
+(classify-native, $0) — run 1 IS the baseline; one snapshot cannot drift. Thresholds
+stay PROVISIONAL / look-don't-act; the launchd scheduler is DEFERRED to the stable
+(post-tuning) phase.
 
 **What S43 shipped (commit `9f6f66d`, 6 files, +750).**
 `tools/baseline_v0/select_drift_domains.py` (stratified industry-diverse
@@ -40,33 +51,63 @@ classify-native auto-detected, exit 0). No `src/` change; `drift_classify.py`
 byte-identical since S40; `drift.py` / `canary.py` untouched; no Stage 2/3 drift
 surface (Stage-1 guard held).
 
-**Session 44 invocation prompt:** none drafted. S44 is operator-led: either the
-operator-run baseline capture above (if not yet done) + its follow-up coverage
-confirmation, or a fresh scope. Any S44 prompt should pin: repo HEAD anchor
-`9f6f66d`, tag count `16`, canonical baseline `970` (16-path) / **`1077`**
-combined (970 + the 13-test S38 hermetic guard + the **94-test** drift sub-suite),
-Step 0.4 `cassette_count == 30` / `exclusions_count == 30`, and a Step 0.9
-presence check for the S33-S38 ADLS deliverables + the drift deliverables +
-the S43 cadence kit (select_drift_domains.py + check_drift_coverage.py +
-drift_cadence/).
+**Session 45 invocation prompt:** none drafted. S45 is operator-led. Menu: (1) run-1
+baseline is **CAPTURED + BANKED (Branch A done)** — there is nothing left to capture;
+the cadence now waits for **run 2** (a future cascade on the same selection → `drift
+--baseline run1 --current run2`, classify-native, $0). Do NOT diff this session (one
+snapshot cannot drift). (2) a fresh scope (D Phase-4 PR-D labeling tooling — source-check
+that labeling artifacts exist first; eval_data labeling is ACTIVE as of 2026-06-05,
+`stage1_labels.jsonl` 532 lines); or (3) **two newly-found CC-owned deferred fixes** from
+the S44 cascade-run (see the S44 Branch-A addendum + findings in SESSION_LOG) — these are
+now the most concrete code scopes: **(3a)** pre-filter `select_drift_domains.py` through
+`is_valid_domain` so the selection count is truthful (75 selected → only 72 survive
+validation: `nessis.ca`/`theeethereal.com` excessive-repetition, `octagoncybersecurity.ng`
+hash-like); **(3b)** reconcile `RUNBOOK.md` Step 2/3 + `check_drift_coverage` to the
+per-shard reality (a real run hash-scatters domains across N `shard=NNNNN` partitions —
+`shard_id_for_domain = int(sha256(d.lower())[:8],16) % 100` — so the baseline is the
+UNION over shards, not one `--shard 00001`; the manual recipe must loop the stage over
+every produced shard then `pl.concat`). Both 3a/3b touch committed repo files and would
+ship code (full Phase 0 + per-commit gate). Any S45 prompt should pin: repo HEAD anchor
+`9f6f66d`, tag count `16`, canonical baseline `970` (16-path) / **`1077`** combined
+(970 + the 13-test S38 hermetic guard + the **94-test** drift sub-suite), Step 0.4
+`cassette_count == 30` / `exclusions_count == 30`, and a presence check for the S33-S38
+ADLS deliverables + the drift deliverables + the S43 cadence kit
+(select_drift_domains.py + check_drift_coverage.py + drift_cadence/).
 
-Anchors for Session 44 cold start:
+**Run-shard reality (load-bearing for any baseline-capture or 3b scope).** The cascade
+is SHARDED: `barcada-scrape --output-format parquet` writes one
+`crawl_date=<d>/shard=NNNNN/data.parquet` per domain-hash shard; `barcada-classify run
+--stage N --shard X` reads exactly ONE shard (`_resolve_shard_path`, cli.py:1246), and
+multi-shard fan-out is the orchestrator's job (`scripts/submit_vmss_job.py --all-phases`
+primes a queue with one message per shard, reading the LR bundle from ADLS at
+`abfss://models@barcadastorage.dfs.core.windows.net/lr.joblib`). `barcada-validate` is
+STALE (no `domain_validator/cli.py`) — use `python -m
+barcada_scraper.domain_validator.check_domains`. These are README §2 facts (read it
+before flagging a "missing" artifact). Also: the `single_tenant_guard` (4h window)
+blocks a fresh run if any `cost_journal/run_*.json` has `halted:false` — and a manual
+single-shard `barcada-classify run` never self-halts (only the orchestrator does), so a
+hand-driven per-shard loop needs `--force-concurrent-run` on every call, and a crashed
+run leaves a stale lock to clear (`halted:true` or delete).
+
+Anchors for Session 45 cold start:
 - Repo HEAD: `9f6f66d` (S43: WA0.W7.drift-cadence-kit — selection + coverage +
-  runbook + 29 tests, +750). Parent `ba09669` (S42 E18 pin). Tolerated delta:
+  runbook + 29 tests, +750). Parent `ba09669` (S42 E18 pin). **UNCHANGED by S44**
+  (S44 was a no-ship Branch-B close — zero repo commits). Tolerated delta:
   operator-side eval_data labeling commits after S43 close — verify each is
   strictly `eval_data/*` via `git show --stat`.
-- Workspace HEAD: `783d04e` (S43 close-out — SESSION_LOG.md +
-  SESSION_TRANSITION_TEMPLATE.md + LESSONS.md + SESSION_43_PROMPT.md), plus this
-  anchor-pin follow-up succeeding it. S44 Phase 0 Step 0.1 anchors workspace
-  expectation there (or a later doc-edit commit succeeding it). NOTE: the
-  operator-side uncommitted edit to `SESSION_36_PROMPT.md` is still unstaged
-  since S36 — tolerate it.
-- Canonical baseline: **970 tests** (16-path; UNCHANGED from S27-S43 close — the
-  S43 kit lives in `tools/` + `tests/drift/`, outside the sweep, regression-checked).
+- Workspace HEAD: the **S44 close-out commit** (SESSION_LOG.md S44 entry +
+  SESSION_TRANSITION_TEMPLATE.md refill + LESSONS.md fold), succeeding `fa06689`
+  (the S44-prompt doc-edit, which itself succeeded `ee97f0c`). S45 Phase 0 Step 0.1
+  anchors workspace expectation there (or a later doc-edit commit succeeding it).
+  NOTE: the operator-side uncommitted edit to `SESSION_36_PROMPT.md` is still
+  unstaged since S36 — tolerate it.
+- Canonical baseline: **970 tests** (16-path; UNCHANGED from S27-S44 close — the
+  S43 kit lives in `tools/` + `tests/drift/`, outside the sweep; re-derived green
+  at S44 open, 72.67s). S44 shipped no code, so no count moved.
 - Combined baseline: **1077 tests** (the 16-path 970 + the S38 hermetic guard
   13 + the drift sub-suite `tests/drift/` **94** [22 fetch + 21 S40 classify + 13
   classify-native + 6 S41 remediation + 3 S42 E18 pin + 29 S43 cadence]). This is
-  the NEW cumulative-gate floor (was 1048 at S42); S44 Phase 0.5 must assert
+  the cumulative-gate floor (was 1048 at S42); S45 Phase 0.5 must assert
   against **1077, NOT 1048**, and never let it decrease.
 - Narrower baseline: **944 tests** (14-path; 970 minus 19 cost_journal_adls
   minus 7 robots_gate_integration). Unchanged.
@@ -170,7 +211,7 @@ ONE commit, four files:
       (`tests/classifier/llm/test_prompt_logger.py`, 13) + the drift
       sub-suite (`tests/drift/`, **94** = 22 fetch + 21 S40 classify + 13
       classify-native + 6 S41 remediation + 3 S42 E18 pin + 29 S43 cadence). The
-      S44 cumulative gate must not let this decrease (was 1048 at S42).
+      S45 cumulative gate must not let this decrease (was 1048 at S42).
     - **944** — narrower 14-path (unchanged).
     - OUT-OF-BAND live tests: `pytest -m live tests/classifier/pipeline/`
       → **6 passed, 209 deselected** (needs Docker + the Azurite image, else
@@ -452,7 +493,7 @@ Combined (16-path + both Step 0.8 sub-suites):
     tests/classifier/llm/test_prompt_logger.py
     tests/drift/
 # Expected: 1077 passed (970 + 13 + 94). VERIFIED at 9f6f66d. This is the
-# count the S44 cumulative gate must not let decrease (was 1048 at S42).
+# count the S45 cumulative gate must not let decrease (was 1048 at S42).
 ```
 
 OUT-OF-BAND live tests (NOT in the canonical count; need Docker + the Azurite
@@ -548,7 +589,7 @@ Same pattern as Sessions 13-39:
 
 1. Commit SHA(s) of each Session 40 sub-surface.
 2. Sub-surfaces landed.
-3. Test count delta: 970 / 1077 baseline → S44 close.
+3. Test count delta: 970 / 1077 baseline → S45 close.
 4. Driver suite count (52/52 expected unless realigned).
 5. Files touched per surface.
 6. Tag dispositions (W0 closed S27; W A.1 closed S22; the S33-S38 ADLS

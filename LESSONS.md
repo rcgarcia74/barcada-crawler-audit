@@ -3255,3 +3255,79 @@ hides the bug. My first spike masked it exactly this way via a probe write.)
 - Cadence phase matters: while the model is UNTUNED, snapshots are EVENT-DRIVEN
   (one per tuning change), so the deliverable is a repeatable MANUAL recipe;
   deferring the launchd scheduler to the stable phase is correct, not incomplete.
+
+## (S44 folding) A ZERO-artifact session is a valid close when the prior session shipped the instrument and the next step is operator-owned -- resolve the branch + re-pin, do not manufacture work.
+
+- S44's whole job was one gating question (has the operator run the cascade yet?).
+  Answer NO -> Branch B -> operator chose a no-ship hand-off. The deliverable shipped
+  S43; the next step (capture run-1) is an Azure operator-run CC cannot do. The correct
+  S44 output is therefore ZERO new code: confirm the kit is intact and waiting, record
+  the branch, re-pin anchors. The trap would have been to invent a "tiny deliverable"
+  (a manifest helper, a staged run-2 diff) just to make the session feel productive --
+  the prompt explicitly made those OPTIONAL and operator-gated, and the operator
+  declined. A session that correctly produces nothing is not a wasted session.
+- The same forbidden-baseline discipline as S43 held one layer earlier: a bounded
+  local search surfaced a dev/LLM-input SAMPLE shard
+  (`classify_stage2_llm_input_sample/stage1_predictions_shard00003.parquet`); it has
+  the right path-shape but is NOT a run-1 cascade output, so it was rejected, not
+  promoted to "baseline." Path-shape is not provenance -- confirm a parquet is a real
+  cascade run (two-layer coverage, Layer-1 tier spread) before calling it the baseline.
+- Re-derive on a no-ship close, do not assert-inherit. Even though no code changed, the
+  S45 anchors (970/1077/16/fixtures) were re-RUN ($0 local, 72.67s), not copied from the
+  S43 entry -- so the re-pin rests on this-session evidence. "Verify-before-trust"
+  applies to the re-pin itself; the ~80s local cost is free (the cost rule is about
+  Azure $, not pytest time).
+
+## (S44 folding, post-close) A drift "snapshot" runs through the SHARDED pipeline -- one classify call is one shard, not one batch; read the README before calling an artifact missing.
+
+- The cascade crashed because the run recipe (and the RUNBOOK) assumed a domain batch
+  lands in ONE shard. It does not: `barcada-scrape` hash-routes each domain via
+  `shard_id_for_domain = int(sha256(d.lower())[:8],16) % 100` (parquet_writer.py:69), so
+  72 domains scatter across ~42 `shard=NNNNN/data.parquet` partitions (and none need hash
+  to 00000). `barcada-classify run --stage N --shard X` processes EXACTLY one shard --
+  multi-shard fan-out is the orchestrator's job (worker_loop / `submit_vmss_job.py`
+  prime a queue with one message per shard). For a manual local run you must LOOP the
+  stage over every produced shard. Generalize: before driving a pipeline stage by hand,
+  confirm its unit of work (shard? partition? file?) against the producer's output, not
+  against an intuition that "a batch is a batch."
+- The drift cadence inherited the same blind spot: the comparator diffs a single
+  `predictions.parquet`, but a real run yields N per-shard files -- so the run-1 baseline
+  is the UNION over occupied shards (`pl.concat` the per-shard predictions into one
+  snapshot, validated 42 shards -> 52 rows). The RUNBOOK's `--shard 00001` example
+  hid this. When a tool consumes "one file" but the pipeline emits "one file per shard,"
+  a reconciliation step (union, or a glob) is load-bearing, not a detail.
+- READ THE README before declaring a blocker. CC flagged the Stage-1 LR bundle as a
+  missing/unknown blocker; `README.md` line ~1136 plainly records it lives in ADLS
+  (`abfss://models@barcadastorage.dfs.core.windows.net/lr.joblib`) and is read via
+  `--lr-model-path`, with `submit_vmss_job.py --all-phases` as the canonical multi-shard
+  runner. The local tree is the `file://` dev path; production artifacts (models) are
+  ADLS-resident and the README is where their real locations live. Verify-before-trust
+  cuts both ways -- check the docs that exist before asserting a gap.
+- Selector vs validator mismatch: `select_drift_domains.py` produced 75 domains but the
+  validator's `is_valid_domain` (DGA/spam heuristics) rejects 3 legitimate businesses as
+  false positives (`nessis.ca`/`theeethereal.com` excessive-repetition; `octagoncybersecurity.ng`
+  hash-like) -> only 72 reach the cascade. A selection count is only truthful if it runs
+  the same admission filter the downstream stage applies; pre-filter the selector through
+  `is_valid_domain` so "N selected" == "N usable."
+- A concurrency guard tuned for the ORCHESTRATOR will fight a hand-driven loop. The
+  single-tenant guard refuses to start if any `cost_journal/run_*.json` has
+  `halted:false` within a 4h window. But `halted_with(run_completed)` is only called by
+  the orchestrator/worker-loop -- a manual `barcada-classify run` (even on clean success)
+  leaves `halted:false`, so a sequential per-shard loop self-blocks on shard #2, and a
+  crashed run leaves a stale lock that blocks the next attempt with no live process. Two
+  lessons: (1) when looping a tool by hand that was built to be driven by an orchestrator,
+  expect orchestrator-only invariants (self-halt, run-id continuity) to be absent --
+  `--force-concurrent-run` is the sanctioned override for a deliberate single-machine
+  loop; (2) "concurrent run detected" with nothing in `ps` means a stale `halted:false`
+  journal -- mark it `halted:true` (documented remedy) or delete the zero-work record,
+  don't assume a live job.
+- A handoff script must INHERIT the operator's environment, never hardcode-`export` over
+  it. A staged `/tmp` cascade script hardcoded `export AZURE_OPENAI_ENDPOINT="https://<your-resource>..."`
+  (and the API key) -- so running it CLOBBERED the operator's real, smoke-tested endpoint
+  with the placeholder, producing a DNS failure (`[Errno 8] nodename nor servname provided`)
+  that looked like an operator misconfig but was the script's own injection. For
+  operator-supplied secrets/endpoints, use `: "${VAR:?}"` (require) or
+  `"${VAR:-default}"` (default-if-unset) so the operator's exported value always wins;
+  echo the resolved endpoint at startup. Diagnostic corollary: a DNS error on a host the
+  operator says works means something REWROTE the value between their shell and the call --
+  suspect the script, not the network.

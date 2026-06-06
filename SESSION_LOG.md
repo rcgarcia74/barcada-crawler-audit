@@ -9221,3 +9221,142 @@ pending).
 Workspace close-out PREPARED + SURFACED; workspace push pending operator confirm.
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+
+---
+
+## Session 44 — 2026-06-05 — Branch B no-ship hand-off: cascade not yet run; cadence kit + RUNBOOK confirmed waiting; baseline still operator-pending; $0 verification close
+
+**What S44 was.** A branch-resolution session. A-classify drift is COMPLETE (S42)
+and the Stage-1 drift operational-cadence KIT shipped S43 (`9f6f66d`). S44's single
+gating question (Phase 0.BASELINE-CHECK): **has the operator run the full cascade on
+the 75 selected domains yet** — does a run-1 `stage1_predictions` baseline exist?
+**Answer (operator, Phase 0.BASELINE-CHECK): NO — not run yet → Branch B.** Then the
+Phase-1 Branch-B fork (operator): **no-ship hand-off close** (vs a fresh code scope).
+Outcome: **zero new artifacts, no repo commit, no push, no tag.** The deliverable was
+shipped last session; S44's job was to resolve the branch, confirm the kit is intact
+and waiting, and re-pin S45.
+
+**Phase 0 re-derived GREEN (verify-before-trust; the live tree wins).**
+- 0.1 Repo HEAD `9f6f66d` (parent `ba09669`); workspace HEAD `fa06689` (the S44-prompt
+  doc-edit succeeding `ee97f0c`; `git show --stat` = 1 file, +275, SESSION_44_PROMPT.md
+  only). No operator-side repo commits in `9f6f66d..HEAD`.
+- 0.2 Tags **16**; `barcada-drift-classify-v0` @ `ba09669`.
+- 0.3 Fixtures **222 / 202 / 222 / 1213 / 30 / 30** UNCHANGED.
+- 0.4 Canonical 16-path **970 passed** (72.67s) — re-derived $0-local, not asserted.
+- 0.5 `tests/classifier/llm/test_prompt_logger.py` **13**; `tests/drift/` **94** →
+  combined floor **1077**, not decreased.
+- 0.6 deliverable+kit present: `drift`/`drift_classify` import OK (6 PREDICTION_COLUMNS);
+  `select_drift_domains` + `check_drift_coverage` import OK; `drift_cadence/run1_domains.txt`
+  PRESENT (75 domains); `drift_classify.py` BYTE-IDENTICAL since S40 (`3266bc4`); `src/`
+  UNCHANGED since S43 (`9f6f66d`).
+
+**Phase 0.BASELINE-CHECK (the branch gate).** Operator confirmed the cascade is not
+run. Bounded local search (`/tmp`, `~/Downloads`) for `*stage1_predictions*` parquet
+turned up ONLY `~/Downloads/classify_stage2_llm_input_sample/stage1_predictions_shard00003.parquet`
+— a dev/LLM-input **sample shard**, NOT a run-1 cascade baseline of the 75 domains.
+Per the prompt, a synthetic/dev parquet is **NOT** accepted as run-1; no baseline was
+manufactured, no cascade run, no spend. **Branch B.**
+
+**run-1 baseline disposition: STILL operator-pending (unchanged from S43).** The
+untuned Stage-1 baseline is not captured. The instrument is complete and waiting:
+`tools/baseline_v0/drift_cadence/RUNBOOK.md` Steps 1–5 are the self-contained
+operator hand-off (select → operator full-cascade run → two-layer `check_drift_coverage`
+→ bank stage1/2/3 + `model_version` SHA → diff from run 2). No banked artifact paths
+to record this session — none exist yet (Branch A's mandatory banking does not apply).
+
+**Boundaries held.** No `src/` change; no `canary.py` / `drift.py` / `drift_classify.py`
+change; no producer; no Stage 2/3 drift surface (Stage-1 guard held — 6th occurrence);
+launchd scheduler stays DEFERRED to the stable (post-tuning) phase; thresholds stay
+PROVISIONAL / look-don't-act; `BARCADA_CRAWLER_REMEDIATION_PLAN.md` untouched. eval_data
+shows active operator labeling (`stage1_labels.jsonl` modified 2026-06-05, 532 lines) —
+left UNSTAGED; `.claude/scheduled_tasks.lock` + `eval_data/audits/` untracked, left alone.
+
+**Counts (re-derived, UNCHANGED).** Canonical 16-path **970**; combined floor **1077**
+(970 + 13 + 94); tag count **16**. Nothing decreased. Spend: **$0 CC** (cascade
+operator-run, still pending).
+
+**State at this entry.** Repo: UNCHANGED at `origin/main` @ `9f6f66d`, 16 tags — no
+S44 repo commit (no-ship). Workspace close-out (this S44 entry + S45 template refill +
+LESSONS fold) PREPARED + SURFACED; workspace push pending operator confirm.
+
+**Post-close addendum — operator cascade-run attempt surfaced TWO real findings.**
+After the branch resolved, the operator moved to run the cascade on the 75 domains and
+CC staged the commands (operator-side helper `/tmp/drift_run1_cascade.sh`, NOT committed).
+The attempt exposed two gaps — logged here for a future session; neither was patched
+(no-ship boundary; both touch committed repo files at `9f6f66d`):
+- **README answered a "blocker" CC had flagged as unknown.** CC initially called the
+  Stage-1 LR bundle a missing/unknown blocker (`models/stage1_lr_v1.joblib` absent
+  locally). The repo `README.md` (line ~1136) records it lives in ADLS at
+  `abfss://models@barcadastorage.dfs.core.windows.net/lr.joblib` (named `lr.joblib`),
+  read in production via `--lr-model-path`; the canonical multi-shard run is
+  `scripts/submit_vmss_job.py --all-phases`. Lesson folded + memory written.
+- **Selector overcounts usable domains (75 vs 72).** `run1_domains.txt` has 75 unique
+  domains, but the validator's `load_from_text` filters each through `is_valid_domain`
+  (check_domains.py:796); 3 legitimate businesses are rejected as DGA/spam false
+  positives — `nessis.ca` + `theeethereal.com` (`_has_excessive_repetition`) and
+  `octagoncybersecurity.ng` (`_is_hash_like`). Root cause: `select_drift_domains.py`
+  does not pre-filter through `is_valid_domain`, so its "75 selected" overstates the
+  count that survives validation. FUTURE FIX (CC-owned, deferred): pre-filter the
+  selector through `is_valid_domain` so the selection count is truthful.
+- **Single-shard assumption breaks a multi-domain batch (the cascade crash).**
+  `barcada-scrape` hash-routes each domain to a shard via
+  `shard_id_for_domain(d) = int(sha256(d.lower()).hexdigest()[:8],16) % 100`
+  (parquet_writer.py:69), writing one `shard=NNNNN/data.parquet` per occupied shard.
+  The 52 scraped domains scattered across 42 shards (00002–00096; none hashed to 00000).
+  `barcada-classify run --stage N --shard <X>` is single-shard per invocation (the
+  worker loop fans out one queue message per shard), so a hard-coded `--shard 00000`
+  raised `FileNotFoundError`. This is a latent gap in `RUNBOOK.md` too (Step 2b's
+  `--shard 00001` singular) AND in the drift design: the comparator diffs ONE
+  `predictions.parquet`, but a real run yields N per-shard files — the run-1 baseline is
+  the UNION over occupied shards. Operator-side fix (in `/tmp` helper, not committed):
+  loop Stage 1 over every produced shard, then `pl.concat` the per-shard predictions
+  into one `_union/predictions.parquet` (= the baseline) before the coverage check.
+  Cross-shard concat validated on the real on-disk parser output (42 shards → 52 rows,
+  schema-consistent). FUTURE (CC-owned, deferred): reconcile RUNBOOK Step 2/3 +
+  `check_drift_coverage` to the per-shard reality (document the union step, or accept a
+  shard glob).
+- **Single-tenant guard self-blocks a manual per-shard loop.** The first crashed run left
+  a stale lock (`cost_journal/run_<id>.json` with `halted:false`, `cost=0`, `shards:[]`)
+  that the `single_tenant_guard` (4h staleness window) flagged as a concurrent run on the
+  next attempt — no live process (cleared by marking `halted:true`, the documented
+  remedy). Deeper: `halted_with(HALT_REASON_RUN_COMPLETED)` has ZERO call sites in the
+  manual `barcada-classify run` path (only the orchestrator/worker-loop self-halts), so a
+  *completed* single-shard run also leaves `halted:false` — a sequential per-shard loop
+  would block on shard #2 onward. Fix in the `/tmp` helper: pass `--force-concurrent-run`
+  on every classify call (the guard's docstring sanctions this for a deliberate
+  single-machine loop). FUTURE (CC-owned, deferred): if the manual loop becomes a
+  supported drift-capture path, either have single-shard `run` self-halt on clean
+  completion or document `--force-concurrent-run` in the RUNBOOK.
+
+**BRANCH-A OUTCOME (post-close, operator-run) — run-1 baseline CAPTURED + confirmed +
+banked.** What S44 opened as Branch B (cascade not run) the operator carried to a real
+Branch-A capture in-session, after the fixes above. The full Stage-1 cascade ran on the
+selected domains (Stage-1 only; the drift surface is Stage-1), the 42 per-shard
+`stage1_predictions` were unioned into one snapshot, and `check_drift_coverage`
+confirmed it: **exit 0, Layer-1 PASS** (escalation observed, NOT all-rules). This
+satisfies the prompt's Branch-A MANDATORY banking requirement.
+- **Banked artifact (Stage-1 baseline):** uploaded by the operator to **ADLS** at
+  `abfss://output@barcadastorage.dfs.core.windows.net/drift-run1/` (`predictions.parquet`
+  + `run1_manifest.json` under that prefix); local source +
+  provenance manifest co-located at
+  `/tmp/drift_run1/stages/stage1_predictions/crawl_date=2026-06-05/_union/`
+  (`predictions.parquet` + `run1_manifest.json`). `/tmp` is ephemeral — ADLS is the
+  durable copy.
+- **`model_version` SHA:** **`9f6f66d5e726`** (= code build HEAD
+  `9f6f66d5e7268df123a76182fd5dd2865f24f3cd`, the drift-cadence-kit commit). Uniform
+  across all 52 rows — the snapshot is attributable to the exact untuned model build.
+- **Coverage result:** 52 rows (domains); escalated 5 (9.6%) to the LR tier; tier
+  distribution rules 40 / upstream_excluded 7 / lr 5; `stage2_present`/`stage3_present`
+  = False (Stage-1-only, by design — Layer 2 not gating). `crawl_date=2026-06-05`, union
+  of 42 shards.
+- **Selection funnel:** 75 selected → 72 pass `is_valid_domain` → 52 had-website /
+  scraped / classified (the selector-overcount + sharding findings above explain the drop).
+- **Disposition:** run 1 IS the baseline (the `drift` diff applies run 2 onward; one
+  snapshot cannot drift). Thresholds remain PROVISIONAL / look-don't-act (untuned model);
+  nothing calibrated from run 1. The launchd scheduler stays DEFERRED to the stable phase.
+- **Boundaries still held:** the capture was an OPERATOR-RUN (CC = $0, no Azure, no
+  spend); CC only staged + repaired the run recipe (`/tmp/drift_run1_cascade.sh`, NOT
+  committed) and verified on the produced artifacts. No repo commit, tag, or `src/`
+  change resulted.
+
+Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
