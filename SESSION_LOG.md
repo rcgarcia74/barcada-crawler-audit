@@ -9403,3 +9403,48 @@ options — fixing `is_valid_domain` at source rather than pre-filtering the sel
   keyword); operator fixed it; `validate_consistency` clean (0 errors); pushed.
 
 Next session prompt: see SESSION_TRANSITION_TEMPLATE.md.
+
+---
+
+## Session 45 — 2026-06-06 — 3b: per-shard union helper + RUNBOOK/coverage reconcile (drift cadence armed against the sharded reality)
+
+Scope chosen at S44 close after source-verifying D blocked (PR-D needs Stage 2/3
+labeling; only Stage 1 active) and run-2 not actionable. Executed the
+`SESSION_45_PROMPT.md` (3b) + its M1/M2/N1 review edits. **$0, tools-only; no `src/`.**
+
+**Deliverable (commit `c9921d2`, 3 files, +404/-48).**
+- `tools/baseline_v0/union_drift_shards.py` — standalone helper: globs
+  `shard=*/predictions.parquet` under a `crawl_date=` root, `pl.concat` -> one
+  `_union/predictions.parquet`. **M2 disjointness guard** (duplicate `domain` ->
+  exit 2, NO silent dedup/fan-out, per the S41 fan-out lesson). **N1 single-snapshot
+  guard** (mixed `model_version` -> exit 2; `--allow-mixed-model-version` override).
+  Schema pinned to `drift_classify.PREDICTION_COLUMNS` (E18). complexity 9/4.
+- `tools/baseline_v0/drift_cadence/RUNBOOK.md` reconciled to the per-shard reality:
+  Step 2 loops `barcada-classify` over every produced shard (`--force-concurrent-run`;
+  stale `barcada-validate` -> module; ADLS LR bundle); new Step 2e union; Steps 3/4/5
+  consume `_union`. Every operational note exercised live this session, not transcribed.
+- `tests/drift/test_union_drift_shards.py` — 9 hermetic both-direction tests.
+
+**M1 reproduction pin — closed against the ADLS artifact.** CC read the banked union
+via authenticated `az` ($0 read), and the helper run over run-1's actual 42 `/tmp`
+shards reproduces it EXACTLY: 52 domains, `model_version 9f6f66d5e726`, domain-set-sha
+`0c07ddaa9d9631b9` (helper output == ADLS-banked). The productized union provably
+matches the frozen baseline run-2 will diff against — not just synthetic fixtures.
+
+**Counts (re-derived from tree).** Canonical 16-path **970** UNCHANGED (union lives in
+`tools/` + `tests/drift/`, outside the sweep). drift sub-suite **94 -> 103** (+9).
+Combined floor **1077 -> 1086** (970 + 13 + 103). tag count **16** (no new tag —
+operational tooling). `src/` UNCHANGED; `check_drift_coverage.py` / `drift.py` /
+`drift_classify.py` / `canary.py` BYTE-IDENTICAL. ruff/format/vermin/validate clean.
+Spend **$0 CC**.
+
+**run-1 baseline: FROZEN at its 52, now provably REPRODUCIBLE** from its shards via the
+helper (the M1 pin). 3b did not touch it. NOT a tuning change -> does not trigger run-2.
+The cadence is now genuinely armed: the next real event is **run-2 after a tuning
+change** (operator-triggered), then `drift --baseline run1/_union --current run2/_union`.
+
+**State at this entry.** Repo: `c9921d2` committed, push pending operator confirm.
+Workspace close-out (this entry + S46 template refill + LESSONS fold) prepared; the
+S45-scope commit `39f39b7` + this close-out are unpushed pending confirm.
+
+Next session prompt: none drafted yet (S46 is operator-led — cadence waits on run-2).

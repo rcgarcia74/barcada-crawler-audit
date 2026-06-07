@@ -3353,3 +3353,22 @@ hides the bug. My first spike masked it exactly this way via a probe write.)
   it can only raise recall -- the unchanged downstream DNS/HTTP/content checks govern
   precision -- so a precision regression is impossible by construction, no truth-eval
   re-run needed. Reason about WHERE a gate sits in the pipeline before fearing its blast radius.
+
+## (S45 folding) Productize the manual recipe AND pin it against the REAL artifact, not just synthetic fixtures.
+
+- 3b turned the manual /tmp union into a helper. The trap would have been to prove it
+  with hermetic synthetic shards only (logic-correct) and never check it reproduces the
+  REAL frozen baseline. The M1 pin closed that: the helper over run-1's actual shards
+  reproduces the ADLS-banked union EXACTLY (domain-set sha + model_version + count).
+  Synthetic-fixture-green != reproduces-the-baseline -- pin a productized artifact against
+  the real thing it replaces (E18 discipline applied to 3b).
+- CC can read ADLS cheaply for VERIFICATION: an authenticated `az storage blob download`
+  is a $0 read, not a cascade/spend, and it let M1 close against the banked artifact
+  rather than the scratch /tmp inputs. "CC does no Azure" means no cascade and no spend --
+  a one-shot read to confirm a baseline-match claim is in bounds and worth it (don't
+  default to "operator-run" when a cheap read settles the claim definitively).
+- A "valid only if X" step must VERIFY X, not assume it. concat-without-dedup is valid
+  only because the shard hash is a partition (each domain in exactly one shard); the
+  helper asserts no-duplicate-domain (disjointness) + uniform-model_version (single
+  snapshot) and exit-2s rather than silently fanning out (the S41 duplicate-domain
+  corruption) or emitting a mixed-version non-snapshot. Encode the assumption as a guard.

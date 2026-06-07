@@ -1,9 +1,9 @@
-# Session Transition Template — Handoff from Session 44 → Session 45
+# Session Transition Template — Handoff from Session 45 → Session 46
 
 This file is the handoff document filled out at the end of one Claude
 Code session for the next session to read first. Overwritten at each
 transition (use git history to recover prior handoffs). Sessions 1-11
-are summarized in SESSION_LOG.md; Sessions 12-44 are in the most
+are summarized in SESSION_LOG.md; Sessions 12-45 are in the most
 recent SESSION_LOG.md entries.
 
 Pair this with the latest entry in `SESSION_LOG.md`, with
@@ -52,34 +52,25 @@ classify-native auto-detected, exit 0). No `src/` change; `drift_classify.py`
 byte-identical since S40; `drift.py` / `canary.py` untouched; no Stage 2/3 drift
 surface (Stage-1 guard held).
 
-**Session 45 invocation prompt:** DRAFTED at `~/crawler-audit/SESSION_45_PROMPT.md` —
-scope **3b** (standalone per-shard union helper + RUNBOOK/coverage reconcile; $0
-tools-only). Chosen at S44 close after source-verifying that D is blocked (PR-D needs
-Stage 2/3 labeling; only Stage 1 is active) and run-2 is not actionable. Menu retained
-below for context: (1) run-1
-baseline is **CAPTURED + BANKED (Branch A done)** — there is nothing left to capture;
-the cadence now waits for **run 2** (a future cascade on the same selection → `drift
---baseline run1 --current run2`, classify-native, $0). Do NOT diff this session (one
-snapshot cannot drift). (2) a fresh scope (D Phase-4 PR-D labeling tooling — source-check
-that labeling artifacts exist first; eval_data labeling is ACTIVE as of 2026-06-05,
-`stage1_labels.jsonl` 532 lines); or (3) **two newly-found CC-owned deferred fixes** from
-the S44 cascade-run (see the S44 Branch-A addendum + findings in SESSION_LOG): **(3a)
-DONE/SUPERSEDED** — the root cause (the `is_valid_domain` false-negatives) was fixed at
-source in commit `b95df00` (pushed; `_has_excessive_repetition` consecutive-run,
-`_is_hash_like` vowel-sparsity gate; `run1_domains.txt` now 75/75 valid, 766 recovered
-across the 43k set). The selection count is now truthful WITHOUT a selector pre-filter;
-any residual 3a (have `select_drift_domains.py` actively call `is_valid_domain`) is now
-optional/minor. **(3b)** reconcile `RUNBOOK.md` Step 2/3 + `check_drift_coverage` to the
-per-shard reality (a real run hash-scatters domains across N `shard=NNNNN` partitions —
-`shard_id_for_domain = int(sha256(d.lower())[:8],16) % 100` — so the baseline is the
-UNION over shards, not one `--shard 00001`; the manual recipe must loop the stage over
-every produced shard then `pl.concat`). 3a already SHIPPED (`b95df00`); 3b still touches
-committed repo files and would ship code (full Phase 0 + per-commit gate). Any S45 prompt
-should pin: repo HEAD anchor **`b95df00`** (S43 cadence kit `9f6f66d` + the post-S44
-validator-recall fix), tag count `16`, canonical baseline `970` (16-path) / **`1077`** combined
-(970 + the 13-test S38 hermetic guard + the **94-test** drift sub-suite), Step 0.4
-`cassette_count == 30` / `exclusions_count == 30`, and a presence check for the S33-S38
-ADLS deliverables + the drift deliverables + the S43 cadence kit
+**Session 46 invocation prompt:** none drafted — S46 is operator-led and the cadence is
+ARMED but idle. Both S45 candidates SHIPPED: **3a** (`is_valid_domain` recall fix,
+`b95df00`) and **3b** (per-shard union helper + RUNBOOK reconcile, `c9921d2`). The drift
+cadence is now complete end-to-end: select → operator multi-shard cascade →
+`union_drift_shards` (→ one `_union/predictions.parquet`) → `check_drift_coverage` → bank →
+`drift` diff. **There is no ready CC code scope.** Menu: (1) **run-2** — the next real
+cadence event: a future cascade on the same selection AFTER a tuning/model change
+(operator-triggered), then `drift --baseline run1/_union/predictions.parquet --current
+run2/_union/predictions.parquet`. Do NOT diff before run-2 exists (one snapshot cannot
+drift). (2) D Phase-4 PR-D labeling tooling — STILL BLOCKED (needs operator-led Stage 2/3
+labeling; only Stage 1 active; `docs/phase4_implementation_plan.md` is
+operator-authorization-gated). (3) optional residual: have `select_drift_domains.py` call
+`is_valid_domain` so its emitted count is pre-validated — minor, since the validator itself
+is now correct (3a), so the selection count is already truthful. Any S46 prompt should
+pin: repo HEAD anchor **`c9921d2`** (S45 3b union helper; parent `b95df00`), tag count
+`16`, canonical baseline `970` (16-path) / **`1086`** combined (970 + the 13-test S38
+hermetic guard + the **103-test** drift sub-suite), Step 0.4 `cassette_count == 30` /
+`exclusions_count == 30`, and a presence check for the S33-S38 ADLS deliverables + the
+drift deliverables + the S43 cadence kit
 (select_drift_domains.py + check_drift_coverage.py + drift_cadence/).
 
 **Run-shard reality (load-bearing for any baseline-capture or 3b scope).** The cascade
@@ -97,28 +88,26 @@ single-shard `barcada-classify run` never self-halts (only the orchestrator does
 hand-driven per-shard loop needs `--force-concurrent-run` on every call, and a crashed
 run leaves a stale lock to clear (`halted:true` or delete).
 
-Anchors for Session 45 cold start:
-- Repo HEAD: **`b95df00`** (post-S44 domain_validator recall fix — `is_valid_domain`
-  false-negatives; +176/-11, 2 files). Parent `9f6f66d` (S43 WA0.W7.drift-cadence-kit).
-  S44 itself was a no-ship Branch-B close (zero repo commits); `b95df00` is the
-  operator-requested validator fix done after the S44 close. Canonical 970 / combined
-  1077 UNCHANGED at `b95df00` (the +31 new tests live in `tests/domain_validator/`,
-  outside both tracked suites). Tolerated delta: operator-side eval_data labeling commits —
-  verify each is strictly `eval_data/*` via `git show --stat`.
-- Workspace HEAD: the **S44 close-out commit** (SESSION_LOG.md S44 entry +
-  SESSION_TRANSITION_TEMPLATE.md refill + LESSONS.md fold), succeeding `fa06689`
-  (the S44-prompt doc-edit, which itself succeeded `ee97f0c`). S45 Phase 0 Step 0.1
-  anchors workspace expectation there (or a later doc-edit commit succeeding it).
-  NOTE: the operator-side uncommitted edit to `SESSION_36_PROMPT.md` is still
-  unstaged since S36 — tolerate it.
-- Canonical baseline: **970 tests** (16-path; UNCHANGED from S27-S44 close — the
-  S43 kit lives in `tools/` + `tests/drift/`, outside the sweep; re-derived green
-  at S44 open, 72.67s). S44 shipped no code, so no count moved.
-- Combined baseline: **1077 tests** (the 16-path 970 + the S38 hermetic guard
-  13 + the drift sub-suite `tests/drift/` **94** [22 fetch + 21 S40 classify + 13
-  classify-native + 6 S41 remediation + 3 S42 E18 pin + 29 S43 cadence]). This is
-  the cumulative-gate floor (was 1048 at S42); S45 Phase 0.5 must assert
-  against **1077, NOT 1048**, and never let it decrease.
+Anchors for Session 46 cold start:
+- Repo HEAD: **`c9921d2`** (S45 3b — per-shard union helper + RUNBOOK/coverage reconcile;
+  +404/-48, 3 files). Parent `b95df00` (S44 post-close validator recall fix). Canonical
+  970 UNCHANGED at `c9921d2` (union lives in `tools/` + `tests/drift/`, outside the sweep);
+  combined floor 1077 -> **1086** (+9 union tests in `tests/drift/`). Tolerated delta:
+  operator-side eval_data labeling commits — verify each is strictly `eval_data/*` via
+  `git show --stat`.
+- Workspace HEAD: the **S45 close-out commit** (SESSION_LOG.md S45 entry +
+  SESSION_TRANSITION_TEMPLATE.md refill + LESSONS.md fold), succeeding `39f39b7`
+  (the S45-scope/prompt commit). S46 Phase 0 Step 0.1 anchors workspace expectation
+  there (or a later doc-edit commit succeeding it). NOTE: the operator-side uncommitted
+  edit to `SESSION_36_PROMPT.md` is still unstaged since S36 — tolerate it.
+- Canonical baseline: **970 tests** (16-path; UNCHANGED from S27-S45 close — the
+  S43 kit + S45 union live in `tools/` + `tests/drift/`, outside the sweep; re-derived
+  green at S45 open, 73.0s).
+- Combined baseline: **1086 tests** (the 16-path 970 + the S38 hermetic guard
+  13 + the drift sub-suite `tests/drift/` **103** [22 fetch + 21 S40 classify + 13
+  classify-native + 6 S41 remediation + 3 S42 E18 pin + 29 S43 cadence + 9 S45 union]).
+  This is the cumulative-gate floor (was 1077 at S44); S46 Phase 0.5 must assert
+  against **1086, NOT 1077**, and never let it decrease.
 - Narrower baseline: **944 tests** (14-path; 970 minus 19 cost_journal_adls
   minus 7 robots_gate_integration). Unchanged.
 - Fixture counts (Phase 0 Step 0.4): html=222 / expected=202 /
@@ -179,9 +168,10 @@ ONE commit, four files:
 ## Repository state — `/Users/administrator/projects/barcada-scraper/`
 
 - Branch: `main`
-- Last commit SHA: `b95df00` (post-S44 domain_validator recall fix). Parent `9f6f66d`
-  (S43 WA0.W7.drift-cadence-kit).
-- Branch sync with `origin/main`: pushed (`9f6f66d..b95df00`; 0 ahead / 0 behind verified).
+- Last commit SHA: `c9921d2` (S45 3b — per-shard union helper + RUNBOOK reconcile).
+  Parent `b95df00` (S44 post-close validator recall fix).
+- Branch sync with `origin/main`: `c9921d2` committed, **push pending operator confirm**
+  at S45 close (prior `b95df00` already on origin/main).
 - Tags (16 total; UNCHANGED at S43 — operational cadence placed NO tag):
   - `pre-remediation-2026-05-19` / `baseline-v0` (`9e9a1fb`)
   - `workstream-0-week1-end` … `week7-end`
